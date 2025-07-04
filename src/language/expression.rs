@@ -4,7 +4,7 @@ use super::{Language, SymbolId};
 
 pub type VariableId = usize;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Expression {
     Variable(VariableId),
     Symbol {
@@ -25,8 +25,11 @@ impl Expression {
         }
     }
 
-    pub fn variable_id(name: &str) -> VariableId {
-        todo!()
+    pub fn nice_variable_id(name: &str) -> VariableId {
+        Self::NICE_VARIABLES
+            .iter()
+            .position(|x| name == *x)
+            .unwrap()
     }
 
     pub fn with_language<'e, 'l>(&'e self, language: &'l Language) -> LangExpression<'e, 'l> {

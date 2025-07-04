@@ -1,34 +1,43 @@
-use super::{
-    Language, SymbolId,
-    expression::{Expression, VariableId},
-};
+use super::{Language, expression::Expression};
+use pest::{Parser, iterators::Pair};
+use pest_derive::Parser;
+
+#[derive(Parser)]
+#[grammar = "language/grammar.pest"]
+struct LanguageParser;
 
 impl Language {
-    fn parse_variable(&self, s: &str) -> Option<VariableId> {
-        Expression::NICE_VARIABLES
-            .iter()
-            .position(|x| *x == s)
-            .or(s.strip_prefix("x").map(|n| n.parse().ok()).flatten())
-    }
+    fn parse_expression(&self, pair: Pair<Rule>) -> Expression {
+        match pair.as_rule() {
+            Rule::standalone_expression | Rule::expression => {
+                self.parse_expression(pair.into_inner().next().unwrap())
+            }
+            Rule::nice_variable => {
+                Expression::Variable(Expression::nice_variable_id(pair.as_str()))
+            }
+            Rule::numbered_variable => {
+                Expression::Variable(pair.into_inner().next().unwrap().as_str().parse().unwrap())
+            }
+            Rule::variable => self.parse_expression(pair.into_inner().next().unwrap()),
+            Rule::symbol_call => {
+                let mut inner = pair.into_inner();
+                let id = self.get_id(inner.next().unwrap().as_str());
+                let children = inner.map(|e| self.parse_expression(e)).collect();
 
-    fn parse_symbol(&self, s: &str) -> Option<(SymbolId, Vec<Expression>)> {
-        let mut insides = s.strip_prefix("(")?.strip_suffix(")")?.split(" ");
-        let id = self.try_get_id(insides.next()?)?;
-        let mut children = Vec::with_capacity(insides.size_hint().0);
-
-        for inside in insides {
-            children.push(self.parse_expr(inside)?);
+                Expression::Symbol { id, children }
+            }
+            Rule::symbol_char | Rule::WHITESPACE | Rule::EOI | Rule::symbol_name | Rule::number => {
+                unreachable!()
+            }
         }
-
-        Some((id, children))
     }
 
-    pub fn parse_expr(&self, s: &str) -> Option<Expression> {
-        self.parse_variable(s)
-            .map(|id| Expression::Variable(id))
-            .or(self
-                .parse_symbol(s)
-                .map(|(id, children)| Expression::Symbol { id, children }))
+    pub fn parse(&self, string: &str) -> Result<Expression, pest::error::Error<Rule>> {
+        let expr = LanguageParser::parse(Rule::standalone_expression, string)?
+            .next()
+            .unwrap();
+
+        Ok(self.parse_expression(expr))
     }
 }
 
@@ -40,15 +49,17 @@ mod tests {
     };
 
     #[test]
-    fn parse_variable() {
+    fn parse_variable() -> Result<(), pest::error::Error<super::Rule>> {
         let lang = Language::default();
 
-        assert_eq!(Some(0), lang.parse_variable("x0"));
-        assert_eq!(Some(5), lang.parse_variable("x5"));
-        assert_eq!(Some(123), lang.parse_variable("x123"));
+        assert_eq!(Ok(Expression::Variable(0)), lang.parse("x0"));
+        assert_eq!(Ok(Expression::Variable(5)), lang.parse("x5"));
+        assert_eq!(Ok(Expression::Variable(123)), lang.parse("x123"));
         for var in Expression::NICE_VARIABLES {
-            assert_ne!(None, lang.parse_variable(var));
+            lang.parse(var)?;
         }
+
+        Ok(())
     }
 
     fn expect_variable(expr: &Expression) -> VariableId {
@@ -59,17 +70,56 @@ mod tests {
         *id
     }
 
+    fn expect_symbol<'a>(name: &str, lang: &Language, expr: &'a Expression) -> &'a Vec<Expression> {
+        let Expression::Symbol { id, children } = expr else {
+            panic!("Expected symbol but did not find a symbol")
+        };
+
+        assert_eq!(lang.get_id(name), *id);
+
+        children
+    }
+
     #[test]
     fn parse_symbol() {
         let lang = Language::math();
-        let (id, children) = lang.parse_symbol("(+ x y z)").unwrap();
-        let x = expect_variable(&children[0]);
-        let y = expect_variable(&children[1]);
-        let z = expect_variable(&children[2]);
+        let expr = lang.parse("(+ x y z)").unwrap();
+        let plus_children = expect_symbol("+", &lang, &expr);
+        let x = expect_variable(&plus_children[0]);
+        let y = expect_variable(&plus_children[1]);
+        let z = expect_variable(&plus_children[2]);
 
-        assert_eq!(id, lang.get_id("+"));
-        assert_eq!(x, Expression::variable_id("x"));
-        assert_eq!(y, Expression::variable_id("y"));
-        assert_eq!(z, Expression::variable_id("z"));
+        assert_eq!(plus_children.len(), 3);
+
+        assert_eq!(x, Expression::nice_variable_id("x"));
+        assert_eq!(y, Expression::nice_variable_id("y"));
+        assert_eq!(z, Expression::nice_variable_id("z"));
+    }
+
+    #[test]
+    fn parse_expression() {
+        let lang = Language::math();
+        let expr = lang.parse("(+ (sin x) y (- z y))").unwrap();
+
+        let plus_args = expect_symbol("+", &lang, &expr);
+        assert_eq!(plus_args.len(), 3);
+
+        let sin_arg = expect_symbol("sin", &lang, &plus_args[0]);
+        assert_eq!(sin_arg.len(), 1);
+
+        let x = expect_variable(&sin_arg[0]);
+        assert_eq!(x, Expression::nice_variable_id("x"));
+
+        let y = expect_variable(&plus_args[1]);
+        assert_eq!(y, Expression::nice_variable_id("y"));
+
+        let minus_args = expect_symbol("-", &lang, &plus_args[2]);
+        assert_eq!(minus_args.len(), 2);
+
+        let z = expect_variable(&minus_args[0]);
+        assert_eq!(z, Expression::nice_variable_id("z"));
+
+        let y = expect_variable(&minus_args[1]);
+        assert_eq!(y, Expression::nice_variable_id("y"));
     }
 }
