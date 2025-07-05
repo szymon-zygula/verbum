@@ -2,6 +2,7 @@ use std::cell::Cell;
 
 pub type SetId = usize;
 
+// TODO: make two union finds: compressing and not notpressing?
 #[derive(Default)]
 pub struct UnionFind {
     parents: Vec<Cell<SetId>>,
@@ -33,7 +34,9 @@ impl UnionFind {
     }
 
     pub fn union(&mut self, id_1: SetId, id_2: SetId) {
-        self.parents[id_1] = Cell::new(id_2);
+        let id_1_canon = self.find(id_1);
+        let id_2_canon = self.find(id_2);
+        self.parents[id_1_canon] = Cell::new(id_2_canon);
     }
 
     pub fn find_no_compress(&self, id: SetId) -> SetId {
