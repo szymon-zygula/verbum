@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use itertools::Itertools;
 
-use crate::language::expression::{Expression, Symbol, VarFreeExpression, VariableId};
+use crate::language::{
+    expression::{Expression, VarFreeExpression, VariableId},
+    symbol::Symbol,
+};
 
 #[derive(Clone, Debug, Default)]
 pub struct Matches<'e> {

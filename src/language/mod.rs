@@ -1,7 +1,8 @@
+use symbol::SymbolId;
+
 pub mod expression;
 pub mod parsing;
-
-pub type SymbolId = usize;
+pub mod symbol;
 
 #[derive(Default)]
 pub struct Language {

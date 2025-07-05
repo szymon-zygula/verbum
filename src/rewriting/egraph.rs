@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    language::{Language, SymbolId},
+    language::{Language, symbol::SymbolId},
     union_find::UnionFind,
 };
 
