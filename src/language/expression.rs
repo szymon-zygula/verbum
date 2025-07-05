@@ -47,7 +47,7 @@ impl Expression {
         if Self::USE_NICE_VARIABLES && id < Self::NICE_VARIABLES.len() {
             String::from(Self::NICE_VARIABLES[id])
         } else {
-            format!("x{}", id)
+            format!("x{id}")
         }
     }
 
@@ -137,16 +137,10 @@ impl<'e, 'l> std::fmt::Display for LangExpression<'e, 'l, Expression> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.expression.as_ref() {
             Expression::Variable(id) => write!(f, "{}", Expression::variable_name(*id)),
-            Expression::Symbol(Symbol { id, children }) => {
-                write!(f, "({}", self.language.get_symbol(*id))?;
-                for child in children {
-                    write!(f, " {}", child.with_language(self.language))?;
-                }
-                write!(f, ")")
-            }
+            Expression::Symbol(symbol) => symbol.fmt(f, self.language),
             Expression::Literal(literal) => match literal {
-                Literal::UInt(uint) => write!(f, "{}u", uint),
-                Literal::Int(int) => write!(f, "{}", int),
+                Literal::UInt(uint) => write!(f, "{uint}u"),
+                Literal::Int(int) => write!(f, "{int}"),
             },
         }
     }
@@ -155,16 +149,10 @@ impl<'e, 'l> std::fmt::Display for LangExpression<'e, 'l, Expression> {
 impl<'e, 'l> std::fmt::Display for LangExpression<'e, 'l, VarFreeExpression> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.expression.as_ref() {
-            VarFreeExpression::Symbol(Symbol { id, children }) => {
-                write!(f, "({}", self.language.get_symbol(*id))?;
-                for child in children {
-                    write!(f, " {}", child.with_language(self.language))?;
-                }
-                write!(f, ")")
-            }
+            VarFreeExpression::Symbol(symbol) => symbol.fmt(f, self.language),
             VarFreeExpression::Literal(literal) => match literal {
-                Literal::UInt(uint) => write!(f, "{}u", uint),
-                Literal::Int(int) => write!(f, "{}", int),
+                Literal::UInt(uint) => write!(f, "{uint}u"),
+                Literal::Int(int) => write!(f, "{int}"),
             },
         }
     }

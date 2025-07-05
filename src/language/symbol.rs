@@ -16,7 +16,11 @@ impl<'e, 'l, E: AnyExpression> Symbol<E>
 where
     LangExpression<'e, 'l, E>: std::fmt::Display,
 {
-    fn fmt(&'e self, f: &mut std::fmt::Formatter<'_>, language: &'l Language) -> std::fmt::Result {
+    pub fn fmt(
+        &'e self,
+        f: &mut std::fmt::Formatter<'_>,
+        language: &'l Language,
+    ) -> std::fmt::Result {
         write!(f, "({}", language.get_symbol(self.id))?;
         for child in &self.children {
             write!(f, " {}", child.with_language(language))?;
