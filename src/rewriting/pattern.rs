@@ -36,7 +36,7 @@ impl<'e> Matches<'e> {
     }
 
     pub fn at(&self, variable: VariableId) -> Option<&'e VarFreeExpression> {
-        self.substitutions.get(&variable).map(|x| *x)
+        self.substitutions.get(&variable).copied()
     }
 
     pub fn set(&mut self, variable: VariableId, expression: &'e VarFreeExpression) {
@@ -71,7 +71,7 @@ impl Expression {
                     None
                 }
             }
-            (Expression::Variable(variable), expression @ _) => Some(Matches::<'e> {
+            (Expression::Variable(variable), expression) => Some(Matches::<'e> {
                 substitutions: HashMap::from([(*variable, expression)]),
             }),
             (Expression::Literal(lit_1), VarFreeExpression::Literal(lit_2)) => {

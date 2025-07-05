@@ -41,7 +41,7 @@ impl Language {
         }
     }
 
-    pub fn parse(&self, string: &str) -> Result<Expression, pest::error::Error<Rule>> {
+    pub fn parse(&self, string: &str) -> anyhow::Result<Expression> {
         let expr = LanguageParser::parse(Rule::standalone_expression, string)?
             .next()
             .unwrap();
@@ -66,12 +66,12 @@ mod tests {
     };
 
     #[test]
-    fn parse_variable() -> Result<(), pest::error::Error<super::Rule>> {
+    fn parse_variable() -> anyhow::Result<()> {
         let lang = Language::default();
 
-        assert_eq!(Ok(Expression::Variable(0)), lang.parse("x0"));
-        assert_eq!(Ok(Expression::Variable(5)), lang.parse("x5"));
-        assert_eq!(Ok(Expression::Variable(123)), lang.parse("x123"));
+        assert_eq!(Expression::Variable(0), lang.parse("x0").unwrap());
+        assert_eq!(Expression::Variable(5), lang.parse("x5").unwrap());
+        assert_eq!(Expression::Variable(123), lang.parse("x123").unwrap());
         for var in Expression::NICE_VARIABLES {
             lang.parse(var)?;
         }
