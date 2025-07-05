@@ -1,5 +1,3 @@
-use std::ops::Index;
-
 pub mod expression;
 pub mod parsing;
 
