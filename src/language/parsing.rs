@@ -1,4 +1,7 @@
-use super::{Language, expression::Expression};
+use super::{
+    Language,
+    expression::{Expression, Literal, Symbol},
+};
 use pest::{Parser, iterators::Pair};
 use pest_derive::Parser;
 
@@ -24,8 +27,13 @@ impl Language {
                 let id = self.get_id(inner.next().unwrap().as_str());
                 let children = inner.map(|e| self.parse_expression(e)).collect();
 
-                Expression::Symbol { id, children }
+                Expression::Symbol(Symbol { id, children })
             }
+            Rule::literal => self.parse_expression(pair.into_inner().next().unwrap()),
+            Rule::integer => Expression::Literal(Literal::Int(pair.as_str().parse().unwrap())),
+            Rule::unsigned_integer => Expression::Literal(Literal::UInt(
+                pair.as_str().strip_suffix("u").unwrap().parse().unwrap(),
+            )),
             Rule::symbol_char | Rule::WHITESPACE | Rule::EOI | Rule::symbol_name | Rule::number => {
                 unreachable!()
             }
@@ -45,7 +53,7 @@ impl Language {
 mod tests {
     use crate::language::{
         Language,
-        expression::{Expression, VariableId},
+        expression::{Expression, Literal, Symbol, VariableId},
     };
 
     #[test]
@@ -71,7 +79,7 @@ mod tests {
     }
 
     fn expect_symbol<'a>(name: &str, lang: &Language, expr: &'a Expression) -> &'a Vec<Expression> {
-        let Expression::Symbol { id, children } = expr else {
+        let Expression::Symbol(Symbol { id, children }) = expr else {
             panic!("Expected symbol but did not find a symbol")
         };
 
@@ -121,5 +129,52 @@ mod tests {
 
         let y = expect_variable(&minus_args[1]);
         assert_eq!(y, Expression::nice_variable_id("y"));
+    }
+
+    #[test]
+    fn parse_integers_simple() {
+        let lang = Language::math();
+
+        let expr = lang.parse("12").unwrap();
+        assert!(matches!(expr, Expression::Literal(Literal::Int(12))));
+
+        let expr = lang.parse("0").unwrap();
+        assert!(matches!(expr, Expression::Literal(Literal::Int(0))));
+
+        let expr = lang.parse("-42").unwrap();
+        assert!(matches!(expr, Expression::Literal(Literal::Int(-42))));
+    }
+
+    #[test]
+    fn parse_unsigned_integers_simple() {
+        let lang = Language::math();
+
+        let expr = lang.parse("12u").unwrap();
+        assert!(matches!(expr, Expression::Literal(Literal::UInt(12))));
+
+        let expr = lang.parse("0u").unwrap();
+        assert!(matches!(expr, Expression::Literal(Literal::UInt(0))));
+
+        assert!(lang.parse("-42u").is_err());
+    }
+
+    #[test]
+    fn parse_integers_many() {
+        let lang = Language::math();
+
+        let expr = lang.parse("(+ -12 0u 4u 128)").unwrap();
+        let children = expect_symbol("+", &lang, &expr);
+
+        assert_eq!(children.len(), 4);
+        assert!(matches!(
+            children[0],
+            Expression::Literal(Literal::Int(-12))
+        ));
+        assert!(matches!(children[1], Expression::Literal(Literal::UInt(0))));
+        assert!(matches!(children[2], Expression::Literal(Literal::UInt(4))));
+        assert!(matches!(
+            children[3],
+            Expression::Literal(Literal::Int(128))
+        ));
     }
 }

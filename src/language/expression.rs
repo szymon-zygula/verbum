@@ -5,12 +5,28 @@ use super::{Language, SymbolId};
 pub type VariableId = usize;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Literal {
+    UInt(u64),
+    Int(i64),
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Symbol<E> {
+    pub id: SymbolId,
+    pub children: Vec<E>,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum VarFreeExpression {
+    Literal(Literal),
+    Symbol(Symbol<VarFreeExpression>),
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Expression {
+    Literal(Literal),
+    Symbol(Symbol<Expression>),
     Variable(VariableId),
-    Symbol {
-        id: SymbolId,
-        children: Vec<Expression>,
-    },
 }
 
 impl Expression {
@@ -36,6 +52,25 @@ impl Expression {
         LangExpression {
             expression: Cow::Borrowed(self),
             language,
+        }
+    }
+
+    pub fn without_variables(&self) -> Option<VarFreeExpression> {
+        match self {
+            Expression::Variable(_) => None,
+            Expression::Symbol(Symbol { id, children }) => {
+                let mut children_no_vars = Vec::with_capacity(children.len());
+
+                for child in children {
+                    children_no_vars.push(child.without_variables()?);
+                }
+
+                Some(VarFreeExpression::Symbol(Symbol {
+                    id: *id,
+                    children: children_no_vars,
+                }))
+            }
+            Expression::Literal(literal) => Some(VarFreeExpression::Literal(literal.clone())),
         }
     }
 }
@@ -65,13 +100,17 @@ impl<'e, 'l> std::fmt::Display for LangExpression<'e, 'l> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.expression.as_ref() {
             Expression::Variable(id) => write!(f, "{}", Expression::variable_name(*id)),
-            Expression::Symbol { id, children } => {
+            Expression::Symbol(Symbol { id, children }) => {
                 write!(f, "({}", self.language.get_symbol(*id))?;
                 for child in children {
                     write!(f, " {}", child.with_language(self.language))?;
                 }
                 write!(f, ")")
             }
+            Expression::Literal(literal) => match literal {
+                Literal::UInt(uint) => write!(f, "{}u", uint),
+                Literal::Int(int) => write!(f, "{}", int),
+            },
         }
     }
 }

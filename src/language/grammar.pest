@@ -1,10 +1,13 @@
 number = @{ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* | "0" }
+unsigned_integer = @{ number ~ "u" }
+integer = @{ "-"? ~ number  }
 nice_variable = { "x" | "y" | "z" | "w" | "α" | "β" | "γ" | "δ" }
 numbered_variable = ${ "x" ~ number }
 variable = { numbered_variable | nice_variable }
 symbol_char = @{ ASCII_ALPHANUMERIC | "+" | "-" | "*" | "\\" }
 symbol_name = @{ symbol_char* }
 symbol_call = { "(" ~ symbol_name ~ expression* ~ ")"}
-expression = { symbol_call | variable }
+literal = { unsigned_integer | integer }
+expression = { symbol_call | variable | literal }
 standalone_expression = { SOI ~ expression ~ EOI }
 WHITESPACE = _{ " " }
