@@ -1,6 +1,6 @@
 use super::{
     Language,
-    expression::{Expression, Literal, Symbol},
+    expression::{Expression, Literal, Symbol, VarFreeExpression},
 };
 use pest::{Parser, iterators::Pair};
 use pest_derive::Parser;
@@ -46,6 +46,14 @@ impl Language {
             .unwrap();
 
         Ok(self.parse_expression(expr))
+    }
+
+    pub fn parse_no_vars(&self, string: &str) -> anyhow::Result<VarFreeExpression> {
+        self.parse(string)?
+            .without_variables()
+            .ok_or(anyhow::Error::msg(
+                "Trying to parse an expression with variables as VarFreeExpression",
+            ))
     }
 }
 
