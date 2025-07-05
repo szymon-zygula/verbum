@@ -61,7 +61,7 @@ impl Language {
 mod tests {
     use crate::language::{
         Language,
-        expression::{Expression, Literal, Symbol, VariableId},
+        expression::{Expression, Literal},
     };
 
     #[test]
@@ -78,32 +78,14 @@ mod tests {
         Ok(())
     }
 
-    fn expect_variable(expr: &Expression) -> VariableId {
-        let Expression::Variable(id) = expr else {
-            panic!("Expected variable but did not find it")
-        };
-
-        *id
-    }
-
-    fn expect_symbol<'a>(name: &str, lang: &Language, expr: &'a Expression) -> &'a Vec<Expression> {
-        let Expression::Symbol(Symbol { id, children }) = expr else {
-            panic!("Expected symbol but did not find a symbol")
-        };
-
-        assert_eq!(lang.get_id(name), *id);
-
-        children
-    }
-
     #[test]
     fn parse_symbol() {
         let lang = Language::math();
         let expr = lang.parse("(+ x y z)").unwrap();
-        let plus_children = expect_symbol("+", &lang, &expr);
-        let x = expect_variable(&plus_children[0]);
-        let y = expect_variable(&plus_children[1]);
-        let z = expect_variable(&plus_children[2]);
+        let plus_children = expr.expect_symbol("+", &lang);
+        let x = plus_children[0].expect_variable();
+        let y = plus_children[1].expect_variable();
+        let z = plus_children[2].expect_variable();
 
         assert_eq!(plus_children.len(), 3);
 
@@ -117,25 +99,25 @@ mod tests {
         let lang = Language::math();
         let expr = lang.parse("(+ (sin x) y (- z y))").unwrap();
 
-        let plus_args = expect_symbol("+", &lang, &expr);
+        let plus_args = expr.expect_symbol("+", &lang);
         assert_eq!(plus_args.len(), 3);
 
-        let sin_arg = expect_symbol("sin", &lang, &plus_args[0]);
+        let sin_arg = plus_args[0].expect_symbol("sin", &lang);
         assert_eq!(sin_arg.len(), 1);
 
-        let x = expect_variable(&sin_arg[0]);
+        let x = sin_arg[0].expect_variable();
         assert_eq!(x, Expression::nice_variable_id("x"));
 
-        let y = expect_variable(&plus_args[1]);
+        let y = plus_args[1].expect_variable();
         assert_eq!(y, Expression::nice_variable_id("y"));
 
-        let minus_args = expect_symbol("-", &lang, &plus_args[2]);
+        let minus_args = plus_args[2].expect_symbol("-", &lang);
         assert_eq!(minus_args.len(), 2);
 
-        let z = expect_variable(&minus_args[0]);
+        let z = minus_args[0].expect_variable();
         assert_eq!(z, Expression::nice_variable_id("z"));
 
-        let y = expect_variable(&minus_args[1]);
+        let y = minus_args[1].expect_variable();
         assert_eq!(y, Expression::nice_variable_id("y"));
     }
 
@@ -171,7 +153,7 @@ mod tests {
         let lang = Language::math();
 
         let expr = lang.parse("(+ -12 0u 4u 128)").unwrap();
-        let children = expect_symbol("+", &lang, &expr);
+        let children = expr.expect_symbol("+", &lang);
 
         assert_eq!(children.len(), 4);
         assert!(matches!(

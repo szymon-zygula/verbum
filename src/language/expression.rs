@@ -10,18 +10,48 @@ pub enum Literal {
     Int(i64),
 }
 
+/// A symbol with `id` as its ID and children of type `E`
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Symbol<E> {
+pub struct Symbol<E: AnyExpression> {
     pub id: SymbolId,
     pub children: Vec<E>,
 }
 
+impl<'e, 'l, E: AnyExpression> Symbol<E>
+where
+    LangExpression<'e, 'l, E>: std::fmt::Display,
+{
+    fn fmt(&'e self, f: &mut std::fmt::Formatter<'_>, language: &'l Language) -> std::fmt::Result {
+        write!(f, "({}", language.get_symbol(self.id))?;
+        for child in &self.children {
+            write!(f, " {}", child.with_language(language))?;
+        }
+        write!(f, ")")
+    }
+}
+
+/// An expression which does not admit variables
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum VarFreeExpression {
     Literal(Literal),
     Symbol(Symbol<VarFreeExpression>),
 }
 
+impl VarFreeExpression {
+    /// Panics if `self` is not a symbol represented by `name` in `lang`. Returns its children otherwise.
+    /// Just for doing tests.
+    pub fn expect_symbol<'a>(&'a self, name: &str, lang: &Language) -> &'a Vec<Self> {
+        let Self::Symbol(Symbol { id, children }) = self else {
+            panic!("Expected symbol but did not find a symbol")
+        };
+
+        assert_eq!(lang.get_id(name), *id);
+
+        children
+    }
+}
+
+/// An expression with variables
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Expression {
     Literal(Literal),
@@ -48,13 +78,7 @@ impl Expression {
             .unwrap()
     }
 
-    pub fn with_language<'e, 'l>(&'e self, language: &'l Language) -> LangExpression<'e, 'l> {
-        LangExpression {
-            expression: Cow::Borrowed(self),
-            language,
-        }
-    }
-
+    /// Returns `None` if `self` contains variables, or a corresponding `VarFreeExpression` if it does not
     pub fn without_variables(&self) -> Option<VarFreeExpression> {
         match self {
             Expression::Variable(_) => None,
@@ -73,22 +97,55 @@ impl Expression {
             Expression::Literal(literal) => Some(VarFreeExpression::Literal(literal.clone())),
         }
     }
+
+    /// Panics if `self` is not a variable, returns its ID otherwise. Just for doing tests.
+    pub fn expect_variable(&self) -> VariableId {
+        let Self::Variable(id) = self else {
+            panic!("Expected variable but did not find it")
+        };
+
+        *id
+    }
+
+    /// Panics if `self` is not a symbol represented by `name` in `lang`. Returns its children otherwise.
+    /// Just for doing tests.
+    pub fn expect_symbol<'a>(&'a self, name: &str, lang: &Language) -> &'a Vec<Self> {
+        let Self::Symbol(Symbol { id, children }) = self else {
+            panic!("Expected symbol but did not find a symbol")
+        };
+
+        assert_eq!(lang.get_id(name), *id);
+
+        children
+    }
 }
 
-pub struct LangExpression<'e, 'l> {
-    pub expression: Cow<'e, Expression>,
+pub trait AnyExpression: Clone + 'static {
+    fn with_language<'e, 'l>(&'e self, language: &'l Language) -> LangExpression<'e, 'l, Self> {
+        LangExpression {
+            expression: Cow::Borrowed(self),
+            language,
+        }
+    }
+}
+
+impl AnyExpression for Expression {}
+impl AnyExpression for VarFreeExpression {}
+
+pub struct LangExpression<'e, 'l, E: AnyExpression> {
+    pub expression: Cow<'e, E>,
     pub language: &'l Language,
 }
 
-impl<'e, 'l> LangExpression<'e, 'l> {
-    fn owned(expression: Expression, language: &'l Language) -> LangExpression<'static, 'l> {
-        LangExpression::<'static, 'l> {
+impl<'e, 'l, E: AnyExpression> LangExpression<'e, 'l, E> {
+    fn owned(expression: E, language: &'l Language) -> Self {
+        LangExpression::<'static, 'l, E> {
             expression: Cow::Owned(expression),
             language,
         }
     }
 
-    fn borrowed(expression: &'e Expression, language: &'l Language) -> LangExpression<'e, 'l> {
+    fn borrowed(expression: &'e E, language: &'l Language) -> Self {
         Self {
             expression: Cow::Borrowed(expression),
             language,
@@ -96,7 +153,7 @@ impl<'e, 'l> LangExpression<'e, 'l> {
     }
 }
 
-impl<'e, 'l> std::fmt::Display for LangExpression<'e, 'l> {
+impl<'e, 'l> std::fmt::Display for LangExpression<'e, 'l, Expression> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.expression.as_ref() {
             Expression::Variable(id) => write!(f, "{}", Expression::variable_name(*id)),
@@ -108,6 +165,24 @@ impl<'e, 'l> std::fmt::Display for LangExpression<'e, 'l> {
                 write!(f, ")")
             }
             Expression::Literal(literal) => match literal {
+                Literal::UInt(uint) => write!(f, "{}u", uint),
+                Literal::Int(int) => write!(f, "{}", int),
+            },
+        }
+    }
+}
+
+impl<'e, 'l> std::fmt::Display for LangExpression<'e, 'l, VarFreeExpression> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.expression.as_ref() {
+            VarFreeExpression::Symbol(Symbol { id, children }) => {
+                write!(f, "({}", self.language.get_symbol(*id))?;
+                for child in children {
+                    write!(f, " {}", child.with_language(self.language))?;
+                }
+                write!(f, ")")
+            }
+            VarFreeExpression::Literal(literal) => match literal {
                 Literal::UInt(uint) => write!(f, "{}u", uint),
                 Literal::Int(int) => write!(f, "{}", int),
             },
