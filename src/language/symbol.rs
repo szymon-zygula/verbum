@@ -6,8 +6,8 @@ use super::{
 pub type SymbolId = usize;
 
 /// A symbol with `id` as its ID and children of type `E`
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Symbol<E: AnyExpression> {
+#[derive(Clone, Hash, PartialEq, Eq, Debug)]
+pub struct Symbol<E> {
     pub id: SymbolId,
     pub children: Vec<E>,
 }

@@ -4,7 +4,7 @@ use super::{Language, symbol::Symbol};
 
 pub type VariableId = usize;
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub enum Literal {
     UInt(u64),
     Int(i64),
