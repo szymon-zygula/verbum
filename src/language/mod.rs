@@ -22,7 +22,8 @@ impl Language {
     }
 
     pub fn get_id(&self, name: &str) -> SymbolId {
-        self.try_get_id(name).unwrap()
+        self.try_get_id(name)
+            .unwrap_or_else(|| panic!("Symbol not present in the language: {name}"))
     }
 
     pub fn try_get_id(&self, name: &str) -> Option<SymbolId> {
