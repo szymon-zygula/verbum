@@ -8,7 +8,7 @@ use std::{
 type SetId = usize;
 type DataId = usize;
 
-trait UnionData: Debug {
+pub trait UnionData: Debug {
     fn merge(&mut self, other: Self);
 }
 
@@ -122,6 +122,10 @@ impl<D: UnionData> Set<D> {
 
         self
     }
+
+    pub fn data_intro<R>(&self, fun: impl FnOnce(&D) -> R) -> R {
+        fun(&self.union_find.borrow().data[&self.union_find.borrow().find(self.set_id.get()).0])
+    }
 }
 
 impl<D: UnionData> PartialEq for Set<D> {
@@ -139,6 +143,8 @@ impl UnionData for () {
 #[cfg(test)]
 mod tests {
     use std::{cell::RefCell, rc::Rc};
+
+    use super::UnionData;
 
     #[test]
     fn creation_with_addition() {
@@ -232,5 +238,37 @@ mod tests {
         assert_ne!(set_2, set_3);
         assert_eq!(set_1, set_31);
         assert_ne!(set_2, set_31);
+    }
+
+    #[derive(Clone, Debug, Default)]
+    struct TestData(i32);
+
+    impl UnionData for TestData {
+        fn merge(&mut self, other: Self) {
+            self.0 += other.0;
+        }
+    }
+
+    #[test]
+    fn merge_with_data() {
+        let uf = Rc::new(RefCell::new(super::UnionFind::default()));
+        let set_0 = super::Set::new(&uf, TestData(2));
+        let set_1 = super::Set::new(&uf, TestData(5));
+        let set_2 = super::Set::new(&uf, TestData(9));
+
+        let set_01 = set_0.clone().union(set_1.clone());
+
+        assert_eq!(set_0.data_intro(|data| data.0), 7);
+        assert_eq!(set_1.data_intro(|data| data.0), 7);
+        assert_eq!(set_01.data_intro(|data| data.0), 7);
+        assert_eq!(set_2.data_intro(|data| data.0), 9);
+
+        let set_21 = set_2.clone().union(set_1.clone());
+
+        assert_eq!(set_0.data_intro(|data| data.0), 16);
+        assert_eq!(set_1.data_intro(|data| data.0), 16);
+        assert_eq!(set_01.data_intro(|data| data.0), 16);
+        assert_eq!(set_2.data_intro(|data| data.0), 16);
+        assert_eq!(set_21.data_intro(|data| data.0), 16);
     }
 }
