@@ -65,7 +65,7 @@ impl Class {
     }
 }
 
-// TODO: When new nodes are added, they are not deduplicated
+// TODO: rebuilding after class merging
 #[derive(Default)]
 struct EGraph {
     union_find: UnionFind,
@@ -103,6 +103,10 @@ impl EGraph {
     }
 
     fn add_node(&mut self, node: Node) -> NodeId {
+        if let Some(&old_id) = self.node_id(&node).as_ref() {
+            return old_id;
+        }
+
         let class_id = self.union_find.add();
         let node_id = class_id;
 
@@ -196,7 +200,8 @@ mod tests {
     use crate::{
         language::{
             Language,
-            expression::{Literal::UInt, VarFreeExpression},
+            expression::{Literal, VarFreeExpression},
+            symbol::Symbol,
         },
         rewriting::egraph::Node,
     };
@@ -245,7 +250,9 @@ mod tests {
     fn node_and_node_id() {
         let mut egraph = EGraph::default();
 
-        let nodes = (0..10).map(|i| Node::Literal(UInt(i))).collect_vec();
+        let nodes = (0..10)
+            .map(|i| Node::Literal(Literal::UInt(i)))
+            .collect_vec();
         let node_ids = nodes
             .iter()
             .cloned()
@@ -280,5 +287,40 @@ mod tests {
             assert_eq!(parent_ids.len(), 1);
             assert_eq!(*parent_ids.iter().next().unwrap(), node_id);
         }
+    }
+
+    #[test]
+    fn double_node_addition() {
+        let mut egraph = EGraph::default();
+
+        let literal_1 = Node::Literal(Literal::UInt(5));
+        let literal_2 = Node::Literal(Literal::UInt(7));
+
+        let node_1_id = egraph.add_node(literal_1.clone());
+        let node_1_id_ = egraph.add_node(literal_1);
+        assert_eq!(node_1_id, node_1_id_);
+
+        let node_2_id = egraph.add_node(literal_2);
+
+        let class_1_id = egraph.containing_class(node_1_id);
+        let class_2_id = egraph.containing_class(node_2_id);
+
+        let symbol_1 = Node::Symbol(Symbol {
+            id: 0,
+            children: vec![class_1_id, class_2_id],
+        });
+
+        let node_3_id = egraph.add_node(symbol_1.clone());
+
+        egraph.merge_classes(class_1_id, class_2_id);
+
+        let symbol_2 = Node::Symbol(Symbol {
+            id: 0,
+            children: vec![class_2_id, class_1_id],
+        });
+        let node_4_id = egraph.add_node(symbol_2.clone());
+
+        assert_eq!(egraph.node_id(&symbol_1), egraph.node_id(&symbol_2));
+        assert_eq!(node_3_id, node_4_id);
     }
 }
