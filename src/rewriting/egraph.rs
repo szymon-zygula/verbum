@@ -5,7 +5,7 @@ use itertools::Itertools;
 use crate::{
     language::{
         expression::{Literal, VarFreeExpression},
-        symbol::Symbol,
+        symbol::{Symbol, SymbolId},
     },
     union_find::UnionFind,
 };
@@ -14,7 +14,7 @@ pub type NodeId = usize;
 pub type ClassId = usize;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-enum Node {
+pub enum Node {
     Literal(Literal),
     Symbol(Symbol<ClassId>),
 }
@@ -53,6 +53,14 @@ impl Node {
             Node::Symbol(symbol) => symbol,
         }
     }
+
+    /// If `self` is a symbol, return it, otherwise panic returns `None`.
+    fn try_as_symbol(&self) -> Option<&Symbol<ClassId>> {
+        match self {
+            Node::Literal(_) => None,
+            Node::Symbol(symbol) => Some(symbol),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -78,7 +86,7 @@ impl Class {
 // TODO: matching (bottom up for now?)
 // TODO: rule application
 #[derive(Default)]
-struct EGraph {
+pub struct EGraph {
     union_find: UnionFind,
     nodes: HashMap<NodeId, Node>,
     // Always kept behind canonical IDs
@@ -86,7 +94,7 @@ struct EGraph {
 }
 
 impl EGraph {
-    fn from_expression(expression: VarFreeExpression) -> Self {
+    pub fn from_expression(expression: VarFreeExpression) -> Self {
         let mut egraph = Self::default();
 
         egraph.add_expression(expression);
@@ -135,7 +143,7 @@ impl EGraph {
     }
 
     /// If a given node exists in the e-graph, returns it. Otherwise gives `None`.
-    fn node_id(&self, node: &Node) -> Option<NodeId> {
+    pub fn node_id(&self, node: &Node) -> Option<NodeId> {
         // TODO: Add hashcons so that this is speedy
         // Are hashcons really that much better when they hold uncanonical, potentially outdated keys anyway...?
         let node = node.canonical(self);
@@ -285,6 +293,14 @@ impl EGraph {
         for (class_1_id, class_2_id) in to_merge {
             self.merge_classes(class_1_id, class_2_id);
         }
+    }
+
+    /// Finds symbols with a specified ID
+    pub fn find_symbols(&self, symbol_id: SymbolId) -> Vec<NodeId> {
+        self.nodes
+            .iter()
+            .filter_map(|(&id, node)| (node.try_as_symbol()?.id == symbol_id).then_some(id))
+            .collect()
     }
 }
 
