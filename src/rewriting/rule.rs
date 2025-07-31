@@ -24,7 +24,7 @@ impl Rule {
             .try_match(egraph, &self.from)
             .into_iter()
             .map(|matching| {
-                let to_add = self.to.clone().to_mixed_expression(&matching);
+                let to_add = self.to.clone().mixed_expression(&matching);
                 egraph.add_mixed_expression(to_add)
             })
             .collect()

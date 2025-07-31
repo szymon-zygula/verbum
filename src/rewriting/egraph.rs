@@ -49,7 +49,7 @@ impl Node {
     /// Assume `self` is a symbol and return it, otherwise panic.
     fn as_symbol(&self) -> &Symbol<ClassId> {
         match self {
-            Node::Literal(literal) => panic!("Expected node to be a symbol, is {:?}", literal),
+            Node::Literal(literal) => panic!("Expected node to be a symbol, is {literal:?}"),
             Node::Symbol(symbol) => symbol,
         }
     }
@@ -222,9 +222,7 @@ impl EGraph {
 
     /// Returns the current number of nodes in the egraph
     pub fn actual_node_count(&self) -> usize {
-        self.classes
-            .iter()
-            .map(|(_, class)| class.nodes_ids.len())
+        self.classes.values().map(|class| class.nodes_ids.len())
             .sum()
     }
 
@@ -294,7 +292,7 @@ impl EGraph {
         // Make all nodes in parents have canonical class IDs
         let class = &self.classes[&class_id];
         for parent in &class.parents_ids {
-            for child in self.nodes.get_mut(&parent).unwrap().iter_mut_children() {
+            for child in self.nodes.get_mut(parent).unwrap().iter_mut_children() {
                 *child = self.union_find.find(*child);
             }
         }

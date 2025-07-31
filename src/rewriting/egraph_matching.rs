@@ -40,7 +40,7 @@ impl EGraphMatch {
             self.substitutions.insert(var_id, other_class_id);
         }
 
-        return Some(self);
+        Some(self)
     }
 
     /// Same as `EgraphMatch::merge` but generalized to more than two matches
@@ -87,7 +87,7 @@ impl TopDownMatcher {
             return Vec::new();
         }
 
-        println!("Matching {:?} at {:?}", symbol, node);
+        println!("Matching {symbol:?} at {node:?}");
 
         let matches = egraph
             .node(node_id)
@@ -98,7 +98,7 @@ impl TopDownMatcher {
             })
             .collect_vec();
 
-        println!("Matched: {:?}", matches);
+        println!("Matched: {matches:?}");
 
         let index_matches = IndexSelector::new(
             matches
@@ -109,17 +109,17 @@ impl TopDownMatcher {
 
         let mut all_matches = Vec::new();
 
-        println!("IndexSelector: {:?}", index_matches);
+        println!("IndexSelector: {index_matches:?}");
 
         for indices in index_matches {
-            println!("Indices: {:?}", indices);
+            println!("Indices: {indices:?}");
             let children_matches = indices
                 .iter()
                 .enumerate()
                 .map(|(idx, inner_idx)| &matches[idx][*inner_idx])
                 .collect_vec();
 
-            println!("Children matches: {:?}", children_matches);
+            println!("Children matches: {children_matches:?}");
 
             let root = egraph.containing_class(node_id);
 
@@ -131,7 +131,7 @@ impl TopDownMatcher {
             }
         }
 
-        println!("All matches: {:?}", all_matches);
+        println!("All matches: {all_matches:?}");
 
         all_matches
     }
@@ -156,8 +156,7 @@ impl TopDownMatcher {
             Expression::Symbol(symbol) => egraph
                 .class(class_id)
                 .iter_nodes()
-                .map(|&node_id| self.try_match_symbol_at_node(egraph, node_id, symbol))
-                .flatten()
+                .flat_map(|&node_id| self.try_match_symbol_at_node(egraph, node_id, symbol))
                 .collect(),
             Expression::Variable(variable_id) => vec![EGraphMatch {
                 root: class_id,
@@ -171,8 +170,7 @@ impl Matcher for TopDownMatcher {
     fn try_match(&self, egraph: &EGraph, expression: &Expression) -> Vec<EGraphMatch> {
         egraph
             .iter_classes()
-            .map(|(&class_id, _)| self.try_match_at_class(egraph, class_id, expression))
-            .flatten()
+            .flat_map(|(&class_id, _)| self.try_match_at_class(egraph, class_id, expression))
             .collect()
     }
 }

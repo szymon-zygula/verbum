@@ -115,8 +115,7 @@ impl Expression {
             Expression::Symbol(symbol) => symbol
                 .children
                 .iter()
-                .map(|child| child.variables())
-                .flatten()
+                .flat_map(|child| child.variables())
                 .collect(),
             Expression::Variable(id) => HashSet::from([*id]),
         }
@@ -129,7 +128,7 @@ impl Expression {
             .collect()
     }
 
-    pub fn to_mixed_expression(self, matching: &EGraphMatch) -> MixedExpression {
+    pub fn mixed_expression(self, matching: &EGraphMatch) -> MixedExpression {
         match self {
             Expression::Literal(literal) => MixedExpression::Literal(literal),
             Expression::Symbol(symbol) => MixedExpression::Symbol(Symbol {
@@ -137,7 +136,7 @@ impl Expression {
                 children: symbol
                     .children
                     .into_iter()
-                    .map(|child| child.to_mixed_expression(matching))
+                    .map(|child| child.mixed_expression(matching))
                     .collect(),
             }),
             Expression::Variable(variable_id) => {
