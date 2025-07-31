@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, hash_map, hash_set};
 
 use itertools::Itertools;
 
@@ -20,14 +20,14 @@ pub enum Node {
 }
 
 impl Node {
-    fn iter_mut_children(&mut self) -> std::slice::IterMut<ClassId> {
+    pub fn iter_mut_children(&mut self) -> std::slice::IterMut<ClassId> {
         match self {
             Node::Literal(_) => std::slice::IterMut::default(),
             Node::Symbol(symbol) => symbol.children.iter_mut(),
         }
     }
 
-    fn iter_children(&self) -> std::slice::Iter<ClassId> {
+    pub fn iter_children(&self) -> std::slice::Iter<ClassId> {
         match self {
             Node::Literal(_) => std::slice::Iter::default(),
             Node::Symbol(symbol) => symbol.children.iter(),
@@ -55,7 +55,7 @@ impl Node {
     }
 
     /// If `self` is a symbol, return it, otherwise panic returns `None`.
-    fn try_as_symbol(&self) -> Option<&Symbol<ClassId>> {
+    pub fn try_as_symbol(&self) -> Option<&Symbol<ClassId>> {
         match self {
             Node::Literal(_) => None,
             Node::Symbol(symbol) => Some(symbol),
@@ -64,7 +64,7 @@ impl Node {
 }
 
 #[derive(Clone, Debug, Default)]
-struct Class {
+pub struct Class {
     nodes_ids: HashSet<NodeId>,
     parents_ids: HashSet<NodeId>,
 }
@@ -81,9 +81,12 @@ impl Class {
         self.nodes_ids.extend(other.nodes_ids);
         self.parents_ids.extend(other.parents_ids)
     }
+
+    pub fn iter_nodes(&self) -> hash_set::Iter<'_, usize> {
+        self.nodes_ids.iter()
+    }
 }
 
-// TODO: matching (bottom up for now?)
 // TODO: rule application
 #[derive(Default)]
 pub struct EGraph {
@@ -164,6 +167,10 @@ impl EGraph {
 
     fn canonical_class(&self, class_id: ClassId) -> ClassId {
         self.union_find.find(class_id)
+    }
+
+    pub fn iter_classes(&self) -> hash_map::Iter<'_, usize, Class> {
+        self.classes.iter()
     }
 
     pub fn class(&self, class_id: ClassId) -> &Class {
@@ -301,6 +308,35 @@ impl EGraph {
             .iter()
             .filter_map(|(&id, node)| (node.try_as_symbol()?.id == symbol_id).then_some(id))
             .collect()
+    }
+
+    /// `true` if the class with id `class_id` contains a node whose type is literal and
+    /// is identical to `literal`, `false` otherwise
+    pub fn class_contains_literal(&self, class_id: ClassId, literal: &Literal) -> bool {
+        self.class(class_id)
+            .iter_nodes()
+            .filter(|&&node_id| {
+                let Node::Literal(node_literal) = self.node(node_id) else {
+                    return false;
+                };
+
+                *node_literal == *literal
+            })
+            .count()
+            > 0
+    }
+
+    /// Returns the list of `NodeId`s of nodes which have the same shape as
+    /// `symbol` and are contained in the class with id `class_id`.
+    pub fn same_shape_symbols<E>(&self, class_id: ClassId, symbol: &Symbol<E>) -> Vec<NodeId> {
+        self.class(class_id)
+            .iter_nodes()
+            .filter_map(|&node_id| {
+                let node = self.node(node_id);
+                let node_symbol = node.try_as_symbol()?;
+                node_symbol.same_shape_as(symbol).then_some(node_id)
+            })
+            .collect_vec()
     }
 }
 

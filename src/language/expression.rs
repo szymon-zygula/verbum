@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::HashSet};
 
 use super::{Language, symbol::Symbol};
 
@@ -97,6 +97,26 @@ impl Expression {
         assert_eq!(lang.get_id(name), *id);
 
         children
+    }
+
+    pub fn variables(&self) -> HashSet<VariableId> {
+        match self {
+            Expression::Literal(_) => HashSet::new(),
+            Expression::Symbol(symbol) => symbol
+                .children
+                .iter()
+                .map(|child| child.variables())
+                .flatten()
+                .collect(),
+            Expression::Variable(id) => HashSet::from([*id]),
+        }
+    }
+
+    pub fn common_variables(&self, other: &Expression) -> HashSet<VariableId> {
+        self.variables()
+            .intersection(&other.variables())
+            .copied()
+            .collect()
     }
 }
 

@@ -12,6 +12,14 @@ pub struct Symbol<E> {
     pub children: Vec<E>,
 }
 
+impl<E> Symbol<E> {
+    /// Checks if `self` and `other` have the same shape,
+    /// i.e. the same symbol id and the same number of children
+    pub fn same_shape_as<EO>(&self, other: &Symbol<EO>) -> bool {
+        self.id == other.id && self.children.len() == other.children.len()
+    }
+}
+
 impl<'e, 'l, E: AnyExpression> Symbol<E>
 where
     LangExpression<'e, 'l, E>: std::fmt::Display,
