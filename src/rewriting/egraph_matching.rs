@@ -13,21 +13,21 @@ use crate::{
 use super::egraph::{ClassId, EGraph, NodeId};
 
 #[derive(Clone, Debug)]
-pub struct EgraphMatch {
+pub struct EGraphMatch {
     root: ClassId,
     substitutions: HashMap<VariableId, ClassId>,
 }
 
-impl EgraphMatch {
+impl EGraphMatch {
     fn empty(root: ClassId) -> Self {
-        EgraphMatch {
+        EGraphMatch {
             root,
             substitutions: HashMap::new(),
         }
     }
 
     /// Merges two matches if substitutions don't assign different classes to identical variables
-    fn merge(mut self, root: ClassId, other: Self) -> Option<EgraphMatch> {
+    fn merge(mut self, root: ClassId, other: Self) -> Option<EGraphMatch> {
         self.root = root;
 
         for (var_id, other_class_id) in other.substitutions {
@@ -44,8 +44,8 @@ impl EgraphMatch {
     }
 
     /// Same as `EgraphMatch::merge` but generalized to more than two matches
-    fn merge_multiple(root: ClassId, matches: Vec<EgraphMatch>) -> Option<EgraphMatch> {
-        let mut total_match = EgraphMatch::empty(root);
+    fn merge_multiple(root: ClassId, matches: Vec<EGraphMatch>) -> Option<EGraphMatch> {
+        let mut total_match = EGraphMatch::empty(root);
 
         for child_match in matches {
             total_match = total_match.merge(root, child_match.clone())?;
@@ -53,13 +53,23 @@ impl EgraphMatch {
 
         Some(total_match)
     }
+
+    /// Returns the ID of the class which was matched against the root of the pattern
+    pub fn root(&self) -> ClassId {
+        self.root
+    }
+
+    /// Returns the ID of the class which was matched against the variable with ID `variable_id`
+    pub fn class_variable(&self, variable_id: VariableId) -> ClassId {
+        self.substitutions[&variable_id]
+    }
 }
 
-trait Matcher {
-    fn try_match(&self, egraph: &EGraph, expression: &Expression) -> Vec<EgraphMatch>;
+pub trait Matcher {
+    fn try_match(&self, egraph: &EGraph, expression: &Expression) -> Vec<EGraphMatch>;
 }
 
-struct TopDownMatcher;
+pub struct TopDownMatcher;
 
 impl TopDownMatcher {
     fn try_match_symbol_at_node(
@@ -67,7 +77,7 @@ impl TopDownMatcher {
         egraph: &EGraph,
         node_id: NodeId,
         symbol: &Symbol<Expression>,
-    ) -> Vec<EgraphMatch> {
+    ) -> Vec<EGraphMatch> {
         let node = egraph.node(node_id);
         let Some(node_symbol) = node.try_as_symbol() else {
             return Vec::new();
@@ -113,7 +123,7 @@ impl TopDownMatcher {
 
             let root = egraph.containing_class(node_id);
 
-            if let Some(matching) = EgraphMatch::merge_multiple(
+            if let Some(matching) = EGraphMatch::merge_multiple(
                 root,
                 children_matches.iter().map(|x| (*x).clone()).collect_vec(),
             ) {
@@ -131,11 +141,11 @@ impl TopDownMatcher {
         egraph: &EGraph,
         class_id: ClassId,
         expression: &Expression,
-    ) -> Vec<EgraphMatch> {
+    ) -> Vec<EGraphMatch> {
         match expression {
             Expression::Literal(literal) => {
                 if egraph.class_contains_literal(class_id, literal) {
-                    vec![EgraphMatch {
+                    vec![EGraphMatch {
                         root: class_id,
                         substitutions: HashMap::new(),
                     }]
@@ -149,7 +159,7 @@ impl TopDownMatcher {
                 .map(|&node_id| self.try_match_symbol_at_node(egraph, node_id, symbol))
                 .flatten()
                 .collect(),
-            Expression::Variable(variable_id) => vec![EgraphMatch {
+            Expression::Variable(variable_id) => vec![EGraphMatch {
                 root: class_id,
                 substitutions: HashMap::from([(*variable_id, class_id)]),
             }],
@@ -158,7 +168,7 @@ impl TopDownMatcher {
 }
 
 impl Matcher for TopDownMatcher {
-    fn try_match(&self, egraph: &EGraph, expression: &Expression) -> Vec<EgraphMatch> {
+    fn try_match(&self, egraph: &EGraph, expression: &Expression) -> Vec<EGraphMatch> {
         egraph
             .iter_classes()
             .map(|(&class_id, _)| self.try_match_at_class(egraph, class_id, expression))
@@ -176,14 +186,14 @@ mod tests {
         rewriting::egraph::{EGraph, Node},
     };
 
-    use super::{EgraphMatch, Matcher, TopDownMatcher};
+    use super::{EGraphMatch, Matcher, TopDownMatcher};
 
     #[test]
     fn merge_matches() {
-        let mut match_1 = EgraphMatch::empty(4);
+        let mut match_1 = EGraphMatch::empty(4);
         match_1.substitutions = HashMap::from([(1, 2), (2, 3), (5, 4)]);
 
-        let mut match_2 = EgraphMatch::empty(4);
+        let mut match_2 = EGraphMatch::empty(4);
         match_2.substitutions = HashMap::from([(2, 3), (4, 5)]);
 
         assert_eq!(match_1.merge(4, match_2).unwrap().substitutions.len(), 4);
@@ -191,10 +201,10 @@ mod tests {
 
     #[test]
     fn not_merge_matches() {
-        let mut match_1 = EgraphMatch::empty(4);
+        let mut match_1 = EGraphMatch::empty(4);
         match_1.substitutions = HashMap::from([(1, 2), (2, 3), (5, 4)]);
 
-        let mut match_2 = EgraphMatch::empty(4);
+        let mut match_2 = EGraphMatch::empty(4);
         match_2.substitutions = HashMap::from([(2, 5), (4, 5)]);
 
         assert!(match_1.merge(4, match_2).is_none());

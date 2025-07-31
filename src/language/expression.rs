@@ -1,5 +1,7 @@
 use std::{borrow::Cow, collections::HashSet};
 
+use crate::rewriting::{egraph::ClassId, egraph_matching::EGraphMatch};
+
 use super::{Language, symbol::Symbol};
 
 pub type VariableId = usize;
@@ -29,6 +31,14 @@ impl VarFreeExpression {
 
         children
     }
+}
+
+/// An expression which consists of concrete elements as well as class IDs.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MixedExpression {
+    Literal(Literal),
+    Symbol(Symbol<MixedExpression>),
+    Class(ClassId),
 }
 
 /// An expression with variables
@@ -117,6 +127,23 @@ impl Expression {
             .intersection(&other.variables())
             .copied()
             .collect()
+    }
+
+    pub fn to_mixed_expression(self, matching: &EGraphMatch) -> MixedExpression {
+        match self {
+            Expression::Literal(literal) => MixedExpression::Literal(literal),
+            Expression::Symbol(symbol) => MixedExpression::Symbol(Symbol {
+                id: symbol.id,
+                children: symbol
+                    .children
+                    .into_iter()
+                    .map(|child| child.to_mixed_expression(matching))
+                    .collect(),
+            }),
+            Expression::Variable(variable_id) => {
+                MixedExpression::Class(matching.class_variable(variable_id))
+            }
+        }
     }
 }
 

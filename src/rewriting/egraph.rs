@@ -4,7 +4,7 @@ use itertools::Itertools;
 
 use crate::{
     language::{
-        expression::{Literal, VarFreeExpression},
+        expression::{Literal, MixedExpression, VarFreeExpression},
         symbol::{Symbol, SymbolId},
     },
     union_find::UnionFind,
@@ -108,20 +108,40 @@ impl EGraph {
     pub fn add_expression(&mut self, expression: VarFreeExpression) -> NodeId {
         let node = match expression {
             VarFreeExpression::Literal(literal) => Node::Literal(literal),
-            VarFreeExpression::Symbol(symbol) => {
-                let mut child_ids = Vec::new();
-                for child in symbol.children {
-                    child_ids.push(self.add_expression(child));
-                }
-
-                Node::Symbol(Symbol {
-                    id: symbol.id,
-                    children: child_ids,
-                })
-            }
+            VarFreeExpression::Symbol(symbol) => Node::Symbol(Symbol {
+                id: symbol.id,
+                children: symbol
+                    .children
+                    .into_iter()
+                    .map(|child| self.add_expression(child))
+                    .collect(),
+            }),
         };
 
         self.add_node(node)
+    }
+
+    pub fn add_mixed_expression(&mut self, expression: MixedExpression) -> ClassId {
+        match expression {
+            MixedExpression::Literal(literal) => {
+                let node_id = self.add_node(Node::Literal(literal));
+                self.containing_class(node_id)
+            }
+            MixedExpression::Symbol(symbol) => {
+                let node = Node::Symbol(Symbol {
+                    id: symbol.id,
+                    children: symbol
+                        .children
+                        .into_iter()
+                        .map(|child| self.add_mixed_expression(child))
+                        .collect(),
+                });
+
+                let node_id = self.add_node(node);
+                self.containing_class(node_id)
+            }
+            MixedExpression::Class(class_id) => class_id,
+        }
     }
 
     fn add_node(&mut self, node: Node) -> NodeId {
