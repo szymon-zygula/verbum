@@ -1,3 +1,4 @@
+pub mod drawing;
 pub mod matching;
 pub mod saturation;
 
@@ -91,7 +92,7 @@ impl Class {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct EGraph {
     union_find: UnionFind,
     nodes: HashMap<NodeId, Node>,
@@ -248,9 +249,15 @@ impl EGraph {
         self.union_find.find(node_id)
     }
 
-    pub fn merge_classes(&mut self, class_1_id: ClassId, class_2_id: ClassId) {
+    /// Merges given classes, returns `false` if the ids refered to a single class already
+    /// return `true` otherwise
+    pub fn merge_classes(&mut self, class_1_id: ClassId, class_2_id: ClassId) -> bool {
         let class_1_id = self.union_find.find(class_1_id);
         let class_2_id = self.union_find.find(class_2_id);
+
+        if class_1_id == class_2_id {
+            return false;
+        }
 
         self.union_find.union(class_1_id, class_2_id);
 
@@ -258,6 +265,8 @@ impl EGraph {
         self.classes.get_mut(&class_2_id).unwrap().merge(class_1);
 
         self.rebuild_class(class_2_id);
+
+        true
     }
 
     /// Makes all nodes in an eclass have canonical children
@@ -572,5 +581,23 @@ mod tests {
         assert_eq!(egraph.total_node_count(), 11);
         assert_eq!(egraph.actual_node_count(), 8);
         assert_eq!(egraph.class_count(), 7);
+    }
+
+    #[test]
+    fn self_merge() {
+        let lang = Language::math();
+        let mut egraph = EGraph::from_expression(lang.parse_no_vars("(+ 2 (sin 5))").unwrap());
+
+        egraph.merge_classes(0, 1);
+        egraph.merge_classes(0, 2);
+
+        let class_count = egraph.class_count();
+
+        // These should not panic
+        egraph.merge_classes(0, 0);
+        egraph.merge_classes(0, 1);
+        egraph.merge_classes(0, 2);
+
+        assert_eq!(egraph.class_count(), class_count);
     }
 }
