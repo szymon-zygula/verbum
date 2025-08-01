@@ -3,7 +3,7 @@ use std::cell::Cell;
 pub type SetId = usize;
 
 // TODO: make two union finds: compressing and not notpressing?
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct UnionFind {
     parents: Vec<Cell<SetId>>,
 }
@@ -61,6 +61,24 @@ impl UnionFind {
         self.find(parent)
     }
 }
+
+impl PartialEq for UnionFind {
+    fn eq(&self, other: &Self) -> bool {
+        if self.parents.len() != other.parents.len() {
+            return false;
+        }
+
+        for id in 0..self.parents.len() {
+            if self.find(id) != other.find(id) {
+                return false;
+            }
+        }
+
+        true
+    }
+}
+
+impl Eq for UnionFind {}
 
 #[cfg(test)]
 mod tests {

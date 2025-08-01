@@ -1,6 +1,6 @@
 use crate::language::{Language, expression::Expression};
 
-use super::egraph::{ClassId, EGraph, matching::Matcher};
+use super::egraph::{EGraph, matching::Matcher};
 
 pub struct Rule {
     from: Expression,
@@ -15,16 +15,17 @@ impl Rule {
         Self { from, to }
     }
 
-    /// Returns a vector of created `ClassId`s.
-    pub fn apply(&self, egraph: &mut EGraph, matcher: &impl Matcher) -> Vec<ClassId> {
+    /// Returns `true` if anything changed on application, `false` if fixed-point reached.
+    pub fn apply(&self, egraph: &mut EGraph, matcher: &impl Matcher) -> bool {
         matcher
             .try_match(egraph, &self.from)
             .into_iter()
-            .filter_map(|matching| {
+            .any(|matching| {
                 let to_add = self.to.clone().mixed_expression(&matching);
-                egraph.add_mixed_expression(to_add).new()
+                let added = egraph.add_mixed_expression(to_add);
+                egraph.merge_classes(matching.root(), *added.as_ref().any())
+                    || added.new().is_some()
             })
-            .collect()
     }
 }
 
@@ -48,7 +49,8 @@ mod tests {
 
         rule.apply(&mut egraph, &TopDownMatcher);
 
-        assert_eq!(egraph.class_count(), 2);
+        assert_eq!(egraph.class_count(), 1);
+        assert_eq!(egraph.actual_node_count(), 2);
         assert!(egraph.node_id(&Node::Literal(Literal::Int(1))).is_some());
         assert!(egraph.node_id(&Node::Literal(Literal::Int(2))).is_some());
     }
@@ -61,7 +63,8 @@ mod tests {
 
         rule.apply(&mut egraph, &TopDownMatcher);
 
-        assert_eq!(egraph.class_count(), 5);
+        assert_eq!(egraph.class_count(), 4);
+        assert_eq!(egraph.actual_node_count(), 5);
 
         let expected = lang.parse("(+ (sin 5) 2)").unwrap();
 
