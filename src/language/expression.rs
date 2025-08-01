@@ -1,5 +1,7 @@
 use std::{borrow::Cow, collections::HashSet};
 
+use itertools::Itertools;
+
 use crate::rewriting::egraph::{ClassId, matching::EGraphMatch};
 
 use super::{Language, symbol::Symbol};
@@ -119,6 +121,10 @@ impl Expression {
                 .collect(),
             Expression::Variable(id) => HashSet::from([*id]),
         }
+    }
+
+    pub fn variables_vec(&self) -> Vec<VariableId> {
+        self.variables().into_iter().collect_vec()
     }
 
     pub fn common_variables(&self, other: &Expression) -> HashSet<VariableId> {

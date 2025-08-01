@@ -28,8 +28,6 @@ impl TopDownMatcher {
             return Vec::new();
         }
 
-        println!("Matching {symbol:?} at {node:?}");
-
         let matches = egraph
             .node(node_id)
             .iter_children()
@@ -38,8 +36,6 @@ impl TopDownMatcher {
                 self.try_match_at_class(egraph, child_class_id, child_expression)
             })
             .collect_vec();
-
-        println!("Matched: {matches:?}");
 
         let index_matches = IndexSelector::new(
             matches
@@ -50,17 +46,12 @@ impl TopDownMatcher {
 
         let mut all_matches = Vec::new();
 
-        println!("IndexSelector: {index_matches:?}");
-
         for indices in index_matches {
-            println!("Indices: {indices:?}");
             let children_matches = indices
                 .iter()
                 .enumerate()
                 .map(|(idx, inner_idx)| &matches[idx][*inner_idx])
                 .collect_vec();
-
-            println!("Children matches: {children_matches:?}");
 
             let root = egraph.containing_class(node_id);
 
@@ -71,8 +62,6 @@ impl TopDownMatcher {
                 all_matches.push(matching);
             }
         }
-
-        println!("All matches: {all_matches:?}");
 
         all_matches
     }

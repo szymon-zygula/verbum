@@ -89,7 +89,6 @@ impl Class {
     }
 }
 
-// TODO: rule application
 #[derive(Default)]
 pub struct EGraph {
     union_find: UnionFind,
@@ -330,6 +329,16 @@ impl EGraph {
             .iter()
             .filter_map(|(&id, node)| (node.try_as_symbol()?.id == symbol_id).then_some(id))
             .collect()
+    }
+
+    /// Checks if a given literal is contained in the e-graph and if so, returns its class ID.
+    pub fn find_literal(&self, literal: Literal) -> Option<ClassId> {
+        Some(self.containing_class(self.node_id(&Node::Literal(literal))?))
+    }
+
+    /// Checks if a given symbol is contained in the e-graph and if so, returns its class ID.
+    pub fn find_symbol(&self, symbol: Symbol<ClassId>) -> Option<ClassId> {
+        Some(self.containing_class(self.node_id(&Node::Symbol(symbol))?))
     }
 
     /// `true` if the class with id `class_id` contains a node whose type is literal and
