@@ -1,4 +1,5 @@
 pub mod matching;
+pub mod saturation;
 
 use std::collections::{HashMap, HashSet, hash_map, hash_set};
 
@@ -9,6 +10,7 @@ use crate::{
         expression::{Literal, MixedExpression, VarFreeExpression},
         symbol::{Symbol, SymbolId},
     },
+    seen::Seen,
     union_find::UnionFind,
 };
 
@@ -119,14 +121,14 @@ impl EGraph {
             }),
         };
 
-        self.add_node(node)
+        self.add_node(node).any()
     }
 
-    pub fn add_mixed_expression(&mut self, expression: MixedExpression) -> ClassId {
+    pub fn add_mixed_expression(&mut self, expression: MixedExpression) -> Seen<ClassId> {
         match expression {
             MixedExpression::Literal(literal) => {
                 let node_id = self.add_node(Node::Literal(literal));
-                self.containing_class(node_id)
+                node_id.map(|node_id| self.containing_class(node_id))
             }
             MixedExpression::Symbol(symbol) => {
                 let node = Node::Symbol(Symbol {
@@ -134,20 +136,22 @@ impl EGraph {
                     children: symbol
                         .children
                         .into_iter()
-                        .map(|child| self.add_mixed_expression(child))
+                        .map(|child| self.add_mixed_expression(child).any())
                         .collect(),
                 });
 
-                let node_id = self.add_node(node);
-                self.containing_class(node_id)
+                self.add_node(node)
+                    .map(|node_id| self.containing_class(node_id))
             }
-            MixedExpression::Class(class_id) => class_id,
+            MixedExpression::Class(class_id) => Seen::Old(class_id),
         }
     }
 
-    fn add_node(&mut self, node: Node) -> NodeId {
+    /// Adds a node to the egraph, returning `Old(id)` if the node exists, or `New(id)` if the node
+    /// has been added by this call
+    fn add_node(&mut self, node: Node) -> Seen<NodeId> {
         if let Some(&old_id) = self.node_id(&node).as_ref() {
-            return old_id;
+            return Seen::Old(old_id);
         }
 
         let class_id = self.union_find.add();
@@ -163,7 +167,8 @@ impl EGraph {
 
         let class = Class::from_node(node_id);
         self.classes.insert(class_id, class);
-        node_id
+
+        Seen::New(node_id)
     }
 
     /// If a given node exists in the e-graph, returns it. Otherwise gives `None`.
@@ -437,7 +442,7 @@ mod tests {
         let node_ids = nodes
             .iter()
             .cloned()
-            .map(|node| egraph.add_node(node))
+            .map(|node| egraph.add_node(node).any())
             .collect_vec();
 
         for i in 0..10 {
@@ -477,11 +482,11 @@ mod tests {
         let literal_1 = Node::Literal(Literal::UInt(5));
         let literal_2 = Node::Literal(Literal::UInt(7));
 
-        let node_1_id = egraph.add_node(literal_1.clone());
-        let node_1_id_ = egraph.add_node(literal_1);
+        let node_1_id = egraph.add_node(literal_1.clone()).new().unwrap();
+        let node_1_id_ = egraph.add_node(literal_1).old().unwrap();
         assert_eq!(node_1_id, node_1_id_);
 
-        let node_2_id = egraph.add_node(literal_2);
+        let node_2_id = egraph.add_node(literal_2).any();
 
         let class_1_id = egraph.containing_class(node_1_id);
         let class_2_id = egraph.containing_class(node_2_id);
@@ -502,7 +507,7 @@ mod tests {
         let node_4_id = egraph.add_node(symbol_2.clone());
 
         assert_eq!(egraph.node_id(&symbol_1), egraph.node_id(&symbol_2));
-        assert_eq!(node_3_id, node_4_id);
+        assert_eq!(node_3_id.new().unwrap(), node_4_id.old().unwrap());
     }
 
     #[test]

@@ -38,6 +38,8 @@ impl Language {
             .add_symbol("/")
             .add_symbol("sin")
             .add_symbol("cos")
+            .add_symbol("<<")
+            .add_symbol(">>")
     }
 }
 
