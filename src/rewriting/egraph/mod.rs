@@ -1,3 +1,5 @@
+pub mod matching;
+
 use std::collections::{HashMap, HashSet, hash_map, hash_set};
 
 use itertools::Itertools;
@@ -222,7 +224,9 @@ impl EGraph {
 
     /// Returns the current number of nodes in the egraph
     pub fn actual_node_count(&self) -> usize {
-        self.classes.values().map(|class| class.nodes_ids.len())
+        self.classes
+            .values()
+            .map(|class| class.nodes_ids.len())
             .sum()
     }
 

@@ -1,9 +1,6 @@
 use crate::language::{Language, expression::Expression};
 
-use super::{
-    egraph::{ClassId, EGraph},
-    egraph_matching::Matcher,
-};
+use super::egraph::{ClassId, EGraph, matching::Matcher};
 
 pub struct Rule {
     from: Expression,
@@ -35,9 +32,9 @@ impl Rule {
 mod tests {
     use crate::{
         language::{Language, expression::Literal},
-        rewriting::{
-            egraph::{EGraph, Node},
-            egraph_matching::{Matcher, TopDownMatcher},
+        rewriting::egraph::{
+            EGraph, Node,
+            matching::{Matcher, top_down::TopDownMatcher},
         },
     };
 

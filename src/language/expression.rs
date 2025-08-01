@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::HashSet};
 
-use crate::rewriting::{egraph::ClassId, egraph_matching::EGraphMatch};
+use crate::rewriting::egraph::{ClassId, matching::EGraphMatch};
 
 use super::{Language, symbol::Symbol};
 

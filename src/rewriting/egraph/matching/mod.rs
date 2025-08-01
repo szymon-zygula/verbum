@@ -1,16 +1,11 @@
+pub mod bottom_up;
+pub mod top_down;
+
 use std::collections::HashMap;
 
-use itertools::Itertools;
+use crate::language::expression::{Expression, VariableId};
 
-use crate::{
-    index_selector::IndexSelector,
-    language::{
-        expression::{Expression, VariableId},
-        symbol::Symbol,
-    },
-};
-
-use super::egraph::{ClassId, EGraph, NodeId};
+use super::{ClassId, EGraph};
 
 #[derive(Clone, Debug)]
 pub struct EGraphMatch {
@@ -69,112 +64,6 @@ pub trait Matcher {
     fn try_match(&self, egraph: &EGraph, expression: &Expression) -> Vec<EGraphMatch>;
 }
 
-pub struct TopDownMatcher;
-
-impl TopDownMatcher {
-    fn try_match_symbol_at_node(
-        &self,
-        egraph: &EGraph,
-        node_id: NodeId,
-        symbol: &Symbol<Expression>,
-    ) -> Vec<EGraphMatch> {
-        let node = egraph.node(node_id);
-        let Some(node_symbol) = node.try_as_symbol() else {
-            return Vec::new();
-        };
-
-        if !node_symbol.same_shape_as(symbol) {
-            return Vec::new();
-        }
-
-        println!("Matching {symbol:?} at {node:?}");
-
-        let matches = egraph
-            .node(node_id)
-            .iter_children()
-            .zip_eq(symbol.children.iter())
-            .map(|(&child_class_id, child_expression)| {
-                self.try_match_at_class(egraph, child_class_id, child_expression)
-            })
-            .collect_vec();
-
-        println!("Matched: {matches:?}");
-
-        let index_matches = IndexSelector::new(
-            matches
-                .iter()
-                .map(|child_matches| child_matches.len())
-                .collect_vec(),
-        );
-
-        let mut all_matches = Vec::new();
-
-        println!("IndexSelector: {index_matches:?}");
-
-        for indices in index_matches {
-            println!("Indices: {indices:?}");
-            let children_matches = indices
-                .iter()
-                .enumerate()
-                .map(|(idx, inner_idx)| &matches[idx][*inner_idx])
-                .collect_vec();
-
-            println!("Children matches: {children_matches:?}");
-
-            let root = egraph.containing_class(node_id);
-
-            if let Some(matching) = EGraphMatch::merge_multiple(
-                root,
-                children_matches.iter().map(|x| (*x).clone()).collect_vec(),
-            ) {
-                all_matches.push(matching);
-            }
-        }
-
-        println!("All matches: {all_matches:?}");
-
-        all_matches
-    }
-
-    fn try_match_at_class(
-        &self,
-        egraph: &EGraph,
-        class_id: ClassId,
-        expression: &Expression,
-    ) -> Vec<EGraphMatch> {
-        match expression {
-            Expression::Literal(literal) => {
-                if egraph.class_contains_literal(class_id, literal) {
-                    vec![EGraphMatch {
-                        root: class_id,
-                        substitutions: HashMap::new(),
-                    }]
-                } else {
-                    Vec::new()
-                }
-            }
-            Expression::Symbol(symbol) => egraph
-                .class(class_id)
-                .iter_nodes()
-                .flat_map(|&node_id| self.try_match_symbol_at_node(egraph, node_id, symbol))
-                .collect(),
-            Expression::Variable(variable_id) => vec![EGraphMatch {
-                root: class_id,
-                substitutions: HashMap::from([(*variable_id, class_id)]),
-            }],
-        }
-    }
-}
-
-impl Matcher for TopDownMatcher {
-    fn try_match(&self, egraph: &EGraph, expression: &Expression) -> Vec<EGraphMatch> {
-        egraph
-            .iter_classes()
-            .flat_map(|(&class_id, _)| self.try_match_at_class(egraph, class_id, expression))
-            .collect()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -184,7 +73,7 @@ mod tests {
         rewriting::egraph::{EGraph, Node},
     };
 
-    use super::{EGraphMatch, Matcher, TopDownMatcher};
+    use super::{EGraphMatch, Matcher};
 
     #[test]
     fn merge_matches() {
@@ -198,7 +87,7 @@ mod tests {
     }
 
     #[test]
-    fn not_merge_matches() {
+    pub fn not_merge_matches() {
         let mut match_1 = EGraphMatch::empty(4);
         match_1.substitutions = HashMap::from([(1, 2), (2, 3), (5, 4)]);
 
@@ -208,14 +97,12 @@ mod tests {
         assert!(match_1.merge(4, match_2).is_none());
     }
 
-    #[test]
-    fn find_literal() {
+    pub fn find_literal(matcher: impl Matcher) {
         let lang = Language::math();
         let five = lang.parse("5").unwrap();
         let expr = lang.parse_no_vars("(* (+ 5 (sin (+ 5 3))))").unwrap();
         let egraph = EGraph::from_expression(expr);
 
-        let matcher = TopDownMatcher;
         let matches = matcher.try_match(&egraph, &five);
 
         assert_eq!(matches.len(), 1);
@@ -227,14 +114,12 @@ mod tests {
         assert!(matches[0].substitutions.is_empty());
     }
 
-    #[test]
-    fn find_symbol() {
+    pub fn find_symbol(matcher: impl Matcher) {
         let lang = Language::math();
         let sin = lang.parse("(sin (+ 5 3))").unwrap();
         let expr = lang.parse_no_vars("(* (+ 5 (sin (+ 5 3))))").unwrap();
         let egraph = EGraph::from_expression(expr);
 
-        let matcher = TopDownMatcher;
         let matches = matcher.try_match(&egraph, &sin);
 
         assert_eq!(matches.len(), 1);
@@ -246,27 +131,23 @@ mod tests {
         assert!(matches[0].substitutions.is_empty());
     }
 
-    #[test]
-    fn not_find_symbol() {
+    pub fn not_find_symbol(matcher: impl Matcher) {
         let lang = Language::math();
         let five = lang.parse("(sin (+ 5 3))").unwrap();
         let expr = lang.parse_no_vars("(* (+ 5 (sin (+ 5 4))))").unwrap();
         let egraph = EGraph::from_expression(expr);
 
-        let matcher = TopDownMatcher;
         let matches = matcher.try_match(&egraph, &five);
 
         assert_eq!(matches.len(), 0);
     }
 
-    #[test]
-    fn match_with_variables() {
+    pub fn match_with_variables(matcher: impl Matcher) {
         let lang = Language::math();
         let five = lang.parse("(+ 5 x0)").unwrap();
         let expr = lang.parse_no_vars("(* (+ 5 (sin (+ 5 3))))").unwrap();
         let egraph = EGraph::from_expression(expr);
 
-        let matcher = TopDownMatcher;
         let matches = matcher.try_match(&egraph, &five);
 
         let pluses = egraph.find_symbols(lang.try_get_id("+").unwrap());
@@ -301,14 +182,12 @@ mod tests {
         }
     }
 
-    #[test]
-    fn match_with_repeated_variables() {
+    pub fn match_with_repeated_variables(matcher: impl Matcher) {
         let lang = Language::math();
         let five = lang.parse("(* (+ x0 x0) x1)").unwrap();
         let expr = lang.parse_no_vars("(* (+ (sin 5) (sin 5)) 3)").unwrap();
         let egraph = EGraph::from_expression(expr);
 
-        let matcher = TopDownMatcher;
         let matches = matcher.try_match(&egraph, &five);
 
         let mul_id = egraph.find_symbols(lang.try_get_id("*").unwrap())[0];
@@ -326,14 +205,12 @@ mod tests {
         assert_eq!(matches[0].substitutions[&1], three_id);
     }
 
-    #[test]
-    fn match_with_repeated_variables_fail() {
+    pub fn match_with_repeated_variables_fail(matcher: impl Matcher) {
         let lang = Language::math();
         let five = lang.parse("(* (+ x0 x0) x1)").unwrap();
         let expr = lang.parse_no_vars("(* (+ 8 5) 3)").unwrap();
         let egraph = EGraph::from_expression(expr);
 
-        let matcher = TopDownMatcher;
         let matches = matcher.try_match(&egraph, &five);
 
         assert_eq!(matches.len(), 0);
