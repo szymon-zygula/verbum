@@ -1,4 +1,5 @@
 pub mod drawing;
+pub mod extraction;
 pub mod matching;
 pub mod saturation;
 
@@ -192,7 +193,7 @@ impl EGraph {
         self.class_mut(class_id).parents_ids.insert(parent_id);
     }
 
-    fn canonical_class(&self, class_id: ClassId) -> ClassId {
+    pub fn canonical_class(&self, class_id: ClassId) -> ClassId {
         self.union_find.find(class_id)
     }
 
@@ -249,14 +250,14 @@ impl EGraph {
         self.union_find.find(node_id)
     }
 
-    /// Merges given classes, returns `false` if the ids refered to a single class already
-    /// return `true` otherwise
-    pub fn merge_classes(&mut self, class_1_id: ClassId, class_2_id: ClassId) -> bool {
+    /// Merges given classes, returns the canonical ID of the merged class as `Old(id)`
+    /// if the IDs refered to a single class already, or `New(id)` otherwise
+    pub fn merge_classes(&mut self, class_1_id: ClassId, class_2_id: ClassId) -> Seen<ClassId> {
         let class_1_id = self.union_find.find(class_1_id);
         let class_2_id = self.union_find.find(class_2_id);
 
         if class_1_id == class_2_id {
-            return false;
+            return Seen::Old(class_1_id);
         }
 
         self.union_find.union(class_1_id, class_2_id);
@@ -266,7 +267,7 @@ impl EGraph {
 
         self.rebuild_class(class_2_id);
 
-        true
+        Seen::New(class_2_id)
     }
 
     /// Makes all nodes in an eclass have canonical children

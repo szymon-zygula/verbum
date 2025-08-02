@@ -23,7 +23,10 @@ impl Rule {
             .any(|matching| {
                 let to_add = self.to.clone().mixed_expression(&matching);
                 let added = egraph.add_mixed_expression(to_add);
-                egraph.merge_classes(matching.root(), *added.as_ref().any())
+                egraph
+                    .merge_classes(matching.root(), *added.as_ref().any())
+                    .new()
+                    .is_some()
                     || added.new().is_some()
             })
     }
