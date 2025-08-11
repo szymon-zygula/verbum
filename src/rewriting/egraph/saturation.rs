@@ -27,19 +27,27 @@ fn check_limits(
     start: Instant,
     cfg: &SaturationConfig,
 ) -> Option<SaturationStopReason> {
-    if let Some(limit) = cfg.time_limit && start.elapsed() >= limit {
+    if let Some(limit) = cfg.time_limit
+        && start.elapsed() >= limit
+    {
         return Some(SaturationStopReason::Timeout);
     }
 
-    if let Some(limit) = cfg.max_applications && applications >= limit {
+    if let Some(limit) = cfg.max_applications
+        && applications >= limit
+    {
         return Some(SaturationStopReason::MaxApplications);
     }
 
-    if let Some(limit) = cfg.max_nodes && egraph.actual_node_count() >= limit {
+    if let Some(limit) = cfg.max_nodes
+        && egraph.actual_node_count() >= limit
+    {
         return Some(SaturationStopReason::MaxNodes);
     }
 
-    if let Some(limit) = cfg.max_classes && egraph.class_count() >= limit {
+    if let Some(limit) = cfg.max_classes
+        && egraph.class_count() >= limit
+    {
         return Some(SaturationStopReason::MaxClasses);
     }
 
@@ -65,7 +73,9 @@ pub fn saturate(
 
         for rule in rules.iter() {
             // Check time on each rule iteration
-            if let Some(SaturationStopReason::Timeout) = check_limits(egraph, applications, start, config) {
+            if let Some(SaturationStopReason::Timeout) =
+                check_limits(egraph, applications, start, config)
+            {
                 return SaturationStopReason::Timeout;
             }
 
@@ -97,7 +107,7 @@ mod tests {
         },
     };
 
-    use super::{saturate, SaturationConfig, SaturationStopReason};
+    use super::{SaturationConfig, SaturationStopReason, saturate};
 
     #[test]
     fn classical_test() {
@@ -112,7 +122,12 @@ mod tests {
         let mut egraph =
             EGraph::from_expression(lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap());
 
-        let reason = saturate(&mut egraph, &rules, BottomUpMatcher, &SaturationConfig::default());
+        let reason = saturate(
+            &mut egraph,
+            &rules,
+            BottomUpMatcher,
+            &SaturationConfig::default(),
+        );
         assert_eq!(reason, SaturationStopReason::Saturated);
 
         assert_eq!(egraph.class_count(), 5);
@@ -132,7 +147,10 @@ mod tests {
             &mut egraph,
             &rules,
             BottomUpMatcher,
-            &SaturationConfig { max_applications: Some(1), ..Default::default() },
+            &SaturationConfig {
+                max_applications: Some(1),
+                ..Default::default()
+            },
         );
         assert_eq!(reason, SaturationStopReason::MaxApplications);
     }
@@ -150,7 +168,10 @@ mod tests {
             &mut egraph,
             &rules,
             BottomUpMatcher,
-            &SaturationConfig { time_limit: Some(Duration::from_millis(0)), ..Default::default() },
+            &SaturationConfig {
+                time_limit: Some(Duration::from_millis(0)),
+                ..Default::default()
+            },
         );
         assert_eq!(reason, SaturationStopReason::Timeout);
     }
@@ -168,7 +189,10 @@ mod tests {
             &mut egraph,
             &rules,
             BottomUpMatcher,
-            &SaturationConfig { max_nodes: Some(4), ..Default::default() },
+            &SaturationConfig {
+                max_nodes: Some(4),
+                ..Default::default()
+            },
         );
         assert_eq!(reason, SaturationStopReason::MaxNodes);
     }
@@ -186,7 +210,10 @@ mod tests {
             &mut egraph,
             &rules,
             BottomUpMatcher,
-            &SaturationConfig { max_classes: Some(3), ..Default::default() },
+            &SaturationConfig {
+                max_classes: Some(3),
+                ..Default::default()
+            },
         );
         assert_eq!(reason, SaturationStopReason::MaxClasses);
     }

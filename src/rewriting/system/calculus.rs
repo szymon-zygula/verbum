@@ -1,4 +1,5 @@
-use crate::rewriting_system::TermRewritingSystem;
+use crate::macros::trs;
+use crate::rewriting::system::TermRewritingSystem;
 
 pub fn calculus() -> TermRewritingSystem {
     trs!(
