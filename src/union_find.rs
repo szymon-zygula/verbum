@@ -1,8 +1,34 @@
+//! A `UnionFind` implementation (also known as Disjoint-Set Union), used to efficiently manage equivalence classes and perform union and find operations on sets.
 use std::cell::Cell;
 
 pub type SetId = usize;
 
-// TODO: make two union finds: compressing and not notpressing?
+/// A `UnionFind` data structure, also known as a Disjoint-Set Union (DSU).
+///
+/// The `UnionFind` struct is used to efficiently manage and query the connected components
+/// of a set of elements. It supports two primary operations:
+///
+/// 1. **Union**: Connects two elements, merging their respective components.
+/// 2. **Find**: Identifies the representative or "root" of the component to which an element belongs.
+///    This is useful for checking if two elements are in the same component.
+///
+/// # Fields
+/// - `parents`: A vector of `Cell<SetId>` representing the parent of each element in the disjoint-set structure.
+///   Each element either points to its parent or, in the case of a root node, points to itself.
+///   `Cell` is used for interior mutability.
+///
+/// # Derives
+/// - `Clone`: Allows the `UnionFind` structure to be cloned, creating a deep copy of the internal state.
+/// - `Default`: Provides a default empty initialization for the `UnionFind` structure.
+///
+/// # Example
+/// ```
+/// use your_crate::UnionFind;
+///
+/// let mut uf = UnionFind::default();
+/// // Example usage would involve initializing the structure with elements,
+/// // performing union and find operations, etc.
+/// ```
 #[derive(Clone, Default)]
 pub struct UnionFind {
     parents: Vec<Cell<SetId>>,
