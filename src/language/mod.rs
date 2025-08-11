@@ -30,7 +30,7 @@ impl Language {
         self.symbols.iter().position(|x| name == x)
     }
 
-    pub fn math() -> Self {
+    pub fn simple_math() -> Self {
         Self::default()
             .add_symbol("+")
             .add_symbol("-")

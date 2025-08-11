@@ -12,9 +12,10 @@ mod language;
 mod rewriting;
 mod seen;
 mod union_find;
+mod rewriting_system;
 
 fn main() {
-    let lang = Language::math();
+    let lang = Language::simple_math();
     let rules = vec![
         Rule::from_strings("(* x0 2)", "(<< x0 1)", &lang),
         Rule::from_strings("(* x0 1)", "x0", &lang),

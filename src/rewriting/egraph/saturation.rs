@@ -20,7 +20,7 @@ mod tests {
 
     #[test]
     fn classical_test() {
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let rules = vec![
             Rule::from_strings("(* x0 2)", "(<< x0 1)", &lang),
             Rule::from_strings("(* x0 1)", "x0", &lang),

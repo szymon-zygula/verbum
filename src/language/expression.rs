@@ -215,7 +215,7 @@ mod tests {
     use crate::language::expression::LangExpression;
 
     fn test_display(expression_str: &str) {
-        let lang = crate::language::Language::math();
+        let lang = crate::language::Language::simple_math();
         let expr = lang.parse(expression_str).unwrap();
         let formatted = format!("{}", LangExpression::owned(expr, &lang));
         assert_eq!(expression_str, &formatted);

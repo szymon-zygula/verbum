@@ -169,7 +169,7 @@ mod tests {
 
     #[test]
     fn literal_cost() {
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let mut egraph = EGraph::default();
 
         let expr_1 = lang.parse_no_vars("4u").unwrap();
@@ -198,7 +198,7 @@ mod tests {
 
     #[test]
     fn symbol_cost() {
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let mut egraph = EGraph::default();
 
         let expr_1 = lang.parse_no_vars("(+ 2u 3u)").unwrap();
@@ -233,7 +233,7 @@ mod tests {
 
     #[test]
     fn saturated_cost() {
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let rules = vec![
             Rule::from_strings("(* x0 2)", "(<< x0 1)", &lang),
             Rule::from_strings("(* x0 1)", "x0", &lang),

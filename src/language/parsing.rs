@@ -81,7 +81,7 @@ mod tests {
 
     #[test]
     fn parse_symbol() {
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let expr = lang.parse("(+ x y z)").unwrap();
         let plus_children = expr.expect_symbol("+", &lang);
         let x = plus_children[0].expect_variable();
@@ -97,7 +97,7 @@ mod tests {
 
     #[test]
     fn parse_expression() {
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let expr = lang.parse("(+ (sin x) y (- z y))").unwrap();
 
         let plus_args = expr.expect_symbol("+", &lang);
@@ -124,7 +124,7 @@ mod tests {
 
     #[test]
     fn parse_integers_simple() {
-        let lang = Language::math();
+        let lang = Language::simple_math();
 
         let expr = lang.parse("12").unwrap();
         assert!(matches!(expr, Expression::Literal(Literal::Int(12))));
@@ -138,7 +138,7 @@ mod tests {
 
     #[test]
     fn parse_unsigned_integers_simple() {
-        let lang = Language::math();
+        let lang = Language::simple_math();
 
         let expr = lang.parse("12u").unwrap();
         assert!(matches!(expr, Expression::Literal(Literal::UInt(12))));
@@ -151,7 +151,7 @@ mod tests {
 
     #[test]
     fn parse_integers_many() {
-        let lang = Language::math();
+        let lang = Language::simple_math();
 
         let expr = lang.parse("(+ -12 0u 4u 128)").unwrap();
         let children = expr.expect_symbol("+", &lang);

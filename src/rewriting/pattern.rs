@@ -118,7 +118,7 @@ mod tests {
 
     #[test]
     fn simple_match() {
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let pattern = lang.parse("(+ 3 7u)").unwrap();
 
         let expr = lang.parse_no_vars("(+ 3 7u)").unwrap();
@@ -136,7 +136,7 @@ mod tests {
 
     #[test]
     fn nested_match() {
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let string = "(+ (sin 1) (cos 3) (- 8 12u))";
         let pattern = lang.parse(string).unwrap();
 
@@ -149,7 +149,7 @@ mod tests {
 
     #[test]
     fn singular_variables_match() {
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let pattern = lang.parse("(* x0 (sin x1))").unwrap();
 
         let expr = lang.parse_no_vars("(* 12 (sin (cos 5u)))").unwrap();
@@ -165,7 +165,7 @@ mod tests {
 
     #[test]
     fn repeated_variable_match() {
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let pattern = lang.parse("(+ (* x0 x1) (* x0 x2))").unwrap();
 
         let expr = lang

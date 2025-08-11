@@ -403,7 +403,7 @@ mod tests {
 
     #[test]
     fn from_expression() {
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let expression: VarFreeExpression = lang.parse_no_vars("(* 1 2 3 (+ 4 5))").unwrap();
 
         let graph = EGraph::from_expression(expression);
@@ -415,7 +415,7 @@ mod tests {
 
     #[test]
     fn merge() {
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let expression_1: VarFreeExpression = lang.parse_no_vars("(+ 1 5)").unwrap();
         let expression_2: VarFreeExpression = lang.parse_no_vars("(+ 2 4)").unwrap();
 
@@ -463,7 +463,7 @@ mod tests {
 
     #[test]
     fn parents() {
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let expression: VarFreeExpression = lang.parse_no_vars("(+ 1 5)").unwrap();
 
         let mut graph = EGraph::default();
@@ -524,7 +524,7 @@ mod tests {
     fn literal_sharing() {
         let mut egraph = EGraph::default();
 
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let expr_1: VarFreeExpression = lang.parse_no_vars("(+ 1 5)").unwrap();
         let expr_2: VarFreeExpression = lang.parse_no_vars("(* 6 5)").unwrap();
 
@@ -540,7 +540,7 @@ mod tests {
     fn class_merge_with_same_nodes() {
         let mut egraph = EGraph::default();
 
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let expr_1: VarFreeExpression = lang.parse_no_vars("(+ 1 5)").unwrap();
         let expr_2: VarFreeExpression = lang.parse_no_vars("(+ 1 2)").unwrap();
 
@@ -559,7 +559,7 @@ mod tests {
 
     #[test]
     fn cascading_rebuild() {
-        let lang = Language::math();
+        let lang = Language::simple_math();
 
         let expr = lang
             .parse_no_vars("(* (+ 5 (sin (* 1 7))) (+ 5 (sin (* 1 8))))")
@@ -586,7 +586,7 @@ mod tests {
 
     #[test]
     fn self_merge() {
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let mut egraph = EGraph::from_expression(lang.parse_no_vars("(+ 2 (sin 5))").unwrap());
 
         egraph.merge_classes(0, 1);

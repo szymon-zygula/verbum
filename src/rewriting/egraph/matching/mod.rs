@@ -98,7 +98,7 @@ mod tests {
     }
 
     pub fn find_literal(matcher: impl Matcher) {
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let five = lang.parse("5").unwrap();
         let expr = lang.parse_no_vars("(* (+ 5 (sin (+ 5 3))))").unwrap();
         let egraph = EGraph::from_expression(expr);
@@ -115,7 +115,7 @@ mod tests {
     }
 
     pub fn find_symbol(matcher: impl Matcher) {
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let sin = lang.parse("(sin (+ 5 3))").unwrap();
         let expr = lang.parse_no_vars("(* (+ 5 (sin (+ 5 3))))").unwrap();
         let egraph = EGraph::from_expression(expr);
@@ -132,7 +132,7 @@ mod tests {
     }
 
     pub fn not_find_symbol(matcher: impl Matcher) {
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let five = lang.parse("(sin (+ 5 3))").unwrap();
         let expr = lang.parse_no_vars("(* (+ 5 (sin (+ 5 4))))").unwrap();
         let egraph = EGraph::from_expression(expr);
@@ -143,7 +143,7 @@ mod tests {
     }
 
     pub fn match_with_variables(matcher: impl Matcher) {
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let five = lang.parse("(+ 5 x0)").unwrap();
         let expr = lang.parse_no_vars("(* (+ 5 (sin (+ 5 3))))").unwrap();
         let egraph = EGraph::from_expression(expr);
@@ -183,7 +183,7 @@ mod tests {
     }
 
     pub fn match_with_repeated_variables(matcher: impl Matcher) {
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let five = lang.parse("(* (+ x0 x0) x1)").unwrap();
         let expr = lang.parse_no_vars("(* (+ (sin 5) (sin 5)) 3)").unwrap();
         let egraph = EGraph::from_expression(expr);
@@ -206,7 +206,7 @@ mod tests {
     }
 
     pub fn match_with_repeated_variables_fail(matcher: impl Matcher) {
-        let lang = Language::math();
+        let lang = Language::simple_math();
         let five = lang.parse("(* (+ x0 x0) x1)").unwrap();
         let expr = lang.parse_no_vars("(* (+ 8 5) 3)").unwrap();
         let egraph = EGraph::from_expression(expr);
