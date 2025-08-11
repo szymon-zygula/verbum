@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use language::Language;
-use rewriting::egraph::{EGraph, matching::bottom_up::BottomUpMatcher, saturation::saturate};
+use rewriting::egraph::{EGraph, matching::bottom_up::BottomUpMatcher, saturation::{saturate, SaturationConfig}};
 
 mod data_union_find;
 mod index_selector;
@@ -24,7 +24,7 @@ fn main() {
 
     let mut egraph = EGraph::from_expression(lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap());
 
-    saturate(&mut egraph, &rules, BottomUpMatcher);
+    let _ = saturate(&mut egraph, &rules, BottomUpMatcher, &SaturationConfig::default());
 
     egraph.save_dot(&lang, "test.dot").unwrap();
 }

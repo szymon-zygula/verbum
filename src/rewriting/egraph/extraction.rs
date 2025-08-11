@@ -160,7 +160,7 @@ mod tests {
     use crate::{
         language::Language,
         rewriting::{
-            egraph::{EGraph, matching::bottom_up::BottomUpMatcher, saturation::saturate},
+            egraph::{EGraph, matching::bottom_up::BottomUpMatcher, saturation::{saturate, SaturationConfig}},
             rule::Rule,
         },
     };
@@ -245,7 +245,7 @@ mod tests {
             EGraph::from_expression(lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap());
         let top_class_id = egraph.containing_class(egraph.find_symbols(lang.get_id("/"))[0]);
 
-        saturate(&mut egraph, &rules, BottomUpMatcher);
+        let _ = saturate(&mut egraph, &rules, BottomUpMatcher, &SaturationConfig::default());
 
         let extractor = SimpleExtractor::<usize, _, _>::new(
             |_| 1,

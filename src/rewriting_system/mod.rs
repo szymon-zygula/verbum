@@ -1,5 +1,5 @@
 use crate::language::{Language, expression::VarFreeExpression};
-use crate::rewriting::egraph::{EGraph, matching::bottom_up::BottomUpMatcher, saturation::saturate};
+use crate::rewriting::egraph::{EGraph, matching::bottom_up::BottomUpMatcher, saturation::{saturate, SaturationConfig}};
 use crate::rewriting::rule::Rule;
 
 mod calculus;
@@ -26,7 +26,7 @@ impl TermRewritingSystem {
     /// Returns the saturated e-graph.
     pub fn rewrite(&self, expression: VarFreeExpression) -> EGraph {
         let mut egraph = EGraph::from_expression(expression);
-        saturate(&mut egraph, &self.rules, BottomUpMatcher);
+        let _ = saturate(&mut egraph, &self.rules, BottomUpMatcher, &SaturationConfig::default());
         egraph
     }
 }
