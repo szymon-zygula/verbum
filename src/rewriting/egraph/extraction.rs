@@ -18,7 +18,7 @@ pub trait Extractor {
 
     /// Finds the cheapest expression represented by `egraph` that's represented by class with id `equivalent`.
     fn extract(&self, egraph: &EGraph, equivalent: ClassId)
-    -> Option<ExtractionResult<Self::Cost>>;
+               -> Option<ExtractionResult<Self::Cost>>;
 }
 
 trait_set::trait_set! {

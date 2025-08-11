@@ -55,7 +55,7 @@ pub fn saturate(
     let start = Instant::now();
     let mut applications: usize = 0;
 
-    // Early check in case initial graph already violates limits
+    // Early check in case the initial graph already violates limits
     if let Some(reason) = check_limits(egraph, applications, start, config) {
         return reason;
     }
