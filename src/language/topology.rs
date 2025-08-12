@@ -22,7 +22,7 @@ pub fn symbol_size(symbol: &Symbol<Expression>) -> ExpressionMagnitude {
         + symbol
             .children
             .iter()
-            .map(|c| expression_size(c))
+            .map(expression_size)
             .sum::<ExpressionMagnitude>()
 }
 
