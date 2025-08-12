@@ -3,6 +3,7 @@ use symbol::SymbolId;
 pub mod expression;
 pub mod parsing;
 pub mod symbol;
+mod topology;
 
 #[derive(Default)]
 pub struct Language {
