@@ -21,6 +21,10 @@ impl<C> ExtractionResult<C> {
     pub fn cost(&self) -> &C {
         &self.cost
     }
+
+    pub fn cost_value(self) -> C {
+        self.cost
+    }
 }
 
 pub trait Extractor<A: Analysis + Default> {

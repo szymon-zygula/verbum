@@ -1,4 +1,4 @@
 pub mod egraph;
 pub mod pattern;
 pub mod rule;
-mod system;
+pub mod system;

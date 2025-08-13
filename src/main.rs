@@ -1,11 +1,7 @@
 #![allow(dead_code)]
 
 use language::Language;
-use rewriting::egraph::{
-    EGraph,
-    matching::bottom_up::BottomUpMatcher,
-    saturation::{SaturationConfig, saturate},
-};
+use rewriting::system::TermRewritingSystem;
 
 mod benchmark;
 mod data_union_find;
@@ -20,20 +16,26 @@ mod macros;
 fn main() {
     let lang = Language::simple_math();
     let rules = rules!(lang;
-        "(* x0 2)" => "(<< x0 1)",
-        "(* x0 1)" => "x0",
-        "(/ (* x0 x1) x2)" => "(* x0 (/ x1 x2))",
-        "(/ x0 x0)" => "1",
+        "(* $0 2)" => "(<< $0 1)",
+        "(* $0 1)" => "$0",
+        "(/ (* $0 $1) $2)" => "(* $0 (/ $1 $2))",
+        "(/ $0 $0)" => "1",
     );
 
-    let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap());
+    // Something is wrong here, the extracted expressions are completely wrong. Why?
+    let trs = TermRewritingSystem::new(lang.clone(), rules);
+    let expressions = vec![
+        lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap(),
+        lang.parse_no_vars("(+ 1 1)").unwrap(),
+    ];
 
-    let _ = saturate(
-        &mut egraph,
-        &rules,
-        BottomUpMatcher,
-        &SaturationConfig::default(),
-    );
+    let config = benchmark::BenchmarkConfig::default();
+    let outcomes = benchmark::benchmark::<()>(&trs, expressions, &config);
 
-    egraph.save_dot(&lang, "test.dot").unwrap();
+    benchmark::pretty_printing::print_table(&outcomes);
+
+    use benchmark::csv_output::{CsvFormatter, OutcomeFormatter};
+    let csv_formatter = CsvFormatter;
+    let csv_output = csv_formatter.format_outcomes(&outcomes);
+    println!("\nCSV Output:\n{csv_output}");
 }
