@@ -5,7 +5,7 @@ pub mod parsing;
 pub mod symbol;
 mod topology;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Language {
     // Runtime constraints specifying number of inputs/outputs?
     symbols: Vec<String>,
@@ -41,6 +41,10 @@ impl Language {
             .add_symbol("cos")
             .add_symbol("<<")
             .add_symbol(">>")
+    }
+
+    pub fn symbol_count(&self) -> usize {
+        self.symbols.len()
     }
 }
 
