@@ -5,10 +5,10 @@ pub mod matching;
 pub mod node;
 pub mod saturation;
 
-pub use class::{Class, Analysis};
+pub use class::{Analysis, Class};
 pub use node::Node;
 
-use std::collections::{hash_map, HashMap, HashSet};
+use std::collections::{HashMap, HashSet, hash_map};
 
 use itertools::Itertools;
 
@@ -323,9 +323,9 @@ mod tests {
 
     use crate::{
         language::{
+            Language,
             expression::{Literal, VarFreeExpression},
             symbol::Symbol,
-            Language,
         },
         rewriting::egraph::Node,
     };
@@ -518,7 +518,8 @@ mod tests {
     #[test]
     fn self_merge() {
         let lang = Language::simple_math();
-        let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(+ 2 (sin 5))").unwrap());
+        let mut egraph =
+            EGraph::<()>::from_expression(lang.parse_no_vars("(+ 2 (sin 5))").unwrap());
 
         egraph.merge_classes(0, 1);
         egraph.merge_classes(0, 2);
