@@ -53,23 +53,10 @@ fn distance_defined(expr_1: &Expression, expr_2: &Expression) -> ExpressionMagni
 }
 
 pub fn literal_distance(literal_1: &Literal, literal_2: &Literal) -> ExpressionMagnitude {
-    match (literal_1, literal_2) {
-        (Literal::UInt(a), Literal::UInt(b)) => {
-            if a == b {
-                IDENTICAL_DISTANCE
-            } else {
-                BASE_DISTANCE
-            }
-        }
-        (Literal::UInt(_), Literal::Int(_)) => BASE_DISTANCE,
-        (Literal::Int(_), Literal::UInt(_)) => BASE_DISTANCE,
-        (Literal::Int(a), Literal::Int(b)) => {
-            if a == b {
-                IDENTICAL_DISTANCE
-            } else {
-                BASE_DISTANCE
-            }
-        }
+    if literal_1 == literal_2 {
+        IDENTICAL_DISTANCE
+    } else {
+        BASE_DISTANCE
     }
 }
 
