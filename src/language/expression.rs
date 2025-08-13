@@ -292,6 +292,14 @@ impl<'e, 'l> std::fmt::Display for LangExpression<'e, 'l, VarFreeExpression> {
     }
 }
 
+impl std::fmt::Display for VarFreeExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let lang = Language::simple_math(); // This is a hack, ideally language should be passed
+        let lang_expr = LangExpression::borrowed(self, &lang);
+        write!(f, "{lang_expr}")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::language::expression::LangExpression;
