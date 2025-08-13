@@ -1,4 +1,5 @@
 use std::time::Duration;
+pub mod random_generation;
 
 use crate::rewriting::egraph::saturation::SaturationStopReason;
 
