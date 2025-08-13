@@ -9,13 +9,17 @@ use crate::{
     rewriting::{
         egraph::{
             Analysis, EGraph,
-            extraction::{Extractor, SimpleExtractor},
+            extraction::{Extractor},
             matching::bottom_up::BottomUpMatcher,
             saturation::{SaturationConfig, SaturationStopReason, saturate},
         },
         system::TermRewritingSystem,
     },
 };
+
+pub trait OutcomeFormatter {
+    fn format_outcomes(&self, outcomes: &[Outcome]) -> String;
+}
 
 #[derive(Clone, Debug)]
 pub struct Outcome {
@@ -33,11 +37,16 @@ pub struct BenchmarkConfig {
     pub saturation_config: SaturationConfig,
 }
 
-pub fn benchmark<A: Analysis + Default>(
+pub fn benchmark<A, E>(
     trs: &TermRewritingSystem,
     expressions: Vec<VarFreeExpression>,
     config: &BenchmarkConfig,
-) -> Vec<Outcome> {
+    extractor: &E,
+) -> Vec<Outcome>
+where
+    A: Analysis + Default,
+    E: Extractor<A, Cost = usize>,
+{
     let mut outcomes = Vec::new();
 
     for expression in expressions {
@@ -51,12 +60,6 @@ pub fn benchmark<A: Analysis + Default>(
             &config.saturation_config,
         );
         let time = start_time.elapsed();
-
-        // XXX: The extractor should be passed in as an argument to this function
-        let extractor = SimpleExtractor::<usize, _, _, A>::new(
-            |_| 1,          // Simple cost for literals
-            |_, _| Some(0), // Simple cost for symbols
-        );
 
         let extraction_result = extractor.extract(&egraph, egraph.containing_class(0));
         let extracted_expression = match &extraction_result {

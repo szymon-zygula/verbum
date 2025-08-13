@@ -1,9 +1,5 @@
 use crate::benchmark::Outcome;
-
-// XXX: Should be moved to `mod.rs`
-pub trait OutcomeFormatter {
-    fn format_outcomes(&self, outcomes: &[Outcome]) -> String;
-}
+use super::OutcomeFormatter;
 
 pub struct CsvFormatter;
 

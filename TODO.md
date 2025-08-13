@@ -1,0 +1,4 @@
+- Add benchmarking suite for comparing various prototypes
+- Add target expression guessing in e-graphs
+- Add directed saturation (direction of the target expression, like A*)
+- Try creating the target expression using Monte-Carlo

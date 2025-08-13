@@ -30,11 +30,20 @@ fn main() {
     ];
 
     let config = benchmark::BenchmarkConfig::default();
-    let outcomes = benchmark::benchmark::<()>(&trs, expressions, &config);
+    let extractor = crate::rewriting::egraph::extraction::SimpleExtractor::<usize, _, _, ()>::new(
+        |_| 1,
+        |_, _| Some(0),
+    );
+    let outcomes = benchmark::benchmark(&trs, expressions, &config, &extractor);
 
-    benchmark::pretty_printing::print_table(&outcomes);
+    use benchmark::{
+        OutcomeFormatter, csv_output::CsvFormatter, pretty_printing::PrettyTableFormatter,
+    };
 
-    use benchmark::csv_output::{CsvFormatter, OutcomeFormatter};
+    let pretty_formatter = PrettyTableFormatter;
+    let pretty_output = pretty_formatter.format_outcomes(&outcomes);
+    println!("{pretty_output}");
+
     let csv_formatter = CsvFormatter;
     let csv_output = csv_formatter.format_outcomes(&outcomes);
     println!("\nCSV Output:\n{csv_output}");
