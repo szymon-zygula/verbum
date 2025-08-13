@@ -5,7 +5,7 @@ use crate::language::{
     symbol::Symbol,
 };
 
-use super::{ClassId, EGraph, Node, NodeId, Analysis};
+use super::{Analysis, ClassId, EGraph, Node, NodeId};
 
 #[derive(Clone, Debug)]
 pub struct ExtractionResult<C> {
@@ -13,12 +13,25 @@ pub struct ExtractionResult<C> {
     cost: C,
 }
 
+impl<C> ExtractionResult<C> {
+    pub fn winner(&self) -> &VarFreeExpression {
+        &self.winner
+    }
+
+    pub fn cost(&self) -> &C {
+        &self.cost
+    }
+}
+
 pub trait Extractor<A: Analysis + Default> {
     type Cost;
 
     /// Finds the cheapest expression represented by `egraph` that's represented by class with id `equivalent`.
-    fn extract(&self, egraph: &EGraph<A>, equivalent: ClassId)
-    -> Option<ExtractionResult<Self::Cost>>;
+    fn extract(
+        &self,
+        egraph: &EGraph<A>,
+        equivalent: ClassId,
+    ) -> Option<ExtractionResult<Self::Cost>>;
 }
 
 trait_set::trait_set! {
@@ -62,7 +75,10 @@ where
         }
     }
 
-    fn calculate_costs(&self, egraph: &EGraph<A>) -> (HashMap<ClassId, NodeId>, HashMap<ClassId, C>) {
+    fn calculate_costs(
+        &self,
+        egraph: &EGraph<A>,
+    ) -> (HashMap<ClassId, NodeId>, HashMap<ClassId, C>) {
         let mut work_remaining = true;
         let mut class_costs = HashMap::new();
         let mut node_costs = HashMap::new();
