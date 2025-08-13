@@ -7,6 +7,7 @@ use rewriting::egraph::{
     saturation::{SaturationConfig, saturate},
 };
 
+mod benchmark;
 mod data_union_find;
 mod index_selector;
 mod language;
