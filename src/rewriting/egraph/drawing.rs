@@ -39,7 +39,7 @@ impl EGraph {
             writeln!(out, "  subgraph cluster_{class_id:?} {{").unwrap();
             writeln!(out, "    label = \"Class {class_id:?}\";").unwrap();
 
-            for node_id in &class.nodes_ids {
+            for node_id in class.nodes_ids() {
                 class_repr.entry(*class_id).or_insert(*node_id);
 
                 if let Some(node) = self.nodes.get(node_id) {
@@ -58,7 +58,7 @@ impl EGraph {
 
     fn write_edges(&self, out: &mut String, class_repr: &HashMap<ClassId, NodeId>) {
         for class in self.classes.values() {
-            for node_id in &class.nodes_ids {
+            for node_id in class.nodes_ids() {
                 if let Some(Node::Symbol(sym)) = self.nodes.get(node_id) {
                     for (i, child_class) in sym.children.iter().enumerate() {
                         let canonical = self.union_find.find(*child_class);

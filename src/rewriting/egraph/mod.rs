@@ -2,8 +2,13 @@ pub mod drawing;
 pub mod extraction;
 pub mod matching;
 pub mod saturation;
+pub mod node;
+pub mod class;
 
-use std::collections::{HashMap, HashSet, hash_map, hash_set};
+pub use node::Node;
+pub use class::Class;
+
+use std::collections::{HashMap, HashSet, hash_map};
 
 use itertools::Itertools;
 
@@ -18,80 +23,6 @@ use crate::{
 
 pub type NodeId = usize;
 pub type ClassId = usize;
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Node {
-    Literal(Literal),
-    Symbol(Symbol<ClassId>),
-}
-
-impl Node {
-    pub fn iter_mut_children(&mut self) -> std::slice::IterMut<ClassId> {
-        match self {
-            Node::Literal(_) => std::slice::IterMut::default(),
-            Node::Symbol(symbol) => symbol.children.iter_mut(),
-        }
-    }
-
-    pub fn iter_children(&self) -> std::slice::Iter<ClassId> {
-        match self {
-            Node::Literal(_) => std::slice::Iter::default(),
-            Node::Symbol(symbol) => symbol.children.iter(),
-        }
-    }
-
-    fn canonical(&self, graph: &EGraph) -> Self {
-        let mut cloned = self.clone();
-        cloned.make_canonical(graph);
-        cloned
-    }
-
-    fn make_canonical(&mut self, graph: &EGraph) {
-        for child_id in self.iter_mut_children() {
-            *child_id = graph.canonical_class(*child_id);
-        }
-    }
-
-    /// Assume `self` is a symbol and return it, otherwise panic.
-    fn as_symbol(&self) -> &Symbol<ClassId> {
-        match self {
-            Node::Literal(literal) => panic!("Expected node to be a symbol, is {literal:?}"),
-            Node::Symbol(symbol) => symbol,
-        }
-    }
-
-    /// If `self` is a symbol, return it, otherwise panic returns `None`.
-    pub fn try_as_symbol(&self) -> Option<&Symbol<ClassId>> {
-        match self {
-            Node::Literal(_) => None,
-            Node::Symbol(symbol) => Some(symbol),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct Class {
-    nodes_ids: HashSet<NodeId>,
-    parents_ids: HashSet<NodeId>,
-}
-
-impl Class {
-    fn from_node(node_id: NodeId) -> Self {
-        Self {
-            nodes_ids: HashSet::from([node_id]),
-            parents_ids: HashSet::new(),
-        }
-    }
-
-    fn merge(&mut self, other: Self) {
-        self.nodes_ids.extend(other.nodes_ids);
-        self.parents_ids.extend(other.parents_ids)
-    }
-
-    pub fn iter_nodes(&self) -> hash_set::Iter<'_, usize> {
-        self.nodes_ids.iter()
-    }
-}
 
 #[derive(Default, Clone)]
 pub struct EGraph {
@@ -190,7 +121,7 @@ impl EGraph {
     }
 
     fn add_parent(&mut self, class_id: ClassId, parent_id: NodeId) {
-        self.class_mut(class_id).parents_ids.insert(parent_id);
+        self.class_mut(class_id).parents_ids_mut().insert(parent_id);
     }
 
     pub fn canonical_class(&self, class_id: ClassId) -> ClassId {
@@ -232,16 +163,16 @@ impl EGraph {
     pub fn actual_node_count(&self) -> usize {
         self.classes
             .values()
-            .map(|class| class.nodes_ids.len())
+            .map(|class| class.nodes_ids().len())
             .sum()
     }
 
     pub fn parents(&self, class_id: ClassId) -> &HashSet<NodeId> {
-        &self.class(class_id).parents_ids
+        &self.class(class_id).parents_ids()
     }
 
     pub fn nodes(&self, class_id: ClassId) -> &HashSet<NodeId> {
-        &self.class(class_id).nodes_ids
+        &self.class(class_id).nodes_ids()
     }
 
     pub fn containing_class(&self, node_id: NodeId) -> ClassId {
@@ -274,7 +205,7 @@ impl EGraph {
     fn make_class_canonical(&mut self, class_id: ClassId) {
         let class_id = self.canonical_class(class_id);
         let class = &self.classes[&class_id];
-        for &node_id in &class.nodes_ids {
+        for &node_id in class.nodes_ids() {
             // Make node canonical
             for child_id in self.nodes.get_mut(&node_id).unwrap().iter_mut_children() {
                 *child_id = self.union_find.find(*child_id);
@@ -291,9 +222,9 @@ impl EGraph {
         // Find duplicate nodes
         let mut to_remove = Vec::new();
         for (&node_id_1, &node_id_2) in class
-            .nodes_ids
+            .nodes_ids()
             .iter()
-            .cartesian_product(class.nodes_ids.iter())
+            .cartesian_product(class.nodes_ids().iter())
             .filter(|(id_1, id_2)| id_1 < id_2)
         {
             if self.node(node_id_1) == self.node(node_id_2) {
@@ -304,12 +235,12 @@ impl EGraph {
         // Remove duplicate nodes
         let class = self.classes.get_mut(&class_id).unwrap();
         for node_id in to_remove {
-            class.nodes_ids.remove(&node_id);
+            class.nodes_ids_mut().remove(&node_id);
         }
 
         // Make all nodes in parents have canonical class IDs
         let class = &self.classes[&class_id];
-        for parent in &class.parents_ids {
+        for parent in class.parents_ids() {
             for child in self.nodes.get_mut(parent).unwrap().iter_mut_children() {
                 *child = self.union_find.find(*child);
             }
@@ -318,9 +249,9 @@ impl EGraph {
         // Check if there are parents who share identical nodes
         let mut to_merge = Vec::new();
         for (parent_1_id, parent_2_id) in class
-            .parents_ids
+            .parents_ids()
             .iter()
-            .cartesian_product(class.parents_ids.iter())
+            .cartesian_product(class.parents_ids().iter())
             // So that we don't compare same things twice
             .filter(|(id_1, id_2)| id_1 < id_2)
         {
@@ -479,7 +410,7 @@ mod tests {
         };
 
         for child_id in &plus.children {
-            let parent_ids = &graph.class(*child_id).parents_ids;
+            let parent_ids = &graph.class(*child_id).parents_ids();
             assert_eq!(parent_ids.len(), 1);
             assert_eq!(*parent_ids.iter().next().unwrap(), node_id);
         }
