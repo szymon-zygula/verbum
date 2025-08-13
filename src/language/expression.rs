@@ -1,4 +1,7 @@
-use std::{borrow::Cow, collections::HashSet};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+};
 
 use itertools::Itertools;
 
@@ -7,6 +10,44 @@ use crate::rewriting::egraph::{ClassId, matching::EGraphMatch};
 use super::{Language, symbol::Symbol};
 
 pub type VariableId = usize;
+
+#[derive(Clone, Debug, Default)]
+pub struct OwnedPath(Vec<usize>);
+
+impl OwnedPath {
+    pub fn as_ref(&self) -> Path<'_> {
+        Path(&self.0)
+    }
+
+    pub fn child(&self) -> Path<'_> {
+        self.as_ref().child()
+    }
+
+    pub fn head(&self) -> Option<usize> {
+        self.as_ref().head()
+    }
+
+    pub fn push(&mut self, location: usize) {
+        self.0.push(location)
+    }
+
+    pub fn pop(&mut self) -> Option<usize> {
+        self.0.pop()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Path<'p>(&'p [usize]);
+
+impl<'p> Path<'p> {
+    pub fn child(&self) -> Self {
+        Path(&self.0[1..])
+    }
+
+    pub fn head(&self) -> Option<usize> {
+        self.0.first().copied()
+    }
+}
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub enum Literal {
@@ -136,6 +177,35 @@ impl Expression {
             }
         }
     }
+
+    /// Finds all variables in the expression together with their paths
+    pub fn find_all_variables(&self) -> HashMap<VariableId, Vec<OwnedPath>> {
+        let mut vars = HashMap::new();
+        self.find_all_variables_impl(&mut OwnedPath::default(), &mut vars);
+        vars
+    }
+
+    fn find_all_variables_impl(
+        &self,
+        current_path: &mut OwnedPath,
+        vars: &mut HashMap<VariableId, Vec<OwnedPath>>,
+    ) {
+        match self {
+            Expression::Variable(variable_id) => {
+                vars.entry(*variable_id)
+                    .or_default()
+                    .push(current_path.clone());
+            }
+            Expression::Symbol(symbol) => {
+                for (i, child) in symbol.children.iter().enumerate() {
+                    current_path.push(i);
+                    child.find_all_variables_impl(current_path, vars);
+                    current_path.pop();
+                }
+            }
+            Expression::Literal(_) => {}
+        }
+    }
 }
 
 pub trait AnyExpression: Clone + 'static {
@@ -145,10 +215,36 @@ pub trait AnyExpression: Clone + 'static {
             language,
         }
     }
+
+    fn children(&self) -> Option<Vec<&Self>>;
+
+    fn subexpression<'e>(&'e self, path: Path) -> Option<&'e Self> {
+        if let Some(head) = path.head() {
+            self.children()
+                .and_then(|children| children.get(head)?.subexpression(path.child()))
+        } else {
+            Some(self)
+        }
+    }
 }
 
-impl AnyExpression for Expression {}
-impl AnyExpression for VarFreeExpression {}
+impl AnyExpression for Expression {
+    fn children(&self) -> Option<Vec<&Self>> {
+        match self {
+            Expression::Symbol(symbol) => Some(symbol.children.iter().collect()),
+            _ => None,
+        }
+    }
+}
+
+impl AnyExpression for VarFreeExpression {
+    fn children(&self) -> Option<Vec<&Self>> {
+        match self {
+            VarFreeExpression::Symbol(symbol) => Some(symbol.children.iter().collect()),
+            _ => None,
+        }
+    }
+}
 
 pub struct LangExpression<'e, 'l, E: AnyExpression> {
     pub expression: Cow<'e, E>,
