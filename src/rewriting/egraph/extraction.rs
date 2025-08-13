@@ -5,7 +5,7 @@ use crate::language::{
     symbol::Symbol,
 };
 
-use super::{ClassId, EGraph, Node, NodeId};
+use super::{ClassId, EGraph, Node, NodeId, Analysis};
 
 #[derive(Clone, Debug)]
 pub struct ExtractionResult<C> {
@@ -13,11 +13,11 @@ pub struct ExtractionResult<C> {
     cost: C,
 }
 
-pub trait Extractor {
+pub trait Extractor<A: Analysis + Default> {
     type Cost;
 
     /// Finds the cheapest expression represented by `egraph` that's represented by class with id `equivalent`.
-    fn extract(&self, egraph: &EGraph, equivalent: ClassId)
+    fn extract(&self, egraph: &EGraph<A>, equivalent: ClassId)
     -> Option<ExtractionResult<Self::Cost>>;
 }
 
@@ -28,7 +28,7 @@ trait_set::trait_set! {
 
 /// A simple extractor, finding the cheapest class, calculating the cost
 /// using given functions
-pub struct SimpleExtractor<C, SC, LC>
+pub struct SimpleExtractor<C, SC, LC, A: Analysis + Default>
 where
     C: Ord + PartialEq + Clone,
     LC: SimpleLiteralCost<C>,
@@ -37,9 +37,10 @@ where
     literal_cost: LC,
     symbol_cost: SC,
     cost: PhantomData<C>,
+    analysis: PhantomData<A>,
 }
 
-impl<C, SC, LC> SimpleExtractor<C, SC, LC>
+impl<C, SC, LC, A: Analysis + Default> SimpleExtractor<C, SC, LC, A>
 where
     C: Ord + PartialEq + Clone,
     LC: SimpleLiteralCost<C>,
@@ -50,6 +51,7 @@ where
             literal_cost,
             symbol_cost,
             cost: PhantomData,
+            analysis: PhantomData,
         }
     }
 
@@ -60,7 +62,7 @@ where
         }
     }
 
-    fn calculate_costs(&self, egraph: &EGraph) -> (HashMap<ClassId, NodeId>, HashMap<ClassId, C>) {
+    fn calculate_costs(&self, egraph: &EGraph<A>) -> (HashMap<ClassId, NodeId>, HashMap<ClassId, C>) {
         let mut work_remaining = true;
         let mut class_costs = HashMap::new();
         let mut node_costs = HashMap::new();
@@ -99,7 +101,7 @@ where
     }
 
     fn extract_expression(
-        egraph: &EGraph,
+        egraph: &EGraph<A>,
         cheapest_nodes: &HashMap<ClassId, NodeId>,
         equivalent: ClassId,
     ) -> VarFreeExpression {
@@ -117,10 +119,10 @@ where
     }
 }
 
-pub fn children_cost_sum<C>(
+pub fn children_cost_sum<C, A: Analysis + Default>(
     symbol: &Symbol<ClassId>,
     costs: &HashMap<ClassId, C>,
-    egraph: &EGraph,
+    egraph: &EGraph<A>,
 ) -> Option<C>
 where
     C: Ord + PartialEq + Clone + Sum,
@@ -132,7 +134,7 @@ where
         .sum::<Option<C>>()
 }
 
-impl<C, SC, LC> Extractor for SimpleExtractor<C, SC, LC>
+impl<C, SC, LC, A: Analysis + Default> Extractor<A> for SimpleExtractor<C, SC, LC, A>
 where
     C: Ord + PartialEq + Clone,
     LC: SimpleLiteralCost<C>,
@@ -142,7 +144,7 @@ where
 
     fn extract(
         &self,
-        egraph: &EGraph,
+        egraph: &EGraph<A>,
         equivalent: ClassId,
     ) -> Option<ExtractionResult<Self::Cost>> {
         let equivalent = egraph.canonical_class(equivalent);
@@ -174,7 +176,7 @@ mod tests {
     #[test]
     fn literal_cost() {
         let lang = Language::simple_math();
-        let mut egraph = EGraph::default();
+        let mut egraph = EGraph::<()>::default();
 
         let expr_1 = lang.parse_no_vars("4u").unwrap();
         let expr_2 = lang.parse_no_vars("8u").unwrap();
@@ -186,7 +188,7 @@ mod tests {
 
         let merged_id = egraph.merge_classes(class_1_id, class_2_id).new().unwrap();
 
-        let extractor = SimpleExtractor::<usize, _, _>::new(
+        let extractor = SimpleExtractor::<usize, _, _, ()>::new(
             |literal| match literal {
                 crate::language::expression::Literal::UInt(x) => *x as usize,
                 crate::language::expression::Literal::Int(_) => 0,
@@ -203,7 +205,7 @@ mod tests {
     #[test]
     fn symbol_cost() {
         let lang = Language::simple_math();
-        let mut egraph = EGraph::default();
+        let mut egraph = EGraph::<()>::default();
 
         let expr_1 = lang.parse_no_vars("(+ 2u 3u)").unwrap();
         let expr_2 = lang.parse_no_vars("(* 1u 2u)").unwrap();
@@ -215,7 +217,7 @@ mod tests {
 
         let merged_id = egraph.merge_classes(class_1_id, class_2_id).new().unwrap();
 
-        let extractor = SimpleExtractor::<usize, _, _>::new(
+        let extractor = SimpleExtractor::<usize, _, _, ()>::new(
             |literal| match literal {
                 crate::language::expression::Literal::UInt(x) => *x as usize,
                 crate::language::expression::Literal::Int(_) => 0,
@@ -246,7 +248,7 @@ mod tests {
         ];
 
         let mut egraph =
-            EGraph::from_expression(lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap());
+            EGraph::<()>::from_expression(lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap());
         let top_class_id = egraph.containing_class(egraph.find_symbols(lang.get_id("/"))[0]);
 
         let _ = saturate(
@@ -256,7 +258,7 @@ mod tests {
             &SaturationConfig::default(),
         );
 
-        let extractor = SimpleExtractor::<usize, _, _>::new(
+        let extractor = SimpleExtractor::<usize, _, _, ()>::new(
             |_| 1,
             |symbol, costs| {
                 Some(match lang.get_symbol(symbol.id) {

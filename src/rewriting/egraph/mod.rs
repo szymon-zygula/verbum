@@ -5,7 +5,7 @@ pub mod matching;
 pub mod node;
 pub mod saturation;
 
-pub use class::Class;
+pub use class::{Class, Analysis};
 pub use node::Node;
 
 use std::collections::{hash_map, HashMap, HashSet};
@@ -25,14 +25,14 @@ pub type NodeId = usize;
 pub type ClassId = usize;
 
 #[derive(Default, Clone)]
-pub struct EGraph {
+pub struct EGraph<A: Analysis + Default> {
     union_find: UnionFind,
     nodes: HashMap<NodeId, Node>,
     // Always kept behind canonical IDs
-    classes: HashMap<ClassId, Class>,
+    classes: HashMap<ClassId, Class<A>>,
 }
 
-impl EGraph {
+impl<A: Analysis + Default> EGraph<A> {
     pub fn from_expression(expression: VarFreeExpression) -> Self {
         let mut egraph = Self::default();
 
@@ -98,7 +98,7 @@ impl EGraph {
 
         self.nodes.insert(node_id, node);
 
-        let class = Class::from_node(node_id);
+        let class = Class::from_node(self, node_id);
         self.classes.insert(class_id, class);
 
         Seen::New(node_id)
@@ -128,16 +128,16 @@ impl EGraph {
         self.union_find.find(class_id)
     }
 
-    pub fn iter_classes(&self) -> hash_map::Iter<'_, usize, Class> {
+    pub fn iter_classes(&self) -> hash_map::Iter<'_, usize, Class<A>> {
         self.classes.iter()
     }
 
-    pub fn class(&self, class_id: ClassId) -> &Class {
+    pub fn class(&self, class_id: ClassId) -> &Class<A> {
         let class_id = self.canonical_class(class_id);
         &self.classes[&class_id]
     }
 
-    pub fn class_mut(&mut self, class_id: ClassId) -> &mut Class {
+    pub fn class_mut(&mut self, class_id: ClassId) -> &mut Class<A> {
         let class_id = self.canonical_class(class_id);
         self.classes.get_mut(&class_id).unwrap()
     }
@@ -337,7 +337,7 @@ mod tests {
         let lang = Language::simple_math();
         let expression: VarFreeExpression = lang.parse_no_vars("(* 1 2 3 (+ 4 5))").unwrap();
 
-        let graph = EGraph::from_expression(expression);
+        let graph = EGraph::<()>::from_expression(expression);
 
         assert_eq!(graph.class_count(), 7);
         assert_eq!(graph.total_node_count(), 7);
@@ -350,7 +350,7 @@ mod tests {
         let expression_1: VarFreeExpression = lang.parse_no_vars("(+ 1 5)").unwrap();
         let expression_2: VarFreeExpression = lang.parse_no_vars("(+ 2 4)").unwrap();
 
-        let mut graph = EGraph::default();
+        let mut graph = EGraph::<()>::default();
 
         let node_1_id = graph.add_expression(expression_1);
         let node_2_id = graph.add_expression(expression_2);
@@ -375,7 +375,7 @@ mod tests {
 
     #[test]
     fn node_and_node_id() {
-        let mut egraph = EGraph::default();
+        let mut egraph = EGraph::<()>::default();
 
         let nodes = (0..10)
             .map(|i| Node::Literal(Literal::UInt(i)))
@@ -397,7 +397,7 @@ mod tests {
         let lang = Language::simple_math();
         let expression: VarFreeExpression = lang.parse_no_vars("(+ 1 5)").unwrap();
 
-        let mut graph = EGraph::default();
+        let mut graph = EGraph::<()>::default();
 
         let node_id = graph.add_expression(expression);
         let class_id = graph.containing_class(node_id);
@@ -418,7 +418,7 @@ mod tests {
 
     #[test]
     fn double_node_addition() {
-        let mut egraph = EGraph::default();
+        let mut egraph = EGraph::<()>::default();
 
         let literal_1 = Node::Literal(Literal::UInt(5));
         let literal_2 = Node::Literal(Literal::UInt(7));
@@ -453,7 +453,7 @@ mod tests {
 
     #[test]
     fn literal_sharing() {
-        let mut egraph = EGraph::default();
+        let mut egraph = EGraph::<()>::default();
 
         let lang = Language::simple_math();
         let expr_1: VarFreeExpression = lang.parse_no_vars("(+ 1 5)").unwrap();
@@ -469,7 +469,7 @@ mod tests {
 
     #[test]
     fn class_merge_with_same_nodes() {
-        let mut egraph = EGraph::default();
+        let mut egraph = EGraph::<()>::default();
 
         let lang = Language::simple_math();
         let expr_1: VarFreeExpression = lang.parse_no_vars("(+ 1 5)").unwrap();
@@ -496,7 +496,7 @@ mod tests {
             .parse_no_vars("(* (+ 5 (sin (* 1 7))) (+ 5 (sin (* 1 8))))")
             .unwrap();
 
-        let mut egraph = EGraph::from_expression(expr);
+        let mut egraph = EGraph::<()>::from_expression(expr);
 
         let id_7 = egraph.node_id(&Node::Literal(Literal::Int(7))).unwrap();
         let id_8 = egraph.node_id(&Node::Literal(Literal::Int(8))).unwrap();
@@ -518,7 +518,7 @@ mod tests {
     #[test]
     fn self_merge() {
         let lang = Language::simple_math();
-        let mut egraph = EGraph::from_expression(lang.parse_no_vars("(+ 2 (sin 5))").unwrap());
+        let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(+ 2 (sin 5))").unwrap());
 
         egraph.merge_classes(0, 1);
         egraph.merge_classes(0, 2);
@@ -531,5 +531,69 @@ mod tests {
         egraph.merge_classes(0, 2);
 
         assert_eq!(egraph.class_count(), class_count);
+    }
+
+    #[test]
+    fn literal_count_analysis() {
+        use super::class::LiteralCountAnalysis;
+        let lang = Language::simple_math();
+        let expr = lang.parse_no_vars("(* 1 2 (+ 3 4))").unwrap();
+        let mut egraph = EGraph::<LiteralCountAnalysis>::from_expression(expr);
+
+        // The expression is (* 1 2 (+ 3 4))
+        // Nodes: *, 1, 2, +, 3, 4
+        // Literals: 1, 2, 3, 4 (4 literals)
+        // Symbols: *, +
+
+        // After adding the expression, we should have 6 nodes and 6 classes initially.
+        // The literals 1, 2, 3, 4 should each be in their own class with count 1.
+        // The symbols * and + should be in their own classes with count 0.
+
+        // Find the class for literal 1
+        let literal_1_id = egraph.node_id(&Node::Literal(Literal::Int(1))).unwrap();
+        let class_1_id = egraph.containing_class(literal_1_id);
+        assert_eq!(egraph.class(class_1_id).analysis().count(), 1);
+
+        // Find the class for literal 2
+        let literal_2_id = egraph.node_id(&Node::Literal(Literal::Int(2))).unwrap();
+        let class_2_id = egraph.containing_class(literal_2_id);
+        assert_eq!(egraph.class(class_2_id).analysis().count(), 1);
+
+        // Find the class for literal 3
+        let literal_3_id = egraph.node_id(&Node::Literal(Literal::Int(3))).unwrap();
+        let class_3_id = egraph.containing_class(literal_3_id);
+        assert_eq!(egraph.class(class_3_id).analysis().count(), 1);
+
+        // Find the class for literal 4
+        let literal_4_id = egraph.node_id(&Node::Literal(Literal::Int(4))).unwrap();
+        let class_4_id = egraph.containing_class(literal_4_id);
+        assert_eq!(egraph.class(class_4_id).analysis().count(), 1);
+
+        // Find the class for symbol +
+        let plus_id = egraph.find_symbols(lang.get_id("+"))[0];
+        let plus_class_id = egraph.containing_class(plus_id);
+        assert_eq!(egraph.class(plus_class_id).analysis().count(), 0);
+
+        // Find the class for symbol *
+        let mul_id = egraph.find_symbols(lang.get_id("*"))[0];
+        let mul_class_id = egraph.containing_class(mul_id);
+        assert_eq!(egraph.class(mul_class_id).analysis().count(), 0);
+
+        // Merge classes (3 + 4) and (1 + 2)
+        // This will merge the classes containing the literals 3 and 4, and 1 and 2.
+        // The analysis should reflect the combined literal count.
+        egraph.merge_classes(class_3_id, class_4_id);
+        let merged_plus_class_id = egraph.containing_class(class_3_id);
+        assert_eq!(egraph.class(merged_plus_class_id).analysis().count(), 2);
+
+        egraph.merge_classes(class_1_id, class_2_id);
+        let merged_mul_class_id = egraph.containing_class(class_1_id);
+        assert_eq!(egraph.class(merged_mul_class_id).analysis().count(), 2);
+
+        // Merge the class containing the '+' symbol with the class containing '1' and '2'
+        // This should not change the literal count of the '+' class, as it only contains symbols.
+        egraph.merge_classes(plus_class_id, merged_mul_class_id);
+        let final_plus_class_id = egraph.containing_class(plus_class_id);
+        assert_eq!(egraph.class(final_plus_class_id).analysis().count(), 2);
     }
 }

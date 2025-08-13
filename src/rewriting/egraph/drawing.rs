@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Write, fs::File, path::Path};
 
 use crate::language::Language;
 
-use super::{ClassId, EGraph, Node, NodeId};
+use super::{ClassId, EGraph, Node, NodeId, Analysis};
 
 // This file contains only debugging code for drawing egraphs using `dot`.
 // It was written by ChatGPT, as I don't know this language.
@@ -13,7 +13,7 @@ const GRAPH_SPLINES: &str = "true";
 const GRAPH_NODESEP: f32 = 1.0;
 const GRAPH_RANKSEP: f32 = 1.2;
 
-impl EGraph {
+impl<A: Analysis + Default> EGraph<A> {
     pub fn dot(&self, language: &Language) -> String {
         let mut out = String::new();
         writeln!(&mut out, "digraph egraph {{").unwrap();

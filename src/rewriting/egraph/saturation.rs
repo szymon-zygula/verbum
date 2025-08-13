@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use crate::rewriting::rule::Rule;
 
-use super::{EGraph, matching::Matcher};
+use super::{EGraph, matching::Matcher, Analysis};
 
 #[derive(Clone, Debug, Default)]
 pub struct SaturationConfig {
@@ -21,8 +21,8 @@ pub enum SaturationStopReason {
     Timeout,
 }
 
-fn check_limits(
-    egraph: &EGraph,
+fn check_limits<A: Analysis + Default>(
+    egraph: &EGraph<A>,
     applications: usize,
     start: Instant,
     cfg: &SaturationConfig,
@@ -54,8 +54,8 @@ fn check_limits(
     None
 }
 
-pub fn saturate(
-    egraph: &mut EGraph,
+pub fn saturate<A: Analysis + Default>(
+    egraph: &mut EGraph<A>,
     rules: &[Rule],
     matcher: impl Matcher,
     config: &SaturationConfig,
@@ -120,7 +120,7 @@ mod tests {
         ];
 
         let mut egraph =
-            EGraph::from_expression(lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap());
+            EGraph::<()>::from_expression(lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap());
 
         let reason = saturate(
             &mut egraph,
@@ -141,7 +141,7 @@ mod tests {
             Rule::from_strings("(* $0 2)", "(<< $0 1)", &lang),
             Rule::from_strings("(* $0 1)", "$0", &lang),
         ];
-        let mut egraph = EGraph::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
+        let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
 
         let reason = saturate(
             &mut egraph,
@@ -162,7 +162,7 @@ mod tests {
             Rule::from_strings("(* $0 2)", "(<< $0 1)", &lang),
             Rule::from_strings("(* $0 1)", "$0", &lang),
         ];
-        let mut egraph = EGraph::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
+        let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
 
         let reason = saturate(
             &mut egraph,
@@ -183,7 +183,7 @@ mod tests {
             Rule::from_strings("(* $0 2)", "(<< $0 1)", &lang),
             Rule::from_strings("(* $0 1)", "$0", &lang),
         ];
-        let mut egraph = EGraph::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
+        let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
 
         let reason = saturate(
             &mut egraph,
@@ -204,7 +204,7 @@ mod tests {
             Rule::from_strings("(* $0 2)", "(<< $0 1)", &lang),
             Rule::from_strings("(* $0 1)", "$0", &lang),
         ];
-        let mut egraph = EGraph::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
+        let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
 
         let reason = saturate(
             &mut egraph,

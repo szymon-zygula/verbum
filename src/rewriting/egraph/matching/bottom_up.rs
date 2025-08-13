@@ -7,7 +7,7 @@ use crate::{
         expression::{Expression, VariableId},
         symbol::Symbol,
     },
-    rewriting::egraph::{ClassId, EGraph},
+    rewriting::egraph::{ClassId, EGraph, Analysis},
 };
 
 use super::{EGraphMatch, Matcher};
@@ -15,9 +15,9 @@ use super::{EGraphMatch, Matcher};
 pub struct BottomUpMatcher;
 
 impl BottomUpMatcher {
-    fn try_match_with_variable_assignment(
+    fn try_match_with_variable_assignment<A: Analysis + Default>(
         &self,
-        egraph: &EGraph,
+        egraph: &EGraph<A>,
         expression: &Expression,
         assignment: &HashMap<VariableId, ClassId>,
     ) -> Option<ClassId> {
@@ -28,9 +28,9 @@ impl BottomUpMatcher {
         }
     }
 
-    fn try_match_symbol(
+    fn try_match_symbol<A: Analysis + Default>(
         &self,
-        egraph: &EGraph,
+        egraph: &EGraph<A>,
         symbol: &Symbol<Expression>,
         assignment: &HashMap<VariableId, ClassId>,
     ) -> Option<ClassId> {
@@ -48,7 +48,7 @@ impl BottomUpMatcher {
 }
 
 impl Matcher for BottomUpMatcher {
-    fn try_match(&self, egraph: &EGraph, expression: &Expression) -> Vec<EGraphMatch> {
+    fn try_match<A: Analysis + Default>(&self, egraph: &EGraph<A>, expression: &Expression) -> Vec<EGraphMatch> {
         expression
             .variables()
             .iter()
@@ -76,31 +76,31 @@ mod tests {
 
     #[test]
     fn find_literal() {
-        super::super::tests::find_literal(BottomUpMatcher);
+        super::super::tests::find_literal::<BottomUpMatcher, ()>(BottomUpMatcher);
     }
 
     #[test]
     fn find_symbol() {
-        super::super::tests::find_symbol(BottomUpMatcher);
+        super::super::tests::find_symbol::<BottomUpMatcher, ()>(BottomUpMatcher);
     }
 
     #[test]
     fn not_find_symbol() {
-        super::super::tests::not_find_symbol(BottomUpMatcher);
+        super::super::tests::not_find_symbol::<BottomUpMatcher, ()>(BottomUpMatcher);
     }
 
     #[test]
     fn match_with_variables() {
-        super::super::tests::match_with_variables(BottomUpMatcher);
+        super::super::tests::match_with_variables::<BottomUpMatcher, ()>(BottomUpMatcher);
     }
 
     #[test]
     fn match_with_repeated_variables() {
-        super::super::tests::match_with_repeated_variables(BottomUpMatcher);
+        super::super::tests::match_with_repeated_variables::<BottomUpMatcher, ()>(BottomUpMatcher);
     }
 
     #[test]
     fn match_with_repeated_variables_fail() {
-        super::super::tests::match_with_repeated_variables_fail(BottomUpMatcher);
+        super::super::tests::match_with_repeated_variables_fail::<BottomUpMatcher, ()>(BottomUpMatcher);
     }
 }

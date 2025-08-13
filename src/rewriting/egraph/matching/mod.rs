@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use crate::language::expression::{Expression, VariableId};
 
-use super::{ClassId, EGraph};
+use super::{ClassId, EGraph, Analysis};
 
 #[derive(Clone, Debug)]
 pub struct EGraphMatch {
@@ -61,7 +61,7 @@ impl EGraphMatch {
 }
 
 pub trait Matcher {
-    fn try_match(&self, egraph: &EGraph, expression: &Expression) -> Vec<EGraphMatch>;
+    fn try_match<A: Analysis + Default>(&self, egraph: &EGraph<A>, expression: &Expression) -> Vec<EGraphMatch>;
 }
 
 #[cfg(test)]
@@ -70,7 +70,7 @@ mod tests {
 
     use crate::{
         language::{Language, expression::Literal},
-        rewriting::egraph::{EGraph, Node},
+        rewriting::egraph::{EGraph, Node, Analysis},
     };
 
     use super::{EGraphMatch, Matcher};
@@ -89,19 +89,19 @@ mod tests {
     #[test]
     pub fn not_merge_matches() {
         let mut match_1 = EGraphMatch::empty(4);
-        match_1.substitutions = HashMap::from([(1, 2), (2, 3), (5, 4)]);
+        match_1.substitutions = HashMap::from([(1, 2), (2, 5), (5, 4)]);
 
         let mut match_2 = EGraphMatch::empty(4);
-        match_2.substitutions = HashMap::from([(2, 5), (4, 5)]);
+        match_2.substitutions = HashMap::from([(2, 3), (4, 5)]);
 
         assert!(match_1.merge(4, match_2).is_none());
     }
 
-    pub fn find_literal(matcher: impl Matcher) {
+    pub fn find_literal<M: Matcher, A: Analysis + Default>(matcher: M) {
         let lang = Language::simple_math();
         let five = lang.parse("5").unwrap();
         let expr = lang.parse_no_vars("(* (+ 5 (sin (+ 5 3))))").unwrap();
-        let egraph = EGraph::from_expression(expr);
+        let egraph = EGraph::<A>::from_expression(expr);
 
         let matches = matcher.try_match(&egraph, &five);
 
@@ -114,11 +114,11 @@ mod tests {
         assert!(matches[0].substitutions.is_empty());
     }
 
-    pub fn find_symbol(matcher: impl Matcher) {
+    pub fn find_symbol<M: Matcher, A: Analysis + Default>(matcher: M) {
         let lang = Language::simple_math();
         let sin = lang.parse("(sin (+ 5 3))").unwrap();
         let expr = lang.parse_no_vars("(* (+ 5 (sin (+ 5 3))))").unwrap();
-        let egraph = EGraph::from_expression(expr);
+        let egraph = EGraph::<A>::from_expression(expr);
 
         let matches = matcher.try_match(&egraph, &sin);
 
@@ -131,22 +131,22 @@ mod tests {
         assert!(matches[0].substitutions.is_empty());
     }
 
-    pub fn not_find_symbol(matcher: impl Matcher) {
+    pub fn not_find_symbol<M: Matcher, A: Analysis + Default>(matcher: M) {
         let lang = Language::simple_math();
         let five = lang.parse("(sin (+ 5 3))").unwrap();
         let expr = lang.parse_no_vars("(* (+ 5 (sin (+ 5 4))))").unwrap();
-        let egraph = EGraph::from_expression(expr);
+        let egraph = EGraph::<A>::from_expression(expr);
 
         let matches = matcher.try_match(&egraph, &five);
 
         assert_eq!(matches.len(), 0);
     }
 
-    pub fn match_with_variables(matcher: impl Matcher) {
+    pub fn match_with_variables<M: Matcher, A: Analysis + Default>(matcher: M) {
         let lang = Language::simple_math();
         let five = lang.parse("(+ 5 $0)").unwrap();
         let expr = lang.parse_no_vars("(* (+ 5 (sin (+ 5 3))))").unwrap();
-        let egraph = EGraph::from_expression(expr);
+        let egraph = EGraph::<A>::from_expression(expr);
 
         let matches = matcher.try_match(&egraph, &five);
 
@@ -182,11 +182,11 @@ mod tests {
         }
     }
 
-    pub fn match_with_repeated_variables(matcher: impl Matcher) {
+    pub fn match_with_repeated_variables<M: Matcher, A: Analysis + Default>(matcher: M) {
         let lang = Language::simple_math();
         let five = lang.parse("(* (+ $0 $0) $1)").unwrap();
         let expr = lang.parse_no_vars("(* (+ (sin 5) (sin 5)) 3)").unwrap();
-        let egraph = EGraph::from_expression(expr);
+        let egraph = EGraph::<A>::from_expression(expr);
 
         let matches = matcher.try_match(&egraph, &five);
 
@@ -205,11 +205,11 @@ mod tests {
         assert_eq!(matches[0].substitutions[&1], three_id);
     }
 
-    pub fn match_with_repeated_variables_fail(matcher: impl Matcher) {
+    pub fn match_with_repeated_variables_fail<M: Matcher, A: Analysis + Default>(matcher: M) {
         let lang = Language::simple_math();
         let five = lang.parse("(* (+ $0 $0) $1)").unwrap();
         let expr = lang.parse_no_vars("(* (+ 8 5) 3)").unwrap();
-        let egraph = EGraph::from_expression(expr);
+        let egraph = EGraph::<A>::from_expression(expr);
 
         let matches = matcher.try_match(&egraph, &five);
 

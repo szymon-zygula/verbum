@@ -1,6 +1,6 @@
 use crate::language::{expression::Literal, symbol::Symbol};
 
-use super::{ClassId, EGraph};
+use super::{ClassId, EGraph, Analysis};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Node {
@@ -23,13 +23,13 @@ impl Node {
         }
     }
 
-    pub fn canonical(&self, graph: &EGraph) -> Self {
+    pub fn canonical<A: Analysis + Default>(&self, graph: &EGraph<A>) -> Self {
         let mut cloned = self.clone();
         cloned.make_canonical(graph);
         cloned
     }
 
-    pub fn make_canonical(&mut self, graph: &EGraph) {
+    pub fn make_canonical<A: Analysis + Default>(&mut self, graph: &EGraph<A>) {
         for child_id in self.iter_mut_children() {
             *child_id = graph.canonical_class(*child_id);
         }

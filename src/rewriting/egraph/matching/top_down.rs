@@ -5,7 +5,7 @@ use itertools::Itertools;
 use crate::{
     index_selector::IndexSelector,
     language::{expression::Expression, symbol::Symbol},
-    rewriting::egraph::{ClassId, EGraph, NodeId},
+    rewriting::egraph::{ClassId, EGraph, NodeId, Analysis},
 };
 
 use super::{EGraphMatch, Matcher};
@@ -13,9 +13,9 @@ use super::{EGraphMatch, Matcher};
 pub struct TopDownMatcher;
 
 impl TopDownMatcher {
-    fn try_match_symbol_at_node(
+    fn try_match_symbol_at_node<A: Analysis + Default>(
         &self,
-        egraph: &EGraph,
+        egraph: &EGraph<A>,
         node_id: NodeId,
         symbol: &Symbol<Expression>,
     ) -> Vec<EGraphMatch> {
@@ -66,9 +66,9 @@ impl TopDownMatcher {
         all_matches
     }
 
-    fn try_match_at_class(
+    fn try_match_at_class<A: Analysis + Default>(
         &self,
-        egraph: &EGraph,
+        egraph: &EGraph<A>,
         class_id: ClassId,
         expression: &Expression,
     ) -> Vec<EGraphMatch> {
@@ -97,7 +97,7 @@ impl TopDownMatcher {
 }
 
 impl Matcher for TopDownMatcher {
-    fn try_match(&self, egraph: &EGraph, expression: &Expression) -> Vec<EGraphMatch> {
+    fn try_match<A: Analysis + Default>(&self, egraph: &EGraph<A>, expression: &Expression) -> Vec<EGraphMatch> {
         egraph
             .iter_classes()
             .flat_map(|(&class_id, _)| self.try_match_at_class(egraph, class_id, expression))
@@ -111,31 +111,31 @@ mod tests {
 
     #[test]
     fn find_literal() {
-        super::super::tests::find_literal(TopDownMatcher);
+        super::super::tests::find_literal::<TopDownMatcher, ()>(TopDownMatcher);
     }
 
     #[test]
     fn find_symbol() {
-        super::super::tests::find_symbol(TopDownMatcher);
+        super::super::tests::find_symbol::<TopDownMatcher, ()>(TopDownMatcher);
     }
 
     #[test]
     fn not_find_symbol() {
-        super::super::tests::not_find_symbol(TopDownMatcher);
+        super::super::tests::not_find_symbol::<TopDownMatcher, ()>(TopDownMatcher);
     }
 
     #[test]
     fn match_with_variables() {
-        super::super::tests::match_with_variables(TopDownMatcher);
+        super::super::tests::match_with_variables::<TopDownMatcher, ()>(TopDownMatcher);
     }
 
     #[test]
     fn match_with_repeated_variables() {
-        super::super::tests::match_with_repeated_variables(TopDownMatcher);
+        super::super::tests::match_with_repeated_variables::<TopDownMatcher, ()>(TopDownMatcher);
     }
 
     #[test]
     fn match_with_repeated_variables_fail() {
-        super::super::tests::match_with_repeated_variables_fail(TopDownMatcher);
+        super::super::tests::match_with_repeated_variables_fail::<TopDownMatcher, ()>(TopDownMatcher);
     }
 }

@@ -1,6 +1,6 @@
 use crate::language::{Language, expression::Expression};
 
-use super::egraph::{EGraph, matching::Matcher};
+use super::egraph::{EGraph, matching::Matcher, Analysis};
 
 pub struct Rule {
     from: Expression,
@@ -16,7 +16,7 @@ impl Rule {
     }
 
     /// Returns `true` if anything changed on application, `false` if fixed-point reached.
-    pub fn apply(&self, egraph: &mut EGraph, matcher: &impl Matcher) -> bool {
+    pub fn apply<A: Analysis + Default>(&self, egraph: &mut EGraph<A>, matcher: &impl Matcher) -> bool {
         matcher
             .try_match(egraph, &self.from)
             .into_iter()
@@ -47,7 +47,7 @@ mod tests {
     #[test]
     fn simple_rule_application() {
         let lang = Language::simple_math();
-        let mut egraph = EGraph::from_expression(lang.parse_no_vars("1").unwrap());
+        let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("1").unwrap());
         let rule = Rule::from_strings("1", "2", &lang);
 
         rule.apply(&mut egraph, &TopDownMatcher);
@@ -61,7 +61,7 @@ mod tests {
     #[test]
     fn addition_commutative() {
         let lang = Language::simple_math();
-        let mut egraph = EGraph::from_expression(lang.parse_no_vars("(+ 2 (sin 5))").unwrap());
+        let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(+ 2 (sin 5))").unwrap());
         let rule = Rule::from_strings("(+ $0 $1)", "(+ $1 $0)", &lang);
 
         rule.apply(&mut egraph, &TopDownMatcher);

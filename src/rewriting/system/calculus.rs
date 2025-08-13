@@ -52,7 +52,7 @@ mod tests {
         let expr = lang
             .parse_no_vars("(+ (^ (sin 3) 2) (^ (cos 3) 2))")
             .expect("valid expression");
-        let mut egraph = EGraph::from_expression(expr);
+        let mut egraph = EGraph::<()>::from_expression(expr);
 
         let _reason = saturate(
             &mut egraph,

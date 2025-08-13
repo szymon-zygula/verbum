@@ -26,7 +26,7 @@ fn main() {
         "(/ x0 x0)" => "1",
     );
 
-    let mut egraph = EGraph::from_expression(lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap());
+    let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap());
 
     let _ = saturate(
         &mut egraph,

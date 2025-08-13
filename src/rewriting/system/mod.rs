@@ -1,6 +1,6 @@
 use crate::language::{Language, expression::VarFreeExpression};
 use crate::rewriting::egraph::{
-    EGraph,
+    EGraph, Analysis,
     matching::bottom_up::BottomUpMatcher,
     saturation::{SaturationConfig, saturate},
 };
@@ -28,8 +28,8 @@ impl TermRewritingSystem {
 
     /// Build an e-graph from the provided expression and saturate it using the system's rules.
     /// Returns the saturated e-graph.
-    pub fn rewrite(&self, expression: VarFreeExpression) -> EGraph {
-        let mut egraph = EGraph::from_expression(expression);
+    pub fn rewrite<A: Analysis + Default>(&self, expression: VarFreeExpression) -> EGraph<A> {
+        let mut egraph = EGraph::<A>::from_expression(expression);
         let _ = saturate(
             &mut egraph,
             &self.rules,
@@ -59,7 +59,7 @@ mod tests {
         let expr = lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap();
         let trs = TermRewritingSystem::new(lang, rules);
 
-        let egraph = trs.rewrite(expr);
+        let egraph = trs.rewrite::<()>(expr);
 
         assert_eq!(egraph.class_count(), 5);
         assert_eq!(egraph.actual_node_count(), 9);
