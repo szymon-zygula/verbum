@@ -50,7 +50,7 @@ pub fn distance<'a>(mut expr_1: &'a Expression, mut expr_2: &'a Expression) -> E
 
     if vars_1.is_empty() && !vars_2.is_empty() {
         for (_, paths_2) in vars_2 {
-            if paths_2.len() == 0 {
+            if paths_2.is_empty() {
                 continue;
             }
 

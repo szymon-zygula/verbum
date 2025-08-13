@@ -1,14 +1,14 @@
+pub mod class;
 pub mod drawing;
 pub mod extraction;
 pub mod matching;
-pub mod saturation;
 pub mod node;
-pub mod class;
+pub mod saturation;
 
-pub use node::Node;
 pub use class::Class;
+pub use node::Node;
 
-use std::collections::{HashMap, HashSet, hash_map};
+use std::collections::{hash_map, HashMap, HashSet};
 
 use itertools::Itertools;
 
@@ -168,11 +168,11 @@ impl EGraph {
     }
 
     pub fn parents(&self, class_id: ClassId) -> &HashSet<NodeId> {
-        &self.class(class_id).parents_ids()
+        self.class(class_id).parents_ids()
     }
 
     pub fn nodes(&self, class_id: ClassId) -> &HashSet<NodeId> {
-        &self.class(class_id).nodes_ids()
+        self.class(class_id).nodes_ids()
     }
 
     pub fn containing_class(&self, node_id: NodeId) -> ClassId {
@@ -323,9 +323,9 @@ mod tests {
 
     use crate::{
         language::{
-            Language,
             expression::{Literal, VarFreeExpression},
             symbol::Symbol,
+            Language,
         },
         rewriting::egraph::Node,
     };
