@@ -99,7 +99,7 @@ mod tests {
     fn variable_distance() {
         let lang = Language::simple_math();
         let expr_1 = lang.parse("(+ (- 30 21) 5)").unwrap();
-        let expr_2 = lang.parse("(+ x0 5)").unwrap();
+        let expr_2 = lang.parse("(+ $0 5)").unwrap();
 
         assert_eq!(distance(&expr_1, &expr_2), 0);
     }
@@ -118,7 +118,7 @@ mod tests {
     fn other_distance() {
         let lang = Language::simple_math();
         let expr_1 = lang.parse("(+ (- 30 21) (sin (+ (* 1 2) 3 5)))").unwrap();
-        let expr_2 = lang.parse("(+ x0        (sin (+ (+ 1 2) 3 4)))").unwrap();
+        let expr_2 = lang.parse("(+ $0        (sin (+ (+ 1 2) 3 4)))").unwrap();
 
         assert_eq!(distance(&expr_1, &expr_2), 7);
     }

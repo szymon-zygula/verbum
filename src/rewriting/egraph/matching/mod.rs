@@ -144,7 +144,7 @@ mod tests {
 
     pub fn match_with_variables(matcher: impl Matcher) {
         let lang = Language::simple_math();
-        let five = lang.parse("(+ 5 x0)").unwrap();
+        let five = lang.parse("(+ 5 $0)").unwrap();
         let expr = lang.parse_no_vars("(* (+ 5 (sin (+ 5 3))))").unwrap();
         let egraph = EGraph::from_expression(expr);
 
@@ -184,7 +184,7 @@ mod tests {
 
     pub fn match_with_repeated_variables(matcher: impl Matcher) {
         let lang = Language::simple_math();
-        let five = lang.parse("(* (+ x0 x0) x1)").unwrap();
+        let five = lang.parse("(* (+ $0 $0) $1)").unwrap();
         let expr = lang.parse_no_vars("(* (+ (sin 5) (sin 5)) 3)").unwrap();
         let egraph = EGraph::from_expression(expr);
 
@@ -207,7 +207,7 @@ mod tests {
 
     pub fn match_with_repeated_variables_fail(matcher: impl Matcher) {
         let lang = Language::simple_math();
-        let five = lang.parse("(* (+ x0 x0) x1)").unwrap();
+        let five = lang.parse("(* (+ $0 $0) $1)").unwrap();
         let expr = lang.parse_no_vars("(* (+ 8 5) 3)").unwrap();
         let egraph = EGraph::from_expression(expr);
 

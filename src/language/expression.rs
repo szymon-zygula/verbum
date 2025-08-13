@@ -52,22 +52,8 @@ pub enum Expression {
 }
 
 impl Expression {
-    pub const NICE_VARIABLES: [&str; 8] = ["x", "y", "z", "w", "α", "β", "γ", "δ"];
-    const USE_NICE_VARIABLES: bool = true;
-
     pub fn variable_name(id: VariableId) -> String {
-        if Self::USE_NICE_VARIABLES && id < Self::NICE_VARIABLES.len() {
-            String::from(Self::NICE_VARIABLES[id])
-        } else {
-            format!("x{id}")
-        }
-    }
-
-    pub fn nice_variable_id(name: &str) -> VariableId {
-        Self::NICE_VARIABLES
-            .iter()
-            .position(|x| name == *x)
-            .unwrap()
+        format!("${id}")
     }
 
     /// Returns `None` if `self` contains variables, or a corresponding `VarFreeExpression` if it does not
@@ -223,16 +209,16 @@ mod tests {
 
     #[test]
     fn display_1() {
-        test_display("x")
+        test_display("$0")
     }
 
     #[test]
     fn display_2() {
-        test_display("(+ x y (sin y))");
+        test_display("(+ $0 $1 (sin $1))");
     }
 
     #[test]
     fn display_3() {
-        test_display("(+ x (- (- (* x y z w α β γ))) (sin (cos y)))");
+        test_display("(+ $0 (- (- (* $0 $1 $2 $3 $4 $5 $6))) (sin (cos $1)))");
     }
 }

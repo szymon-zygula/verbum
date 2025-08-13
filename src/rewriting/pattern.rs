@@ -150,7 +150,7 @@ mod tests {
     #[test]
     fn singular_variables_match() {
         let lang = Language::simple_math();
-        let pattern = lang.parse("(* x0 (sin x1))").unwrap();
+        let pattern = lang.parse("(* $0 (sin $1))").unwrap();
 
         let expr = lang.parse_no_vars("(* 12 (sin (cos 5u)))").unwrap();
         let matches = pattern.try_match(&expr).unwrap();
@@ -166,7 +166,7 @@ mod tests {
     #[test]
     fn repeated_variable_match() {
         let lang = Language::simple_math();
-        let pattern = lang.parse("(+ (* x0 x1) (* x0 x2))").unwrap();
+        let pattern = lang.parse("(+ (* $0 $1) (* $0 $2))").unwrap();
 
         let expr = lang
             .parse_no_vars("(+ (* (sin 1) 5) (* (sin 1) 3u))")

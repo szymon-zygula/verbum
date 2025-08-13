@@ -62,7 +62,7 @@ mod tests {
     fn addition_commutative() {
         let lang = Language::simple_math();
         let mut egraph = EGraph::from_expression(lang.parse_no_vars("(+ 2 (sin 5))").unwrap());
-        let rule = Rule::from_strings("(+ x0 x1)", "(+ x1 x0)", &lang);
+        let rule = Rule::from_strings("(+ $0 $1)", "(+ $1 $0)", &lang);
 
         rule.apply(&mut egraph, &TopDownMatcher);
 

@@ -14,22 +14,22 @@ pub fn calculus() -> TermRewritingSystem {
         ],
         rules:
             // Arithmetic simplifications
-            "(+ x0 0)" => "x0",
-            "(* x0 1)" => "x0",
-            "(* x0 0)" => "0",
-            "(^ x0 1)" => "x0",
+            "(+ $0 0)" => "$0",
+            "(* $0 1)" => "$0",
+            "(* $0 0)" => "0",
+            "(^ $0 1)" => "$0",
             // Arithmetic associativity and commutativity
-            "(+ x0 x1)" => "(+ x1 x0)",
-            "(* x0 x1)" => "(* x1 x0)",
-            "(+ (+ x0 x1) x2)" => "(+ x0 (+ x1 x2))",
-            "(* (* x0 x1) x2)" => "(* x0 (* x1 x2))",
+            "(+ $0 $1)" => "(+ $1 $0)",
+            "(* $0 $1)" => "(* $1 $0)",
+            "(+ (+ $0 $1) $2)" => "(+ $0 (+ $1 $2))",
+            "(* (* $0 $1) $2)" => "(* $0 (* $1 $2))",
             // Trigonometric identities
-            "(+ (^ (sin x0) 2) (^ (cos x0) 2))" => "1",
-            "(sin (+ x0 x1))" => "(+ (* (sin x0) (cos x1)) (* (cos x0) (sin x1)))",
-            "(cos (+ x0 x1))" => "(- (* (cos x0) (cos x1)) (* (sin x0) (sin x1)))",
-            "(sin (- x0 x1))" => "(- (* (sin x0) (cos x1)) (* (cos x0) (sin x1)))",
-            "(cos (- x0 x1))" => "(+ (* (cos x0) (cos x1)) (* (sin x0) (sin x1)))",
-            "(tan x0)" => "(/ (sin x0) (cos x0))",
+            "(+ (^ (sin $0) 2) (^ (cos $0) 2))" => "1",
+            "(sin (+ $0 $1))" => "(+ (* (sin $0) (cos $1)) (* (cos $0) (sin $1)))",
+            "(cos (+ $0 $1))" => "(- (* (cos $0) (cos $1)) (* (sin $0) (sin $1)))",
+            "(sin (- $0 $1))" => "(- (* (sin $0) (cos $1)) (* (cos $0) (sin $1)))",
+            "(cos (- $0 $1))" => "(+ (* (cos $0) (cos $1)) (* (sin $0) (sin $1)))",
+            "(tan $0)" => "(/ (sin $0) (cos $0))",
     )
 }
 

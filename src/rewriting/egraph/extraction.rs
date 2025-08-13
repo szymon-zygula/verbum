@@ -239,10 +239,10 @@ mod tests {
     fn saturated_cost() {
         let lang = Language::simple_math();
         let rules = vec![
-            Rule::from_strings("(* x0 2)", "(<< x0 1)", &lang),
-            Rule::from_strings("(* x0 1)", "x0", &lang),
-            Rule::from_strings("(/ (* x0 x1) x2)", "(* x0 (/ x1 x2))", &lang),
-            Rule::from_strings("(/ x0 x0)", "1", &lang),
+            Rule::from_strings("(* $0 2)", "(<< $0 1)", &lang),
+            Rule::from_strings("(* $0 1)", "$0", &lang),
+            Rule::from_strings("(/ (* $0 $1) $2)", "(* $0 (/ $1 $2))", &lang),
+            Rule::from_strings("(/ $0 $0)", "1", &lang),
         ];
 
         let mut egraph =

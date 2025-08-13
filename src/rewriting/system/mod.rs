@@ -50,10 +50,10 @@ mod tests {
     fn trs_rewrite_classical() {
         let lang = Language::simple_math();
         let rules = rules!(lang;
-            "(* x0 2)" => "(<< x0 1)",
-            "(* x0 1)" => "x0",
-            "(/ (* x0 x1) x2)" => "(* x0 (/ x1 x2))",
-            "(/ x0 x0)" => "1",
+            "(* $0 2)" => "(<< $0 1)",
+            "(* $0 1)" => "$0",
+            "(/ (* $0 $1) $2)" => "(* $0 (/ $1 $2))",
+            "(/ $0 $0)" => "1",
         );
 
         let expr = lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap();

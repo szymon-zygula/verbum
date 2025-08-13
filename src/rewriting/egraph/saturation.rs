@@ -113,10 +113,10 @@ mod tests {
     fn classical_test() {
         let lang = Language::simple_math();
         let rules = vec![
-            Rule::from_strings("(* x0 2)", "(<< x0 1)", &lang),
-            Rule::from_strings("(* x0 1)", "x0", &lang),
-            Rule::from_strings("(/ (* x0 x1) x2)", "(* x0 (/ x1 x2))", &lang),
-            Rule::from_strings("(/ x0 x0)", "1", &lang),
+            Rule::from_strings("(* $0 2)", "(<< $0 1)", &lang),
+            Rule::from_strings("(* $0 1)", "$0", &lang),
+            Rule::from_strings("(/ (* $0 $1) $2)", "(* $0 (/ $1 $2))", &lang),
+            Rule::from_strings("(/ $0 $0)", "1", &lang),
         ];
 
         let mut egraph =
@@ -138,8 +138,8 @@ mod tests {
     fn stops_on_max_applications() {
         let lang = Language::simple_math();
         let rules = vec![
-            Rule::from_strings("(* x0 2)", "(<< x0 1)", &lang),
-            Rule::from_strings("(* x0 1)", "x0", &lang),
+            Rule::from_strings("(* $0 2)", "(<< $0 1)", &lang),
+            Rule::from_strings("(* $0 1)", "$0", &lang),
         ];
         let mut egraph = EGraph::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
 
@@ -159,8 +159,8 @@ mod tests {
     fn stops_on_timeout() {
         let lang = Language::simple_math();
         let rules = vec![
-            Rule::from_strings("(* x0 2)", "(<< x0 1)", &lang),
-            Rule::from_strings("(* x0 1)", "x0", &lang),
+            Rule::from_strings("(* $0 2)", "(<< $0 1)", &lang),
+            Rule::from_strings("(* $0 1)", "$0", &lang),
         ];
         let mut egraph = EGraph::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
 
@@ -180,8 +180,8 @@ mod tests {
     fn stops_on_max_nodes() {
         let lang = Language::simple_math();
         let rules = vec![
-            Rule::from_strings("(* x0 2)", "(<< x0 1)", &lang),
-            Rule::from_strings("(* x0 1)", "x0", &lang),
+            Rule::from_strings("(* $0 2)", "(<< $0 1)", &lang),
+            Rule::from_strings("(* $0 1)", "$0", &lang),
         ];
         let mut egraph = EGraph::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
 
@@ -201,8 +201,8 @@ mod tests {
     fn stops_on_max_classes() {
         let lang = Language::simple_math();
         let rules = vec![
-            Rule::from_strings("(* x0 2)", "(<< x0 1)", &lang),
-            Rule::from_strings("(* x0 1)", "x0", &lang),
+            Rule::from_strings("(* $0 2)", "(<< $0 1)", &lang),
+            Rule::from_strings("(* $0 1)", "$0", &lang),
         ];
         let mut egraph = EGraph::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
 

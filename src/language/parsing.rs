@@ -2,6 +2,7 @@ use super::{
     Language,
     expression::{Expression, Literal, VarFreeExpression},
     symbol::Symbol,
+    
 };
 use pest::{Parser, iterators::Pair};
 use pest_derive::Parser;
@@ -16,13 +17,9 @@ impl Language {
             Rule::standalone_expression | Rule::expression => {
                 self.parse_expression(pair.into_inner().next().unwrap())
             }
-            Rule::nice_variable => {
-                Expression::Variable(Expression::nice_variable_id(pair.as_str()))
-            }
-            Rule::numbered_variable => {
+            Rule::variable => {
                 Expression::Variable(pair.into_inner().next().unwrap().as_str().parse().unwrap())
             }
-            Rule::variable => self.parse_expression(pair.into_inner().next().unwrap()),
             Rule::symbol_call => {
                 let mut inner = pair.into_inner();
                 let id = self.get_id(inner.next().unwrap().as_str());
@@ -69,12 +66,9 @@ mod tests {
     fn parse_variable() -> anyhow::Result<()> {
         let lang = Language::default();
 
-        assert_eq!(Expression::Variable(0), lang.parse("x0").unwrap());
-        assert_eq!(Expression::Variable(5), lang.parse("x5").unwrap());
-        assert_eq!(Expression::Variable(123), lang.parse("x123").unwrap());
-        for var in Expression::NICE_VARIABLES {
-            lang.parse(var)?;
-        }
+        assert_eq!(Expression::Variable(0), lang.parse("$0").unwrap());
+        assert_eq!(Expression::Variable(5), lang.parse("$5").unwrap());
+        assert_eq!(Expression::Variable(123), lang.parse("$123").unwrap());
 
         Ok(())
     }
@@ -82,7 +76,7 @@ mod tests {
     #[test]
     fn parse_symbol() {
         let lang = Language::simple_math();
-        let expr = lang.parse("(+ x y z)").unwrap();
+        let expr = lang.parse("(+ $0 $1 $2)").unwrap();
         let plus_children = expr.expect_symbol("+", &lang);
         let x = plus_children[0].expect_variable();
         let y = plus_children[1].expect_variable();
@@ -90,15 +84,15 @@ mod tests {
 
         assert_eq!(plus_children.len(), 3);
 
-        assert_eq!(x, Expression::nice_variable_id("x"));
-        assert_eq!(y, Expression::nice_variable_id("y"));
-        assert_eq!(z, Expression::nice_variable_id("z"));
+        assert_eq!(x, 0);
+        assert_eq!(y, 1);
+        assert_eq!(z, 2);
     }
 
     #[test]
     fn parse_expression() {
         let lang = Language::simple_math();
-        let expr = lang.parse("(+ (sin x) y (- z y))").unwrap();
+        let expr = lang.parse("(+ (sin $0) $1 (- $2 $1))").unwrap();
 
         let plus_args = expr.expect_symbol("+", &lang);
         assert_eq!(plus_args.len(), 3);
@@ -107,19 +101,19 @@ mod tests {
         assert_eq!(sin_arg.len(), 1);
 
         let x = sin_arg[0].expect_variable();
-        assert_eq!(x, Expression::nice_variable_id("x"));
+        assert_eq!(x, 0);
 
         let y = plus_args[1].expect_variable();
-        assert_eq!(y, Expression::nice_variable_id("y"));
+        assert_eq!(y, 1);
 
         let minus_args = plus_args[2].expect_symbol("-", &lang);
         assert_eq!(minus_args.len(), 2);
 
         let z = minus_args[0].expect_variable();
-        assert_eq!(z, Expression::nice_variable_id("z"));
+        assert_eq!(z, 2);
 
         let y = minus_args[1].expect_variable();
-        assert_eq!(y, Expression::nice_variable_id("y"));
+        assert_eq!(y, 1);
     }
 
     #[test]
