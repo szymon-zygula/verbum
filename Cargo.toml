@@ -5,8 +5,10 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.98"
+colored = "2.0.0"
 itertools = "0.14.0"
 pest = "2.8.1"
 pest_derive = "2.8.1"
+rand = "0.8"
 rayon = "1.10.0"
 trait-set = "0.3.0"
