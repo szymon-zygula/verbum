@@ -9,12 +9,8 @@ pub trait Analysis: Sized + Clone + Default {
 }
 
 impl Analysis for () {
-    fn make(_egraph: &EGraph<Self>, _node_id: NodeId) -> Self {
-        ()
-    }
-    fn merge(_a: Self, _b: Self) -> Self {
-        ()
-    }
+    fn make(_egraph: &EGraph<Self>, _node_id: NodeId) -> Self {}
+    fn merge(_a: Self, _b: Self) -> Self {}
 }
 
 #[derive(Clone, Debug, Default)]
