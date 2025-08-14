@@ -27,7 +27,7 @@ impl<C> ExtractionResult<C> {
     }
 }
 
-pub trait Extractor<A: Analysis + Default> {
+pub trait Extractor<A: Analysis> {
     type Cost;
 
     /// Finds the cheapest expression represented by `egraph` that's represented by class with id `equivalent`.
@@ -45,7 +45,7 @@ trait_set::trait_set! {
 
 /// A simple extractor, finding the cheapest class, calculating the cost
 /// using given functions
-pub struct SimpleExtractor<C, SC, LC, A: Analysis + Default>
+pub struct SimpleExtractor<C, SC, LC, A: Analysis>
 where
     C: Ord + PartialEq + Clone,
     LC: SimpleLiteralCost<C>,
@@ -57,7 +57,7 @@ where
     analysis: PhantomData<A>,
 }
 
-impl<C, SC, LC, A: Analysis + Default> SimpleExtractor<C, SC, LC, A>
+impl<C, SC, LC, A: Analysis> SimpleExtractor<C, SC, LC, A>
 where
     C: Ord + PartialEq + Clone,
     LC: SimpleLiteralCost<C>,
@@ -153,7 +153,7 @@ where
         .sum::<Option<C>>()
 }
 
-impl<C, SC, LC, A: Analysis + Default> Extractor<A> for SimpleExtractor<C, SC, LC, A>
+impl<C, SC, LC, A: Analysis> Extractor<A> for SimpleExtractor<C, SC, LC, A>
 where
     C: Ord + PartialEq + Clone,
     LC: SimpleLiteralCost<C>,

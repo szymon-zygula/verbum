@@ -13,7 +13,7 @@ use super::{EGraphMatch, Matcher};
 pub struct TopDownMatcher;
 
 impl TopDownMatcher {
-    fn try_match_symbol_at_node<A: Analysis + Default>(
+    fn try_match_symbol_at_node<A: Analysis>(
         &self,
         egraph: &EGraph<A>,
         node_id: NodeId,
@@ -66,7 +66,7 @@ impl TopDownMatcher {
         all_matches
     }
 
-    fn try_match_at_class<A: Analysis + Default>(
+    fn try_match_at_class<A: Analysis>(
         &self,
         egraph: &EGraph<A>,
         class_id: ClassId,
@@ -97,7 +97,7 @@ impl TopDownMatcher {
 }
 
 impl Matcher for TopDownMatcher {
-    fn try_match<A: Analysis + Default>(&self, egraph: &EGraph<A>, expression: &Expression) -> Vec<EGraphMatch> {
+    fn try_match<A: Analysis>(&self, egraph: &EGraph<A>, expression: &Expression) -> Vec<EGraphMatch> {
         egraph
             .iter_classes()
             .flat_map(|(&class_id, _)| self.try_match_at_class(egraph, class_id, expression))

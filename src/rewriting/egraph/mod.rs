@@ -25,14 +25,14 @@ pub type NodeId = usize;
 pub type ClassId = usize;
 
 #[derive(Default, Clone)]
-pub struct EGraph<A: Analysis + Default> {
+pub struct EGraph<A: Analysis> {
     union_find: UnionFind,
     nodes: HashMap<NodeId, Node>,
     // Always kept behind canonical IDs
     classes: HashMap<ClassId, Class<A>>,
 }
 
-impl<A: Analysis + Default> EGraph<A> {
+impl<A: Analysis> EGraph<A> {
     /// Creates an e-graph representing `expression` and returns it together with ID of the class
     /// containing the root expression.
     pub fn from_expression_with_id(expression: VarFreeExpression) -> (Self, ClassId) {

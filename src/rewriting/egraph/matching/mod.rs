@@ -61,7 +61,7 @@ impl EGraphMatch {
 }
 
 pub trait Matcher {
-    fn try_match<A: Analysis + Default>(&self, egraph: &EGraph<A>, expression: &Expression) -> Vec<EGraphMatch>;
+    fn try_match<A: Analysis>(&self, egraph: &EGraph<A>, expression: &Expression) -> Vec<EGraphMatch>;
 }
 
 #[cfg(test)]
@@ -97,7 +97,7 @@ mod tests {
         assert!(match_1.merge(4, match_2).is_none());
     }
 
-    pub fn find_literal<M: Matcher, A: Analysis + Default>(matcher: M) {
+    pub fn find_literal<M: Matcher, A: Analysis>(matcher: M) {
         let lang = Language::simple_math();
         let five = lang.parse("5").unwrap();
         let expr = lang.parse_no_vars("(* (+ 5 (sin (+ 5 3))))").unwrap();
@@ -114,7 +114,7 @@ mod tests {
         assert!(matches[0].substitutions.is_empty());
     }
 
-    pub fn find_symbol<M: Matcher, A: Analysis + Default>(matcher: M) {
+    pub fn find_symbol<M: Matcher, A: Analysis>(matcher: M) {
         let lang = Language::simple_math();
         let sin = lang.parse("(sin (+ 5 3))").unwrap();
         let expr = lang.parse_no_vars("(* (+ 5 (sin (+ 5 3))))").unwrap();
@@ -131,7 +131,7 @@ mod tests {
         assert!(matches[0].substitutions.is_empty());
     }
 
-    pub fn not_find_symbol<M: Matcher, A: Analysis + Default>(matcher: M) {
+    pub fn not_find_symbol<M: Matcher, A: Analysis>(matcher: M) {
         let lang = Language::simple_math();
         let five = lang.parse("(sin (+ 5 3))").unwrap();
         let expr = lang.parse_no_vars("(* (+ 5 (sin (+ 5 4))))").unwrap();
@@ -142,7 +142,7 @@ mod tests {
         assert_eq!(matches.len(), 0);
     }
 
-    pub fn match_with_variables<M: Matcher, A: Analysis + Default>(matcher: M) {
+    pub fn match_with_variables<M: Matcher, A: Analysis>(matcher: M) {
         let lang = Language::simple_math();
         let five = lang.parse("(+ 5 $0)").unwrap();
         let expr = lang.parse_no_vars("(* (+ 5 (sin (+ 5 3))))").unwrap();
@@ -182,7 +182,7 @@ mod tests {
         }
     }
 
-    pub fn match_with_repeated_variables<M: Matcher, A: Analysis + Default>(matcher: M) {
+    pub fn match_with_repeated_variables<M: Matcher, A: Analysis>(matcher: M) {
         let lang = Language::simple_math();
         let five = lang.parse("(* (+ $0 $0) $1)").unwrap();
         let expr = lang.parse_no_vars("(* (+ (sin 5) (sin 5)) 3)").unwrap();
@@ -205,7 +205,7 @@ mod tests {
         assert_eq!(matches[0].substitutions[&1], three_id);
     }
 
-    pub fn match_with_repeated_variables_fail<M: Matcher, A: Analysis + Default>(matcher: M) {
+    pub fn match_with_repeated_variables_fail<M: Matcher, A: Analysis>(matcher: M) {
         let lang = Language::simple_math();
         let five = lang.parse("(* (+ $0 $0) $1)").unwrap();
         let expr = lang.parse_no_vars("(* (+ 8 5) 3)").unwrap();

@@ -44,7 +44,7 @@ pub fn benchmark<A, E>(
     extractor: &E,
 ) -> Vec<Outcome>
 where
-    A: Analysis + Default,
+    A: Analysis,
     E: Extractor<A, Cost = usize>,
 {
     let mut outcomes = Vec::new();

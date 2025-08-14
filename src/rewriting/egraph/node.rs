@@ -23,13 +23,13 @@ impl Node {
         }
     }
 
-    pub fn canonical<A: Analysis + Default>(&self, graph: &EGraph<A>) -> Self {
+    pub fn canonical<A: Analysis>(&self, graph: &EGraph<A>) -> Self {
         let mut cloned = self.clone();
         cloned.make_canonical(graph);
         cloned
     }
 
-    pub fn make_canonical<A: Analysis + Default>(&mut self, graph: &EGraph<A>) {
+    pub fn make_canonical<A: Analysis>(&mut self, graph: &EGraph<A>) {
         for child_id in self.iter_mut_children() {
             *child_id = graph.canonical_class(*child_id);
         }

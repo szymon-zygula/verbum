@@ -15,7 +15,7 @@ use super::{EGraphMatch, Matcher};
 pub struct BottomUpMatcher;
 
 impl BottomUpMatcher {
-    fn try_match_with_variable_assignment<A: Analysis + Default>(
+    fn try_match_with_variable_assignment<A: Analysis>(
         &self,
         egraph: &EGraph<A>,
         expression: &Expression,
@@ -28,7 +28,7 @@ impl BottomUpMatcher {
         }
     }
 
-    fn try_match_symbol<A: Analysis + Default>(
+    fn try_match_symbol<A: Analysis>(
         &self,
         egraph: &EGraph<A>,
         symbol: &Symbol<Expression>,
@@ -48,7 +48,7 @@ impl BottomUpMatcher {
 }
 
 impl Matcher for BottomUpMatcher {
-    fn try_match<A: Analysis + Default>(&self, egraph: &EGraph<A>, expression: &Expression) -> Vec<EGraphMatch> {
+    fn try_match<A: Analysis>(&self, egraph: &EGraph<A>, expression: &Expression) -> Vec<EGraphMatch> {
         expression
             .variables()
             .iter()

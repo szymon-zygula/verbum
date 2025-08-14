@@ -13,7 +13,7 @@ const GRAPH_SPLINES: &str = "true";
 const GRAPH_NODESEP: f32 = 1.0;
 const GRAPH_RANKSEP: f32 = 1.2;
 
-impl<A: Analysis + Default> EGraph<A> {
+impl<A: Analysis> EGraph<A> {
     pub fn dot(&self, language: &Language) -> String {
         let mut out = String::new();
         writeln!(&mut out, "digraph egraph {{").unwrap();

@@ -28,7 +28,7 @@ impl TermRewritingSystem {
 
     /// Build an e-graph from the provided expression and saturate it using the system's rules.
     /// Returns the saturated e-graph.
-    pub fn rewrite<A: Analysis + Default>(&self, expression: VarFreeExpression) -> EGraph<A> {
+    pub fn rewrite<A: Analysis>(&self, expression: VarFreeExpression) -> EGraph<A> {
         let mut egraph = EGraph::<A>::from_expression(expression);
         let _ = saturate(
             &mut egraph,

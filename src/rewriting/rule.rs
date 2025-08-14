@@ -16,7 +16,7 @@ impl Rule {
     }
 
     /// Returns `true` if anything changed on application, `false` if fixed-point reached.
-    pub fn apply<A: Analysis + Default>(&self, egraph: &mut EGraph<A>, matcher: &impl Matcher) -> bool {
+    pub fn apply<A: Analysis>(&self, egraph: &mut EGraph<A>, matcher: &impl Matcher) -> bool {
         matcher
             .try_match(egraph, &self.from)
             .into_iter()

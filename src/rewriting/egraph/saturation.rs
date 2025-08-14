@@ -21,7 +21,7 @@ pub enum SaturationStopReason {
     Timeout,
 }
 
-fn check_limits<A: Analysis + Default>(
+fn check_limits<A: Analysis>(
     egraph: &EGraph<A>,
     applications: usize,
     start: Instant,
@@ -54,7 +54,7 @@ fn check_limits<A: Analysis + Default>(
     None
 }
 
-pub fn saturate<A: Analysis + Default>(
+pub fn saturate<A: Analysis>(
     egraph: &mut EGraph<A>,
     rules: &[Rule],
     matcher: impl Matcher,
