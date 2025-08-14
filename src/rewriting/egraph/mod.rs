@@ -5,7 +5,8 @@ pub mod matching;
 pub mod node;
 pub mod saturation;
 
-pub use class::{Analysis, Class};
+pub use class::Class;
+pub use class::analysis::Analysis;
 pub use node::Node;
 
 use std::collections::{HashMap, HashSet, hash_map};
@@ -543,7 +544,7 @@ mod tests {
 
     #[test]
     fn literal_count_analysis() {
-        use super::class::LiteralCountAnalysis;
+        use super::class::literal_count::LiteralCountAnalysis;
         let lang = Language::simple_math();
         let expr = lang.parse_no_vars("(* 1 2 (+ 3 4))").unwrap();
         let mut egraph = EGraph::<LiteralCountAnalysis>::from_expression(expr);

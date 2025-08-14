@@ -1,17 +1,11 @@
+pub mod analysis;
+pub mod dynamic_cost;
+pub mod literal_count;
+
 use std::collections::HashSet;
 use std::collections::hash_set;
 
-use super::{EGraph, NodeId};
-
-pub trait Analysis: Sized + Clone + Default {
-    fn make(egraph: &EGraph<Self>, node_id: NodeId) -> Self;
-    fn merge(a: Self, b: Self) -> Self;
-}
-
-impl Analysis for () {
-    fn make(_egraph: &EGraph<Self>, _node_id: NodeId) -> Self {}
-    fn merge(_a: Self, _b: Self) -> Self {}
-}
+use super::{Analysis, EGraph, NodeId};
 
 #[derive(Clone, Debug, Default)]
 pub struct Class<A: Analysis> {
@@ -57,31 +51,5 @@ impl<A: Analysis> Class<A> {
 
     pub fn analysis(&self) -> &A {
         &self.analysis
-    }
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct LiteralCountAnalysis {
-    count: usize,
-}
-
-impl LiteralCountAnalysis {
-    pub fn count(&self) -> usize {
-        self.count
-    }
-}
-
-impl Analysis for LiteralCountAnalysis {
-    fn make(egraph: &EGraph<Self>, node_id: NodeId) -> Self {
-        let node = egraph.node(node_id);
-        Self {
-            count: if node.try_as_symbol().is_none() { 1 } else { 0 },
-        }
-    }
-
-    fn merge(a: Self, b: Self) -> Self {
-        Self {
-            count: a.count + b.count,
-        }
     }
 }
