@@ -34,7 +34,7 @@ mod tests {
     use crate::rewriting::egraph::{
         EGraph,
         matching::bottom_up::BottomUpMatcher,
-        saturation::{DefaultSaturator, SaturationConfig, Saturator},
+                saturation::{SimpleSaturator, SaturationConfig, Saturator},
     };
     use crate::rewriting::rule::Rule;
 
@@ -101,7 +101,7 @@ mod tests {
             lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap(),
         );
 
-        let saturator = DefaultSaturator::new(BottomUpMatcher);
+        let saturator = SimpleSaturator::new(BottomUpMatcher);
         let _ = saturator.saturate(&mut egraph, &rules, &SaturationConfig::default());
 
         let extracted_cost = egraph.class(top_class_id).analysis().0;

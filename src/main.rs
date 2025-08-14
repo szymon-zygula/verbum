@@ -4,7 +4,7 @@ use language::Language;
 use rewriting::{
     egraph::{
         extraction::{SimpleExtractor, children_cost_sum},
-        saturation::{SaturationConfig, DefaultSaturator},
+        saturation::{SaturationConfig, SimpleSaturator},
         matching::bottom_up::BottomUpMatcher,
     },
     system::TermRewritingSystem,
@@ -61,7 +61,7 @@ fn main() {
         },
     );
 
-    let saturator = DefaultSaturator::new(BottomUpMatcher);
+    let saturator = SimpleSaturator::new(BottomUpMatcher);
 
     let outcomes = benchmark::benchmark(&trs, expressions, &config, &extractor, &saturator);
 

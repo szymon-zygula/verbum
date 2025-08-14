@@ -40,7 +40,7 @@ mod tests {
     use crate::rewriting::egraph::{
         EGraph,
         matching::bottom_up::BottomUpMatcher,
-        saturation::{SaturationConfig, Saturator, DefaultSaturator},
+        saturation::{SaturationConfig, Saturator, SimpleSaturator},
     };
 
     #[test]
@@ -54,7 +54,7 @@ mod tests {
             .expect("valid expression");
         let mut egraph = EGraph::<()>::from_expression(expr);
 
-        let saturator = DefaultSaturator::new(BottomUpMatcher);
+        let saturator = SimpleSaturator::new(BottomUpMatcher);
         let _reason = saturator.saturate(
             &mut egraph,
             trs.rules(),

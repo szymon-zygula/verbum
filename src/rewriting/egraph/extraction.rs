@@ -184,7 +184,7 @@ mod tests {
             egraph::{
                 EGraph,
                 matching::bottom_up::BottomUpMatcher,
-                saturation::{SaturationConfig, Saturator, DefaultSaturator},
+                saturation::{SaturationConfig, Saturator, SimpleSaturator},
             },
             rule::Rule,
         },
@@ -270,7 +270,7 @@ mod tests {
             EGraph::<()>::from_expression(lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap());
         let top_class_id = egraph.containing_class(egraph.find_symbols(lang.get_id("/"))[0]);
 
-        let saturator = DefaultSaturator::new(BottomUpMatcher);
+        let saturator = SimpleSaturator::new(BottomUpMatcher);
         let _ = saturator.saturate(
             &mut egraph,
             &rules,
