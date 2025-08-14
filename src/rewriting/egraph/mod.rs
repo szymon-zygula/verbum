@@ -33,12 +33,16 @@ pub struct EGraph<A: Analysis + Default> {
 }
 
 impl<A: Analysis + Default> EGraph<A> {
-    pub fn from_expression(expression: VarFreeExpression) -> Self {
+    pub fn from_expression_with_id(expression: VarFreeExpression) -> (Self, ClassId) {
         let mut egraph = Self::default();
 
-        egraph.add_expression(expression);
+        let class_id = egraph.add_expression(expression);
 
-        egraph
+        (egraph, class_id)
+    }
+
+    pub fn from_expression(expression: VarFreeExpression) -> Self {
+        Self::from_expression_with_id(expression).0
     }
 
     pub fn add_expression(&mut self, expression: VarFreeExpression) -> NodeId {

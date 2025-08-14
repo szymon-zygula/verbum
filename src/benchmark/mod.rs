@@ -9,7 +9,7 @@ use crate::{
     rewriting::{
         egraph::{
             Analysis, EGraph,
-            extraction::{Extractor},
+            extraction::Extractor,
             matching::bottom_up::BottomUpMatcher,
             saturation::{SaturationConfig, SaturationStopReason, saturate},
         },
@@ -50,7 +50,7 @@ where
     let mut outcomes = Vec::new();
 
     for expression in expressions {
-        let mut egraph = EGraph::<A>::from_expression(expression.clone());
+        let (mut egraph, class_id) = EGraph::<A>::from_expression_with_id(expression.clone());
 
         let start_time = Instant::now();
         let stop_reason = saturate(
@@ -61,7 +61,7 @@ where
         );
         let time = start_time.elapsed();
 
-        let extraction_result = extractor.extract(&egraph, egraph.containing_class(0));
+        let extraction_result = extractor.extract(&egraph, class_id);
         let extracted_expression = match &extraction_result {
             Some(res) => res.winner().clone(),
             None => expression.clone(),
