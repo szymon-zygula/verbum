@@ -1,6 +1,7 @@
 pub mod analysis;
 pub mod literal_count;
 pub mod local_cost;
+pub mod simple_math_local_cost;
 
 use std::collections::HashSet;
 use std::collections::hash_set;
