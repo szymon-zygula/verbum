@@ -115,7 +115,6 @@ impl<A: Analysis + Default> EGraph<A> {
     /// If a given node exists in the e-graph, returns it. Otherwise gives `None`.
     pub fn node_id(&self, node: &Node) -> Option<NodeId> {
         // TODO: Add hashcons so that this is speedy
-        // Are hashcons really that much better when they hold uncanonical, potentially outdated keys anyway...?
         let node = node.canonical(self);
 
         for (&candidate_id, candidate_node) in self.nodes.iter() {

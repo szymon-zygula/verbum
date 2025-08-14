@@ -106,13 +106,13 @@ where
                     }
                 }
 
-                if let Some((node_id, class_cost)) = class
+                if let Some((min_node_id, min_node_cost)) = class
                     .iter_nodes()
                     .filter_map(|node_id| Some((*node_id, node_costs.get(node_id)?)))
                     .min_by_key(|x| x.1)
                 {
-                    class_costs.insert(class_id, class_cost.clone());
-                    cheapest_nodes.insert(class_id, node_id);
+                    class_costs.insert(class_id, min_node_cost.clone());
+                    cheapest_nodes.insert(class_id, min_node_id);
                 }
             }
         }
@@ -123,9 +123,12 @@ where
     fn extract_expression(
         egraph: &EGraph<A>,
         cheapest_nodes: &HashMap<ClassId, NodeId>,
-        equivalent: ClassId,
+        class_id: ClassId,
     ) -> VarFreeExpression {
-        match egraph.node(cheapest_nodes[&equivalent]) {
+        match egraph.node(*cheapest_nodes.get(&class_id).expect(concat!(
+            "Found a class for which cost could not be determined.",
+            "Have you defined correct costs for all symbols in the language?"
+        ))) {
             Node::Literal(literal) => VarFreeExpression::Literal(literal.clone()),
             Node::Symbol(symbol) => VarFreeExpression::Symbol(Symbol {
                 id: symbol.id,
@@ -139,18 +142,14 @@ where
     }
 }
 
-pub fn children_cost_sum<C, A: Analysis + Default>(
-    symbol: &Symbol<ClassId>,
-    costs: &HashMap<ClassId, C>,
-    egraph: &EGraph<A>,
-) -> Option<C>
+pub fn children_cost_sum<C>(symbol: &Symbol<ClassId>, costs: &HashMap<ClassId, C>) -> Option<C>
 where
     C: Ord + PartialEq + Clone + Sum,
 {
     symbol
         .children
         .iter()
-        .map(|child_id| costs.get(&egraph.canonical_class(*child_id)).cloned())
+        .map(|child_id| costs.get(child_id).cloned())
         .sum::<Option<C>>()
 }
 
@@ -244,8 +243,8 @@ mod tests {
             },
             |symbol, costs| {
                 Some(match lang.get_symbol(symbol.id) {
-                    "+" => 1usize + children_cost_sum(symbol, costs, &egraph)?,
-                    "*" => 1usize + 2usize * children_cost_sum(symbol, costs, &egraph)?,
+                    "+" => 1usize + children_cost_sum(symbol, costs)?,
+                    "*" => 1usize + 2usize * children_cost_sum(symbol, costs)?,
                     _ => None?,
                 })
             },
@@ -282,10 +281,10 @@ mod tests {
             |_| 1,
             |symbol, costs| {
                 Some(match lang.get_symbol(symbol.id) {
-                    "/" => 8usize + children_cost_sum(symbol, costs, &egraph)?,
-                    "*" => 4usize + children_cost_sum(symbol, costs, &egraph)?,
-                    "<<" => 2usize + children_cost_sum(symbol, costs, &egraph)?,
-                    "sin" => 2usize + children_cost_sum(symbol, costs, &egraph)?,
+                    "/" => 8usize + children_cost_sum(symbol, costs)?,
+                    "*" => 4usize + children_cost_sum(symbol, costs)?,
+                    "<<" => 2usize + children_cost_sum(symbol, costs)?,
+                    "sin" => 2usize + children_cost_sum(symbol, costs)?,
                     _ => None?,
                 })
             },

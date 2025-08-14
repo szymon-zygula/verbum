@@ -1,7 +1,13 @@
 #![allow(dead_code)]
 
 use language::Language;
-use rewriting::system::TermRewritingSystem;
+use rewriting::{
+    egraph::{
+        extraction::{SimpleExtractor, children_cost_sum},
+        saturation::SaturationConfig,
+    },
+    system::TermRewritingSystem,
+};
 
 mod benchmark;
 mod data_union_find;
@@ -22,18 +28,38 @@ fn main() {
         "(/ $0 $0)" => "1",
     );
 
-    // Something is wrong here, the extracted expressions are completely wrong. Why?
     let trs = TermRewritingSystem::new(lang.clone(), rules);
     let expressions = vec![
         lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap(),
         lang.parse_no_vars("(+ 1 1)").unwrap(),
     ];
 
-    let config = benchmark::BenchmarkConfig::default();
-    let extractor = crate::rewriting::egraph::extraction::SimpleExtractor::<usize, _, _, ()>::new(
+    let config = benchmark::BenchmarkConfig {
+        saturation_config: SaturationConfig {
+            max_nodes: Some(1000),
+            max_classes: Some(1000),
+            max_applications: Some(1000),
+            ..Default::default()
+        },
+    };
+
+    let extractor = SimpleExtractor::<usize, _, _, ()>::new(
         |_| 1,
-        |_, _| Some(0),
+        |symbol, costs| {
+            Some(
+                match lang.get_symbol(symbol.id) {
+                    "+" => 1usize,
+                    "-" => 1usize,
+                    "/" => 8usize,
+                    "*" => 4usize,
+                    "<<" => 2usize,
+                    "sin" => 2usize,
+                    _ => return None,
+                } + children_cost_sum(symbol, costs)?,
+            )
+        },
     );
+
     let outcomes = benchmark::benchmark(&trs, expressions, &config, &extractor);
 
     use benchmark::{
