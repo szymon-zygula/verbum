@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use crate::rewriting::rule::Rule;
 
-use super::{EGraph, matching::Matcher, Analysis};
+use super::{Analysis, EGraph, matching::Matcher};
 
 #[derive(Clone, Debug, Default)]
 pub struct SaturationConfig {
@@ -128,7 +128,7 @@ mod tests {
         },
     };
 
-    use super::{SaturationConfig, SaturationStopReason, DefaultSaturator, Saturator};
+    use super::{DefaultSaturator, SaturationConfig, SaturationStopReason, Saturator};
 
     #[test]
     fn classical_test() {
@@ -144,11 +144,7 @@ mod tests {
             EGraph::<()>::from_expression(lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap());
 
         let saturator = DefaultSaturator::new(BottomUpMatcher);
-        let reason = saturator.saturate(
-            &mut egraph,
-            &rules,
-            &SaturationConfig::default(),
-        );
+        let reason = saturator.saturate(&mut egraph, &rules, &SaturationConfig::default());
         assert_eq!(reason, SaturationStopReason::Saturated);
 
         assert_eq!(egraph.class_count(), 5);

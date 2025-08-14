@@ -23,7 +23,7 @@ where
                     .node(node_id)
                     .iter_children()
                     .map(|child_id| egraph.class(*child_id).analysis())
-                    .fold(LC::default(), |acc, new| acc.add(&new)),
+                    .fold(LC::default(), |acc, new| acc.add(new)),
             ),
         }
     }

@@ -45,12 +45,12 @@ mod tests {
         let lang = Language::simple_math();
         let expr = lang.parse_no_vars("5").unwrap();
         let egraph = EGraph::<SimpleMathLocalCost>::from_expression(expr);
-        let class_id = egraph.containing_class(egraph.node_id(&egraph.node(0)).unwrap());
+        let class_id = egraph.containing_class(egraph.node_id(egraph.node(0)).unwrap());
         assert_eq!(egraph.class(class_id).analysis().0, 1);
 
         let expr = lang.parse_no_vars("-10").unwrap();
         let egraph = EGraph::<SimpleMathLocalCost>::from_expression(expr);
-        let class_id = egraph.containing_class(egraph.node_id(&egraph.node(0)).unwrap());
+        let class_id = egraph.containing_class(egraph.node_id(egraph.node(0)).unwrap());
         assert_eq!(egraph.class(class_id).analysis().0, 1);
     }
 
