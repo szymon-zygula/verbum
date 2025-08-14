@@ -8,7 +8,7 @@ use crate::language::{Language, expression::Literal, symbol::SymbolId};
 use super::local_cost::LocalCost;
 
 #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct SimpleMathLocalCost(usize);
+pub struct SimpleMathLocalCost(i32);
 
 impl Sum for SimpleMathLocalCost {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {

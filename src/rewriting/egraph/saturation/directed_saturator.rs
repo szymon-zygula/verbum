@@ -10,14 +10,7 @@ use crate::rewriting::{
 use super::{SaturationStopReason, Saturator, check_limits};
 
 pub fn rule_cost<LC: LocalCost>(rule: &Rule) -> LC {
-    let cost_to = LC::expression_cost(rule.to());
-    let cost_from = LC::expression_cost(rule.from());
-
-    if cost_to >= cost_from {
-        cost_to - cost_from
-    } else {
-        LC::default() // Return 0 or a minimal cost to avoid overflow
-    }
+    LC::expression_cost(rule.to()) - LC::expression_cost(rule.from())
 }
 
 pub struct DirectedSaturator<M: Matcher> {
