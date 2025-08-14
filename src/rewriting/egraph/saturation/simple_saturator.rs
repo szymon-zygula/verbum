@@ -2,14 +2,14 @@ use std::time::Instant;
 
 use crate::rewriting::rule::Rule;
 
-use super::{Analysis, EGraph, SaturationConfig, SaturationStopReason, Saturator};
+use super::{Analysis, EGraph, SaturationConfig, SaturationStopReason, Saturator, check_limits};
 use crate::rewriting::egraph::matching::Matcher;
 
-pub struct SimpleSaturator<M> {
+pub struct SimpleSaturator<M: Matcher> {
     matcher: M,
 }
 
-impl<M> SimpleSaturator<M> {
+impl<M: Matcher> SimpleSaturator<M> {
     pub fn new(matcher: M) -> Self {
         Self { matcher }
     }
@@ -56,39 +56,6 @@ impl<A: Analysis, M: Matcher> Saturator<A> for SimpleSaturator<M> {
             }
         }
     }
-}
-
-fn check_limits<A: Analysis>(
-    egraph: &EGraph<A>,
-    applications: usize,
-    start: Instant,
-    cfg: &SaturationConfig,
-) -> Option<SaturationStopReason> {
-    if let Some(limit) = cfg.time_limit
-        && start.elapsed() >= limit
-    {
-        return Some(SaturationStopReason::Timeout);
-    }
-
-    if let Some(limit) = cfg.max_applications
-        && applications >= limit
-    {
-        return Some(SaturationStopReason::MaxApplications);
-    }
-
-    if let Some(limit) = cfg.max_nodes
-        && egraph.actual_node_count() >= limit
-    {
-        return Some(SaturationStopReason::MaxNodes);
-    }
-
-    if let Some(limit) = cfg.max_classes
-        && egraph.class_count() >= limit
-    {
-        return Some(SaturationStopReason::MaxClasses);
-    }
-
-    None
 }
 
 #[cfg(test)]

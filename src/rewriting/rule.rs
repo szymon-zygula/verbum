@@ -1,6 +1,6 @@
 use crate::language::{Language, expression::Expression};
 
-use super::egraph::{EGraph, matching::Matcher, Analysis};
+use super::egraph::{Analysis, EGraph, matching::Matcher};
 
 pub struct Rule {
     from: Expression,
@@ -13,6 +13,14 @@ impl Rule {
         let to = language.parse(to).unwrap();
 
         Self { from, to }
+    }
+
+    pub fn from(&self) -> &Expression {
+        &self.from
+    }
+
+    pub fn to(&self) -> &Expression {
+        &self.to
     }
 
     /// Returns `true` if anything changed on application, `false` if fixed-point reached.
@@ -61,7 +69,8 @@ mod tests {
     #[test]
     fn addition_commutative() {
         let lang = Language::simple_math();
-        let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(+ 2 (sin 5))").unwrap());
+        let mut egraph =
+            EGraph::<()>::from_expression(lang.parse_no_vars("(+ 2 (sin 5))").unwrap());
         let rule = Rule::from_strings("(+ $0 $1)", "(+ $1 $0)", &lang);
 
         rule.apply(&mut egraph, &TopDownMatcher);

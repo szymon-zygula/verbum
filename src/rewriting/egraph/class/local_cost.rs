@@ -13,7 +13,9 @@ use crate::{
 
 use super::{Analysis, EGraph, NodeId};
 
-pub trait LocalCost: Default + Clone + Ord + Sum + Add<Output = Self> + Sub<Output = Self> {
+pub trait LocalCost:
+    Default + Clone + Ord + Sum + Add<Output = Self> + Sub<Output = Self> + Ord
+{
     fn symbol_cost(symbol_id: SymbolId) -> Self;
     fn literal_cost(literal: &Literal) -> Self;
 

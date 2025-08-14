@@ -6,6 +6,7 @@ use super::{Analysis, EGraph};
 
 pub mod simple_saturator;
 pub use simple_saturator::SimpleSaturator;
+pub mod directed_saturator;
 
 #[derive(Clone, Debug, Default)]
 pub struct SaturationConfig {
@@ -24,7 +25,7 @@ pub enum SaturationStopReason {
     Timeout,
 }
 
-fn check_limits<A: Analysis>(
+pub fn check_limits<A: Analysis>(
     egraph: &EGraph<A>,
     applications: usize,
     start: Instant,
