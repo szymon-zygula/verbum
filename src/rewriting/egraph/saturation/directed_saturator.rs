@@ -10,7 +10,14 @@ use crate::rewriting::{
 use super::{SaturationStopReason, Saturator, check_limits};
 
 pub fn rule_cost<LC: LocalCost>(rule: &Rule) -> LC {
-    LC::expression_cost(rule.to()) - LC::expression_cost(rule.from())
+    let cost_to = LC::expression_cost(rule.to());
+    let cost_from = LC::expression_cost(rule.from());
+
+    if cost_to >= cost_from {
+        cost_to - cost_from
+    } else {
+        LC::default() // Return 0 or a minimal cost to avoid overflow
+    }
 }
 
 pub struct DirectedSaturator<M: Matcher> {
@@ -73,5 +80,44 @@ impl<LC: LocalCost, M: Matcher> Saturator<LC> for DirectedSaturator<M> {
                 return SaturationStopReason::Saturated;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::DirectedSaturator;
+    use crate::language::Language;
+    use crate::rewriting::egraph::EGraph;
+    use crate::rewriting::egraph::saturation::{SaturationConfig, Saturator, SaturationStopReason};
+    use crate::rewriting::rule::Rule;
+    use crate::macros::rules;
+    use crate::rewriting::egraph::matching::bottom_up::BottomUpMatcher;
+    use crate::rewriting::egraph::class::simple_math_local_cost::SimpleMathLocalCost;
+
+    fn simple_math_rules(lang: &Language) -> Vec<Rule> {
+        rules!(lang;
+            "(* $0 2)" => "(<< $0 1)",
+            "(* $0 1)" => "$0",
+            "(/ (* $0 $1) $2)" => "(* $0 (/ $1 $2))",
+            "(/ $0 $0)" => "1",
+        )
+    }
+
+    #[test]
+    fn test_directed_saturator_simple_math() {
+        let lang = Language::simple_math();
+        let rules = simple_math_rules(&lang);
+        let config = SaturationConfig::default();
+
+        // Test case 1: (/ (* (sin 5) 2) 2) should become (sin 5)
+        let mut egraph_1 = EGraph::<SimpleMathLocalCost>::from_expression(lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap());
+        let initial_expr_1_root_id = egraph_1.add_expression(lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap());
+
+        let saturator_1 = DirectedSaturator::new(BottomUpMatcher);
+        let reason_1 = saturator_1.saturate(&mut egraph_1, &rules, &config);
+        assert_eq!(reason_1, SaturationStopReason::Saturated);
+
+        let expected_expr_1_root_id = egraph_1.add_expression(lang.parse_no_vars("(sin 5)").unwrap());
+        assert_eq!(egraph_1.union_find.find(initial_expr_1_root_id), egraph_1.union_find.find(expected_expr_1_root_id));
     }
 }
