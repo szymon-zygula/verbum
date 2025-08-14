@@ -33,6 +33,8 @@ pub struct EGraph<A: Analysis + Default> {
 }
 
 impl<A: Analysis + Default> EGraph<A> {
+    /// Creates an e-graph representing `expression` and returns it together with ID of the class
+    /// containing the root expression.
     pub fn from_expression_with_id(expression: VarFreeExpression) -> (Self, ClassId) {
         let mut egraph = Self::default();
 
@@ -41,10 +43,12 @@ impl<A: Analysis + Default> EGraph<A> {
         (egraph, class_id)
     }
 
+    /// Creates an e-graph representing `expression`.
     pub fn from_expression(expression: VarFreeExpression) -> Self {
         Self::from_expression_with_id(expression).0
     }
 
+    /// Adds `expression` to the e-graph as a new class.
     pub fn add_expression(&mut self, expression: VarFreeExpression) -> NodeId {
         let node = match expression {
             VarFreeExpression::Literal(literal) => Node::Literal(literal),
