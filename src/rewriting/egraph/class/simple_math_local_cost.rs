@@ -1,9 +1,36 @@
+use std::{
+    iter::Sum,
+    ops::{Add, Sub},
+};
+
 use crate::language::{Language, expression::Literal, symbol::SymbolId};
 
 use super::local_cost::LocalCost;
 
 #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SimpleMathLocalCost(usize);
+
+impl Sum for SimpleMathLocalCost {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        Self(iter.map(|x| x.0).sum())
+    }
+}
+
+impl Add for SimpleMathLocalCost {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self(self.0 + other.0)
+    }
+}
+
+impl Sub for SimpleMathLocalCost {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        Self(self.0 - other.0)
+    }
+}
 
 impl LocalCost for SimpleMathLocalCost {
     fn symbol_cost(symbol_id: SymbolId) -> Self {
@@ -22,10 +49,6 @@ impl LocalCost for SimpleMathLocalCost {
     fn literal_cost(_: &Literal) -> Self {
         Self(1)
     }
-
-    fn add(&self, other: &Self) -> Self {
-        Self(self.0 + other.0)
-    }
 }
 
 #[cfg(test)]
@@ -34,7 +57,7 @@ mod tests {
     use crate::rewriting::egraph::{
         EGraph,
         matching::bottom_up::BottomUpMatcher,
-                saturation::{SimpleSaturator, SaturationConfig, Saturator},
+        saturation::{SaturationConfig, Saturator, SimpleSaturator},
     };
     use crate::rewriting::rule::Rule;
 
