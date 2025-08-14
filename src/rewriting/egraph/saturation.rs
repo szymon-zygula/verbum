@@ -54,43 +54,64 @@ fn check_limits<A: Analysis>(
     None
 }
 
-pub fn saturate<A: Analysis>(
-    egraph: &mut EGraph<A>,
-    rules: &[Rule],
-    matcher: impl Matcher,
-    config: &SaturationConfig,
-) -> SaturationStopReason {
-    let start = Instant::now();
-    let mut applications: usize = 0;
+pub trait Saturator<A: Analysis> {
+    fn saturate(
+        &self,
+        egraph: &mut EGraph<A>,
+        rules: &[Rule],
+        config: &SaturationConfig,
+    ) -> SaturationStopReason;
+}
 
-    // Early check in case the initial graph already violates limits
-    if let Some(reason) = check_limits(egraph, applications, start, config) {
-        return reason;
+pub struct DefaultSaturator<M> {
+    matcher: M,
+}
+
+impl<M> DefaultSaturator<M> {
+    pub fn new(matcher: M) -> Self {
+        Self { matcher }
     }
+}
 
-    loop {
-        let mut any_applied = false;
+impl<A: Analysis, M: Matcher> Saturator<A> for DefaultSaturator<M> {
+    fn saturate(
+        &self,
+        egraph: &mut EGraph<A>,
+        rules: &[Rule],
+        config: &SaturationConfig,
+    ) -> SaturationStopReason {
+        let start = Instant::now();
+        let mut applications: usize = 0;
 
-        for rule in rules.iter() {
-            // Check time on each rule iteration
-            if let Some(SaturationStopReason::Timeout) =
-                check_limits(egraph, applications, start, config)
-            {
-                return SaturationStopReason::Timeout;
-            }
-
-            if rule.apply(egraph, &matcher) {
-                applications += 1;
-                any_applied = true;
-
-                if let Some(reason) = check_limits(egraph, applications, start, config) {
-                    return reason;
-                }
-            }
+        // Early check in case the initial graph already violates limits
+        if let Some(reason) = check_limits(egraph, applications, start, config) {
+            return reason;
         }
 
-        if !any_applied {
-            return SaturationStopReason::Saturated;
+        loop {
+            let mut any_applied = false;
+
+            for rule in rules.iter() {
+                // Check time on each rule iteration
+                if let Some(SaturationStopReason::Timeout) =
+                    check_limits(egraph, applications, start, config)
+                {
+                    return SaturationStopReason::Timeout;
+                }
+
+                if rule.apply(egraph, &self.matcher) {
+                    applications += 1;
+                    any_applied = true;
+
+                    if let Some(reason) = check_limits(egraph, applications, start, config) {
+                        return reason;
+                    }
+                }
+            }
+
+            if !any_applied {
+                return SaturationStopReason::Saturated;
+            }
         }
     }
 }
@@ -107,7 +128,7 @@ mod tests {
         },
     };
 
-    use super::{SaturationConfig, SaturationStopReason, saturate};
+    use super::{SaturationConfig, SaturationStopReason, DefaultSaturator, Saturator};
 
     #[test]
     fn classical_test() {
@@ -122,10 +143,10 @@ mod tests {
         let mut egraph =
             EGraph::<()>::from_expression(lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap());
 
-        let reason = saturate(
+        let saturator = DefaultSaturator::new(BottomUpMatcher);
+        let reason = saturator.saturate(
             &mut egraph,
             &rules,
-            BottomUpMatcher,
             &SaturationConfig::default(),
         );
         assert_eq!(reason, SaturationStopReason::Saturated);
@@ -143,10 +164,10 @@ mod tests {
         ];
         let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
 
-        let reason = saturate(
+        let saturator = DefaultSaturator::new(BottomUpMatcher);
+        let reason = saturator.saturate(
             &mut egraph,
             &rules,
-            BottomUpMatcher,
             &SaturationConfig {
                 max_applications: Some(1),
                 ..Default::default()
@@ -164,10 +185,10 @@ mod tests {
         ];
         let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
 
-        let reason = saturate(
+        let saturator = DefaultSaturator::new(BottomUpMatcher);
+        let reason = saturator.saturate(
             &mut egraph,
             &rules,
-            BottomUpMatcher,
             &SaturationConfig {
                 time_limit: Some(Duration::from_millis(0)),
                 ..Default::default()
@@ -185,10 +206,10 @@ mod tests {
         ];
         let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
 
-        let reason = saturate(
+        let saturator = DefaultSaturator::new(BottomUpMatcher);
+        let reason = saturator.saturate(
             &mut egraph,
             &rules,
-            BottomUpMatcher,
             &SaturationConfig {
                 max_nodes: Some(4),
                 ..Default::default()
@@ -206,10 +227,10 @@ mod tests {
         ];
         let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
 
-        let reason = saturate(
+        let saturator = DefaultSaturator::new(BottomUpMatcher);
+        let reason = saturator.saturate(
             &mut egraph,
             &rules,
-            BottomUpMatcher,
             &SaturationConfig {
                 max_classes: Some(3),
                 ..Default::default()

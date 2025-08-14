@@ -4,7 +4,8 @@ use language::Language;
 use rewriting::{
     egraph::{
         extraction::{SimpleExtractor, children_cost_sum},
-        saturation::SaturationConfig,
+        saturation::{SaturationConfig, DefaultSaturator},
+        matching::bottom_up::BottomUpMatcher,
     },
     system::TermRewritingSystem,
 };
@@ -60,7 +61,9 @@ fn main() {
         },
     );
 
-    let outcomes = benchmark::benchmark(&trs, expressions, &config, &extractor);
+    let saturator = DefaultSaturator::new(BottomUpMatcher);
+
+    let outcomes = benchmark::benchmark(&trs, expressions, &config, &extractor, &saturator);
 
     use benchmark::{
         OutcomeFormatter, csv_output::CsvFormatter, pretty_printing::PrettyTableFormatter,
@@ -74,3 +77,4 @@ fn main() {
     let csv_output = csv_formatter.format_outcomes(&outcomes);
     println!("\nCSV Output:\n{csv_output}");
 }
+

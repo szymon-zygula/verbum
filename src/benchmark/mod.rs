@@ -10,8 +10,8 @@ use crate::{
         egraph::{
             Analysis, EGraph,
             extraction::Extractor,
-            matching::bottom_up::BottomUpMatcher,
-            saturation::{SaturationConfig, SaturationStopReason, saturate},
+            
+            saturation::{SaturationConfig, SaturationStopReason, Saturator},
         },
         system::TermRewritingSystem,
     },
@@ -42,6 +42,7 @@ pub fn benchmark<A, E>(
     expressions: Vec<VarFreeExpression>,
     config: &BenchmarkConfig,
     extractor: &E,
+    saturator: &dyn Saturator<A>,
 ) -> Vec<Outcome>
 where
     A: Analysis,
@@ -53,10 +54,9 @@ where
         let (mut egraph, class_id) = EGraph::<A>::from_expression_with_id(expression.clone());
 
         let start_time = Instant::now();
-        let stop_reason = saturate(
+        let stop_reason = saturator.saturate(
             &mut egraph,
             trs.rules(),
-            BottomUpMatcher,
             &config.saturation_config,
         );
         let time = start_time.elapsed();
