@@ -5,13 +5,10 @@ use crate::{
 
 use super::{Analysis, EGraph, NodeId};
 
-pub trait LocalCost: Default + Clone {
-    type Cost: Ord;
-
-    fn symbol_cost(symbol_id: SymbolId) -> Self::Cost;
-    fn literal_cost(literal: &Literal) -> Self::Cost;
-    fn wrap_cost(cost: Self::Cost) -> Self;
-    fn cost(&self) -> Self::Cost;
+pub trait LocalCost: Default + Clone + Ord {
+    fn symbol_cost(symbol_id: SymbolId) -> Self;
+    fn literal_cost(literal: &Literal) -> Self;
+    fn add(&self, other: &Self) -> Self;
 }
 
 impl<LC> Analysis for LC
@@ -20,12 +17,18 @@ where
 {
     fn make(egraph: &EGraph<Self>, node_id: NodeId) -> Self {
         match egraph.node(node_id) {
-            Node::Literal(literal) => Self::wrap_cost(Self::literal_cost(literal)),
-            Node::Symbol(symbol) => Self::wrap_cost(Self::symbol_cost(symbol.id)),
+            Node::Literal(literal) => Self::literal_cost(literal),
+            Node::Symbol(symbol) => Self::symbol_cost(symbol.id).add(
+                &egraph
+                    .node(node_id)
+                    .iter_children()
+                    .map(|child_id| egraph.class(*child_id).analysis())
+                    .fold(LC::default(), |acc, new| acc.add(&new)),
+            ),
         }
     }
 
     fn merge(a: Self, b: Self) -> Self {
-        Self::wrap_cost(std::cmp::min(a.cost(), b.cost()))
+        std::cmp::min(a, b)
     }
 }
