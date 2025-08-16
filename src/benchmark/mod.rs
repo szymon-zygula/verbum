@@ -2,6 +2,7 @@ pub mod csv_output;
 pub mod pretty_printing;
 pub mod random_generation;
 
+use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
 const RUN_COUNT: usize = 10;
@@ -125,6 +126,34 @@ where
     }
 
     averaged_outcomes
+}
+
+pub fn benchmark_saturators<A, E>(
+    trs: &TermRewritingSystem,
+    expressions: Vec<VarFreeExpression>,
+    config: &BenchmarkConfig,
+    extractor: &E,
+    saturators: BTreeMap<String, Box<dyn Saturator<A>>>,
+) -> BTreeMap<String, Vec<Outcome>>
+where
+    A: Analysis,
+    E: Extractor<A, Cost = usize>,
+{
+    saturators
+        .into_iter()
+        .map(|(name, saturator)| {
+            (
+                name,
+                benchmark(
+                    trs,
+                    expressions.clone(),
+                    config,
+                    extractor,
+                    saturator.as_ref(),
+                ),
+            )
+        })
+        .collect()
 }
 
 /// Benchmarks saturation of `expression` `RUN_COUNT + 1` times,
