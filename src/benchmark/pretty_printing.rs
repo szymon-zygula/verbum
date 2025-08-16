@@ -21,45 +21,13 @@ impl OutcomeFormatter for PrettyTableFormatter {
         ];
 
         // Determine column widths, capping at MAX_COL_WIDTH
-        let mut col_widths: Vec<usize> = headers.iter().map(|h| h.len()).collect();
-
-        for outcome in outcomes {
-            col_widths[0] = col_widths[0].max(format!("{}", outcome.original_expression).len());
-            col_widths[1] = col_widths[1].max(format!("{}", outcome.extracted_expression).len());
-            col_widths[2] = col_widths[2].max(format!("{:?}", outcome.time).len());
-            col_widths[3] = col_widths[3].max(format!("{:?}", outcome.stop_reason).len());
-            col_widths[4] = col_widths[4].max(format!("{}", outcome.nodes).len());
-            col_widths[5] = col_widths[5].max(format!("{}", outcome.classes).len());
-            col_widths[6] = col_widths[6].max(format!("{}", outcome.min_cost).len());
-        }
-
-        for width in col_widths.iter_mut() {
-            *width = (*width).min(MAX_COL_WIDTH);
-        }
+        let col_widths = calculate_column_widths(outcomes, &headers);
 
         // Print header
-        for (i, header) in headers.iter().enumerate() {
-            write!(
-                &mut buffer,
-                "{:<width$} ",
-                format_cell(header.to_string(), col_widths[i]).bold(),
-                width = col_widths[i]
-            )
-            .unwrap();
-            if i < headers.len() - 1 {
-                write!(&mut buffer, "| ").unwrap();
-            }
-        }
-        writeln!(&mut buffer).unwrap();
+        print_table_header(&mut buffer, &headers, &col_widths);
 
         // Print separator
-        for (i, width) in col_widths.iter().enumerate() {
-            write!(&mut buffer, "{:-<width$}-", "", width = width).unwrap();
-            if i < headers.len() - 1 {
-                write!(&mut buffer, "-").unwrap();
-            }
-        }
-        writeln!(&mut buffer).unwrap();
+        print_separator_line(&mut buffer, &col_widths, headers.len());
 
         // Print rows
         let mut total_time_sum = Duration::default();
@@ -83,9 +51,6 @@ impl OutcomeFormatter for PrettyTableFormatter {
             let classes_formatted = format_cell(format!("{}", outcome.classes), col_widths[5]);
             let min_cost_formatted = format_cell(format!("{}", outcome.min_cost), col_widths[6]);
 
-            let mut lines: Vec<Vec<String>> = vec![];
-            let mut max_lines = 0;
-
             let cells = vec![
                 original_expr_formatted,
                 extracted_expr_formatted,
@@ -95,23 +60,7 @@ impl OutcomeFormatter for PrettyTableFormatter {
                 classes_formatted,
                 min_cost_formatted,
             ];
-
-            for cell in cells {
-                let cell_lines: Vec<String> = cell.split('\n').map(|s| s.to_string()).collect();
-                max_lines = max_lines.max(cell_lines.len());
-                lines.push(cell_lines);
-            }
-
-            for i in 0..max_lines {
-                for (j, col_lines) in lines.iter().enumerate() {
-                    let content = col_lines.get(i).unwrap_or(&"".to_string()).clone();
-                    write!(&mut buffer, "{:<width$} ", content, width = col_widths[j]).unwrap();
-                    if j < headers.len() - 1 {
-                        write!(&mut buffer, "| ").unwrap();
-                    }
-                }
-                writeln!(&mut buffer).unwrap();
-            }
+            print_table_row(&mut buffer, cells, &col_widths, headers.len(), false);
         }
 
         if !outcomes.is_empty() {
@@ -132,6 +81,7 @@ impl OutcomeFormatter for PrettyTableFormatter {
             writeln!(&mut buffer).unwrap();
 
             // Print average row
+            // Print average row
             let original_expr_formatted = format_cell("AVERAGE".to_string(), col_widths[0]);
             let extracted_expr_formatted = format_cell("".to_string(), col_widths[1]);
             let time_formatted = format_cell(format!("{:?}", avg_total_time), col_widths[2]);
@@ -149,35 +99,83 @@ impl OutcomeFormatter for PrettyTableFormatter {
                 classes_formatted,
                 min_cost_formatted,
             ];
-
-            let mut lines: Vec<Vec<String>> = vec![];
-            let mut max_lines = 0;
-
-            for cell in cells {
-                let cell_lines: Vec<String> = cell.split('\n').map(|s| s.to_string()).collect();
-                max_lines = max_lines.max(cell_lines.len());
-                lines.push(cell_lines);
-            }
-
-            for i in 0..max_lines {
-                for (j, col_lines) in lines.iter().enumerate() {
-                    let content = col_lines.get(i).unwrap_or(&"".to_string()).clone();
-                    write!(
-                        &mut buffer,
-                        "{:<width$} ",
-                        content.bold(),
-                        width = col_widths[j]
-                    )
-                    .unwrap();
-                    if j < headers.len() - 1 {
-                        write!(&mut buffer, "| ").unwrap();
-                    }
-                }
-                writeln!(&mut buffer).unwrap();
-            }
+            print_table_row(&mut buffer, cells, &col_widths, headers.len(), true);
         }
         buffer
     }
+}
+
+fn print_separator_line(buffer: &mut String, col_widths: &[usize], num_headers: usize) {
+    for (i, width) in col_widths.iter().enumerate() {
+        write!(buffer, "{:-<width$}-", "", width = width).unwrap();
+        if i < num_headers - 1 {
+            write!(buffer, "-").unwrap();
+        }
+    }
+    writeln!(buffer).unwrap();
+}
+
+fn print_table_row(buffer: &mut String, cells: Vec<String>, col_widths: &[usize], num_headers: usize, is_bold: bool) {
+    let mut lines: Vec<Vec<String>> = vec![];
+    let mut max_lines = 0;
+
+    for cell in cells {
+        let cell_lines: Vec<String> = cell.split('\n').map(|s| s.to_string()).collect();
+        max_lines = max_lines.max(cell_lines.len());
+        lines.push(cell_lines);
+    }
+
+    for i in 0..max_lines {
+        for (j, col_lines) in lines.iter().enumerate() {
+            let content = col_lines.get(i).unwrap_or(&"".to_string()).clone();
+            if is_bold {
+                let formatted_content = format!("{:<width$}", content.bold(), width = col_widths[j]);
+                write!(buffer, "{} ", formatted_content).unwrap();
+            } else {
+                let formatted_content = format!("{:<width$}", content, width = col_widths[j]);
+                write!(buffer, "{} ", formatted_content).unwrap();
+            }
+            if j < num_headers - 1 {
+                write!(buffer, "| ").unwrap();
+            }
+        }
+        writeln!(buffer).unwrap();
+    }
+}
+
+fn calculate_column_widths(outcomes: &[Outcome], headers: &[&str]) -> Vec<usize> {
+    let mut col_widths: Vec<usize> = headers.iter().map(|h| h.len()).collect();
+
+    for outcome in outcomes {
+        col_widths[0] = col_widths[0].max(format!("{}", outcome.original_expression).len());
+        col_widths[1] = col_widths[1].max(format!("{}", outcome.extracted_expression).len());
+        col_widths[2] = col_widths[2].max(format!("{:?}", outcome.time).len());
+        col_widths[3] = col_widths[3].max(format!("{:?}", outcome.stop_reason).len());
+        col_widths[4] = col_widths[4].max(format!("{}", outcome.nodes).len());
+        col_widths[5] = col_widths[5].max(format!("{}", outcome.classes).len());
+        col_widths[6] = col_widths[6].max(format!("{}", outcome.min_cost).len());
+    }
+
+    for width in col_widths.iter_mut() {
+        *width = (*width).min(MAX_COL_WIDTH);
+    }
+    col_widths
+}
+
+fn print_table_header(buffer: &mut String, headers: &[&str], col_widths: &[usize]) {
+    for (i, header) in headers.iter().enumerate() {
+        write!(
+            buffer,
+            "{:<width$} ",
+            format_cell(header.to_string(), col_widths[i]).bold(),
+            width = col_widths[i]
+        )
+        .unwrap();
+        if i < headers.len() - 1 {
+            write!(buffer, "| ").unwrap();
+        }
+    }
+    writeln!(buffer).unwrap();
 }
 
 const MAX_COL_WIDTH: usize = 30;
