@@ -21,6 +21,7 @@ use crate::{
 
 pub trait OutcomeFormatter {
     fn format_outcomes(&self, outcomes: &[Outcome]) -> String;
+    fn format_saturator_outcomes(&self, outcomes_map: BTreeMap<String, Vec<Outcome>>) -> String;
 }
 
 #[derive(Clone, Debug)]
