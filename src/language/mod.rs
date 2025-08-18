@@ -6,7 +6,7 @@ pub mod parsing;
 pub mod symbol;
 mod topology;
 
-#[derive(Default, Clone, Serialize, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize, PartialEq, Debug)]
 pub struct Language {
     // Runtime constraints specifying number of inputs/outputs?
     symbols: Vec<String>,

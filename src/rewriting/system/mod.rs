@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use crate::language::{Language, expression::VarFreeExpression};
 use crate::rewriting::egraph::{Analysis, EGraph, matching::bottom_up::BottomUpMatcher};
 use crate::rewriting::egraph::saturation::{SaturationConfig, Saturator, SimpleSaturator};
@@ -5,6 +6,7 @@ use crate::rewriting::rule::Rule;
 
 mod calculus;
 
+#[derive(Serialize, Deserialize)]
 pub struct TermRewritingSystem {
     language: Language,
     rules: Vec<Rule>,
@@ -60,5 +62,24 @@ mod tests {
 
         assert_eq!(egraph.class_count(), 5);
         assert_eq!(egraph.actual_node_count(), 9);
+    }
+
+    #[test]
+    fn test_term_rewriting_system_serialization() {
+        use crate::macros::rules;
+        use serde_json;
+
+        let lang = Language::simple_math();
+        let rules = rules!(lang;
+            "(* $0 2)" => "(<< $0 1)",
+            "(* $0 1)" => "$0",
+        );
+        let trs = TermRewritingSystem::new(lang.clone(), rules);
+
+        let serialized = serde_json::to_string(&trs).unwrap();
+        let deserialized: TermRewritingSystem = serde_json::from_str(&serialized).unwrap();
+
+        // Compare languages
+        assert_eq!(trs.language(), deserialized.language());
     }
 }
