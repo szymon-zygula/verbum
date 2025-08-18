@@ -8,7 +8,9 @@ use rewriting::{
         class::simple_math_local_cost::SimpleMathLocalCost,
         extraction::{SimpleExtractor, children_cost_sum},
         matching::bottom_up::BottomUpMatcher,
-        saturation::{SaturationConfig, SimpleSaturator, directed_saturator::DirectedSaturator},
+        saturation::{
+            SaturationConfig, SimpleSaturator, directed_saturator::DirectedSaturator,
+        },
     },
     system::TermRewritingSystem,
 };
@@ -23,7 +25,7 @@ mod union_find;
 #[macro_use]
 mod macros;
 
-fn main() {
+fn get_trs() -> TermRewritingSystem {
     let lang = Language::simple_math();
     let rules = rules!(lang;
         "(* $0 2)" => "(<< $0 1)",
@@ -31,8 +33,12 @@ fn main() {
         "(/ (* $0 $1) $2)" => "(* $0 (/ $1 $2))",
         "(/ $0 $0)" => "1",
     );
+    TermRewritingSystem::new(lang, rules)
+}
 
-    let trs = TermRewritingSystem::new(lang.clone(), rules);
+fn main() {
+    let trs = get_trs();
+    let lang = trs.language();
 
     let expressions = vec![
         lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap(),
