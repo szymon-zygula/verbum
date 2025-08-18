@@ -8,9 +8,7 @@ use rewriting::{
         class::simple_math_local_cost::SimpleMathLocalCost,
         extraction::{SimpleExtractor, children_cost_sum},
         matching::bottom_up::BottomUpMatcher,
-        saturation::{
-            SaturationConfig, SimpleSaturator, directed_saturator::DirectedSaturator,
-        },
+        saturation::{SaturationConfig, SimpleSaturator, directed_saturator::DirectedSaturator},
     },
     system::TermRewritingSystem,
 };
@@ -19,11 +17,10 @@ mod benchmark;
 mod data_union_find;
 mod index_selector;
 mod language;
+mod macros;
 mod rewriting;
 mod seen;
 mod union_find;
-#[macro_use]
-mod macros;
 mod utils;
 
 fn initialize_system() -> TermRewritingSystem {
