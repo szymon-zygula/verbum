@@ -52,7 +52,7 @@ impl Language {
 #[cfg(test)]
 mod tests {
     use super::Language;
-    use serde_json;
+    
 
     #[test]
     fn symbols() {

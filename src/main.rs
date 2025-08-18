@@ -1,8 +1,10 @@
 #![allow(dead_code)]
 
 use std::collections::BTreeMap;
+use std::fs::File;
+use std::io::Read;
+use std::path::PathBuf;
 
-use language::Language;
 use rewriting::{
     egraph::{
         class::simple_math_local_cost::SimpleMathLocalCost,
@@ -25,20 +27,21 @@ mod union_find;
 #[macro_use]
 mod macros;
 
-fn get_trs() -> TermRewritingSystem {
-    let lang = Language::simple_math();
-    let rules = rules!(lang;
-        "(* $0 2)" => "(<< $0 1)",
-        "(* $0 1)" => "$0",
-        "(/ (* $0 $1) $2)" => "(* $0 (/ $1 $2))",
-        "(/ $0 $0)" => "1",
-    );
-    TermRewritingSystem::new(lang, rules)
+fn initialize_system() -> TermRewritingSystem {
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    path.push("rewriting-systems");
+    path.push("simple_math.json");
+
+    let mut file = File::open(&path).unwrap();
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).unwrap();
+
+    serde_json::from_str(&contents).unwrap()
 }
 
 fn main() {
-    let trs = get_trs();
-    let lang = trs.language();
+    let trs = initialize_system();
+    let lang = trs.language().clone(); // Get language from trs for parsing expressions
 
     let expressions = vec![
         lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap(),
