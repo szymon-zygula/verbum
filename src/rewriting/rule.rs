@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
 use crate::language::{Language, expression::Expression};
 
 use super::egraph::{Analysis, EGraph, matching::Matcher};
 
+#[derive(Serialize, Deserialize)]
 pub struct Rule {
     from: Expression,
     to: Expression,
@@ -80,6 +82,16 @@ mod tests {
 
         let expected = lang.parse("(+ (sin 5) 2)").unwrap();
 
-        assert_eq!(TopDownMatcher.try_match(&egraph, &expected).len(), 1);
+                assert_eq!(TopDownMatcher.try_match(&egraph, &expected).len(), 1);
+    }
+
+    #[test]
+    fn test_rule_serialization() {
+        let lang = Language::simple_math();
+        let rule = Rule::from_strings("(* $0 2)", "(<< $0 1)", &lang);
+        let serialized = serde_json::to_string(&rule).unwrap();
+        let deserialized: Rule = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(rule.from(), deserialized.from());
+        assert_eq!(rule.to(), deserialized.to());
     }
 }
