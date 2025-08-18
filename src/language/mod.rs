@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use symbol::SymbolId;
 
 pub mod expression;
@@ -5,7 +6,7 @@ pub mod parsing;
 pub mod symbol;
 mod topology;
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 pub struct Language {
     // Runtime constraints specifying number of inputs/outputs?
     symbols: Vec<String>,
@@ -50,12 +51,24 @@ impl Language {
 
 #[cfg(test)]
 mod tests {
+    use super::Language;
+    use serde_json;
+
     #[test]
     fn symbols() {
-        let lang = super::Language::default().add_symbol("f").add_symbol("g");
+        let lang = Language::default().add_symbol("f").add_symbol("g");
 
         assert_eq!("f", lang.get_symbol(0));
         assert_eq!("g", lang.get_symbol(1));
         assert!(lang.try_get_id("h").is_none());
+    }
+
+    #[test]
+    fn test_language_serialization() {
+        let lang = Language::simple_math();
+        let serialized = serde_json::to_string(&lang).unwrap();
+        let deserialized: Language = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(lang.symbols, deserialized.symbols);
     }
 }
