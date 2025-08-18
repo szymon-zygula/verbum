@@ -93,7 +93,7 @@ where
 
 pub fn benchmark<A, E>(
     trs: &TermRewritingSystem,
-    expressions: Vec<VarFreeExpression>,
+    expressions: &[VarFreeExpression],
     config: &BenchmarkConfig,
     extractor: &E,
     saturator: &dyn Saturator<A>,
@@ -106,7 +106,7 @@ where
 
     for expression in expressions {
         let mut expression_outcomes =
-            benchmark_multiple_times(trs, config, extractor, saturator, expression);
+            benchmark_multiple_times(trs, config, extractor, saturator, expression.clone());
         let mut averaged_outcome = expression_outcomes.remove(0);
 
         for (i, outcome) in expression_outcomes.into_iter().enumerate() {
@@ -131,7 +131,7 @@ where
 
 pub fn benchmark_saturators<A, E>(
     trs: &TermRewritingSystem,
-    expressions: Vec<VarFreeExpression>,
+    expressions: &[VarFreeExpression],
     config: &BenchmarkConfig,
     extractor: &E,
     saturators: BTreeMap<String, Box<dyn Saturator<A>>>,
@@ -147,7 +147,7 @@ where
                 name,
                 benchmark(
                     trs,
-                    expressions.clone(),
+                    expressions,
                     config,
                     extractor,
                     saturator.as_ref(),

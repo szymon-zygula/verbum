@@ -1,11 +1,14 @@
 #![allow(dead_code)]
 
+use std::collections::BTreeMap;
+
 use language::Language;
 use rewriting::{
     egraph::{
+        class::simple_math_local_cost::SimpleMathLocalCost,
         extraction::{SimpleExtractor, children_cost_sum},
-        saturation::{SaturationConfig, SimpleSaturator},
         matching::bottom_up::BottomUpMatcher,
+        saturation::{SaturationConfig, SimpleSaturator, directed_saturator::DirectedSaturator},
     },
     system::TermRewritingSystem,
 };
@@ -30,6 +33,7 @@ fn main() {
     );
 
     let trs = TermRewritingSystem::new(lang.clone(), rules);
+
     let expressions = vec![
         lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap(),
         lang.parse_no_vars("(+ 1 1)").unwrap(),
@@ -61,20 +65,53 @@ fn main() {
         },
     );
 
-    let saturator = SimpleSaturator::new(BottomUpMatcher);
+    let simple_saturator = SimpleSaturator::new(BottomUpMatcher);
+    let simple_outcomes =
+        benchmark::benchmark(&trs, &expressions, &config, &extractor, &simple_saturator);
 
-    let outcomes = benchmark::benchmark(&trs, expressions, &config, &extractor, &saturator);
+    let extractor_2 = SimpleExtractor::<usize, _, _, _>::new(
+        |_| 1,
+        |symbol, costs| {
+            Some(
+                match lang.get_symbol(symbol.id) {
+                    "+" => 1usize,
+                    "-" => 1usize,
+                    "/" => 8usize,
+                    "*" => 4usize,
+                    "<<" => 2usize,
+                    "sin" => 2usize,
+                    _ => return None,
+                } + children_cost_sum(symbol, costs)?,
+            )
+        },
+    );
+
+    let directed_saturator = DirectedSaturator::new(BottomUpMatcher);
+    let directed_outcomes = benchmark::benchmark::<
+        SimpleMathLocalCost,
+        SimpleExtractor<usize, _, _, SimpleMathLocalCost>,
+    >(
+        &trs,
+        &expressions,
+        &config,
+        &extractor_2,
+        &directed_saturator,
+    );
+
+    let map = BTreeMap::from([
+        (String::from("Simple"), simple_outcomes),
+        (String::from("Directed"), directed_outcomes),
+    ]);
 
     use benchmark::{
         OutcomeFormatter, csv_output::CsvFormatter, pretty_printing::PrettyTableFormatter,
     };
 
     let pretty_formatter = PrettyTableFormatter;
-    let pretty_output = pretty_formatter.format_outcomes(&outcomes);
+    let pretty_output = pretty_formatter.format_saturator_outcomes(map.clone());
     println!("{pretty_output}");
 
     let csv_formatter = CsvFormatter;
-    let csv_output = csv_formatter.format_outcomes(&outcomes);
+    let csv_output = csv_formatter.format_saturator_outcomes(map);
     println!("\nCSV Output:\n{csv_output}");
 }
-

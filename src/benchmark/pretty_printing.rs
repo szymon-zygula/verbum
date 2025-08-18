@@ -4,7 +4,6 @@ use colored::*;
 use std::{fmt::Write, time::Duration};
 use std::collections::BTreeMap;
 use crate::language::expression::VarFreeExpression;
-use crate::rewriting::egraph::saturation::SaturationStopReason;
 
 pub struct PrettyTableFormatter;
 
@@ -88,10 +87,10 @@ fn print_table_row(buffer: &mut String, cells: Vec<String>, col_widths: &[usize]
             let content = col_lines.get(i).unwrap_or(&"".to_string()).clone();
             if is_bold {
                 let formatted_content = format!("{:<width$}", content.bold(), width = col_widths[j]);
-                write!(buffer, "{} ", formatted_content).unwrap();
+                write!(buffer, "{formatted_content} ").unwrap();
             } else {
                 let formatted_content = format!("{:<width$}", content, width = col_widths[j]);
-                write!(buffer, "{} ", formatted_content).unwrap();
+                write!(buffer, "{formatted_content} ").unwrap();
             }
             if j < num_headers - 1 {
                 write!(buffer, "| ").unwrap();
@@ -185,11 +184,11 @@ impl OutcomeFormatter for PrettyTableFormatter {
             // Print average row
             let original_expr_formatted = format_cell("AVERAGE".to_string(), col_widths[0]);
             let extracted_expr_formatted = format_cell("".to_string(), col_widths[1]);
-            let time_formatted = format_cell(format!("{:?}", avg_total_time), col_widths[2]);
+            let time_formatted = format_cell(format!("{avg_total_time:?}"), col_widths[2]);
             let stop_reason_formatted = format_cell("".to_string(), col_widths[3]);
-            let nodes_formatted = format_cell(format!("{}", avg_num_nodes), col_widths[4]);
-            let classes_formatted = format_cell(format!("{}", avg_classes), col_widths[5]);
-            let min_cost_formatted = format_cell(format!("{}", avg_min_cost), col_widths[6]);
+            let nodes_formatted = format_cell(format!("{avg_num_nodes}"), col_widths[4]);
+            let classes_formatted = format_cell(format!("{avg_classes}"), col_widths[5]);
+            let min_cost_formatted = format_cell(format!("{avg_min_cost}"), col_widths[6]);
 
             let cells = vec![
                 original_expr_formatted,
@@ -211,7 +210,7 @@ impl OutcomeFormatter for PrettyTableFormatter {
 
         for (saturator_name, outcomes) in outcomes_map {
             // Print saturator indicator
-            writeln!(&mut buffer, "\n--- Results for Saturator: {} ---\n", saturator_name).unwrap();
+            writeln!(&mut buffer, "\n--- Results for Saturator: {saturator_name} ---\n").unwrap();
 
             // Print individual table for this saturator
             buffer.push_str(&self.format_outcomes(&outcomes));
