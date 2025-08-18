@@ -1,8 +1,6 @@
 #![allow(dead_code)]
 
 use std::collections::BTreeMap;
-use std::fs::File;
-use std::io::Read;
 use std::path::PathBuf;
 
 use rewriting::{
@@ -26,17 +24,14 @@ mod seen;
 mod union_find;
 #[macro_use]
 mod macros;
+mod utils;
 
 fn initialize_system() -> TermRewritingSystem {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.push("rewriting-systems");
     path.push("simple_math.json");
 
-    let mut file = File::open(&path).unwrap();
-    let mut contents = String::new();
-    file.read_to_string(&mut contents).unwrap();
-
-    serde_json::from_str(&contents).unwrap()
+    utils::json::load_json(path).unwrap()
 }
 
 fn main() {
