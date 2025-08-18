@@ -4,6 +4,7 @@ use std::{
 };
 
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 
 use crate::rewriting::egraph::{ClassId, matching::EGraphMatch};
 
@@ -11,7 +12,7 @@ use super::{Language, symbol::Symbol};
 
 pub type VariableId = usize;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct OwnedPath(Vec<usize>);
 
 impl OwnedPath {
@@ -49,14 +50,14 @@ impl<'p> Path<'p> {
     }
 }
 
-#[derive(Clone, Hash, PartialEq, Eq, Debug)]
+#[derive(Clone, Hash, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum Literal {
     UInt(u64),
     Int(i64),
 }
 
 /// An expression which does not admit variables
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum VarFreeExpression {
     Literal(Literal),
     Symbol(Symbol<VarFreeExpression>),
@@ -77,7 +78,7 @@ impl VarFreeExpression {
 }
 
 /// An expression which consists of concrete elements as well as class IDs.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MixedExpression {
     Literal(Literal),
     Symbol(Symbol<MixedExpression>),
@@ -85,7 +86,7 @@ pub enum MixedExpression {
 }
 
 /// An expression with variables
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum Expression {
     Literal(Literal),
     Symbol(Symbol<Expression>),
@@ -303,6 +304,8 @@ impl std::fmt::Display for VarFreeExpression {
 #[cfg(test)]
 mod tests {
     use crate::language::expression::LangExpression;
+    use super::{Expression, VarFreeExpression};
+    use serde_json;
 
     fn test_display(expression_str: &str) {
         let lang = crate::language::Language::simple_math();
@@ -324,5 +327,23 @@ mod tests {
     #[test]
     fn display_3() {
         test_display("(+ $0 (- (- (* $0 $1 $2 $3 $4 $5 $6))) (sin (cos $1)))");
+    }
+
+    #[test]
+    fn test_var_free_expression_serialization() {
+        let lang = crate::language::Language::simple_math();
+        let expr = lang.parse_no_vars("(* 2 (+ 3 4))").unwrap();
+        let serialized = serde_json::to_string(&expr).unwrap();
+        let deserialized: VarFreeExpression = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(expr, deserialized);
+    }
+
+    #[test]
+    fn test_expression_serialization() {
+        let lang = crate::language::Language::simple_math();
+        let expr = lang.parse("(* $0 (+ $1 4))").unwrap();
+        let serialized = serde_json::to_string(&expr).unwrap();
+        let deserialized: Expression = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(expr, deserialized);
     }
 }

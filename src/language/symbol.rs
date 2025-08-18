@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use super::{
     Language,
     expression::{AnyExpression, LangExpression},
@@ -6,7 +7,7 @@ use super::{
 pub type SymbolId = usize;
 
 /// A symbol with `id` as its ID and children of type `E`
-#[derive(Clone, Hash, PartialEq, Eq, Debug)]
+#[derive(Clone, Hash, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct Symbol<E> {
     pub id: SymbolId,
     pub children: Vec<E>,
