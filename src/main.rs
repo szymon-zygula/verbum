@@ -33,7 +33,7 @@ fn initialize_system() -> TermRewritingSystem {
 
 fn main() {
     let trs = initialize_system();
-    let lang = trs.language().clone(); // Get language from trs for parsing expressions
+    let lang = trs.language();
 
     let expressions = vec![
         lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap(),

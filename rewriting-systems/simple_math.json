@@ -13,124 +13,20 @@
   },
   "rules": [
     {
-      "from": {
-        "Symbol": {
-          "id": 2,
-          "children": [
-            {
-              "Variable": 0
-            },
-            {
-              "Literal": {
-                "Int": 2
-              }
-            }
-          ]
-        }
-      },
-      "to": {
-        "Symbol": {
-          "id": 6,
-          "children": [
-            {
-              "Variable": 0
-            },
-            {
-              "Literal": {
-                "Int": 1
-              }
-            }
-          ]
-        }
-      }
+      "from": "(* $0 2)",
+      "to": "(<< $0 1)"
     },
     {
-      "from": {
-        "Symbol": {
-          "id": 2,
-          "children": [
-            {
-              "Variable": 0
-            },
-            {
-              "Literal": {
-                "Int": 1
-              }
-            }
-          ]
-        }
-      },
-      "to": {
-        "Variable": 0
-      }
+      "from": "(* $0 1)",
+      "to": "$0"
     },
     {
-      "from": {
-        "Symbol": {
-          "id": 3,
-          "children": [
-            {
-              "Symbol": {
-                "id": 2,
-                "children": [
-                  {
-                    "Variable": 0
-                  },
-                  {
-                    "Variable": 1
-                  }
-                ]
-              }
-            },
-            {
-              "Variable": 2
-            }
-          ]
-        }
-      },
-      "to": {
-        "Symbol": {
-          "id": 2,
-          "children": [
-            {
-              "Variable": 0
-            },
-            {
-              "Symbol": {
-                "id": 3,
-                "children": [
-                  {
-                    "Variable": 1
-                  },
-                  {
-                    "Variable": 2
-                  }
-                ]
-              }
-            }
-          ]
-        }
-      }
+      "from": "(/ (* $0 $1) $2)",
+      "to": "(* $0 (/ $1 $2))"
     },
     {
-      "from": {
-        "Symbol": {
-          "id": 3,
-          "children": [
-            {
-              "Variable": 0
-            },
-            {
-              "Variable": 0
-            }
-          ]
-        }
-      },
-      "to": {
-        "Literal": {
-          "Int": 1
-        }
-      }
+      "from": "(/ $0 $0)",
+      "to": "1"
     }
   ]
 }
