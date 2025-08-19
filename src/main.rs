@@ -3,6 +3,8 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+use crate::language::expression::LangMultiExpression;
+use crate::language::expression::VarFreeExpression;
 use rewriting::{
     egraph::{
         class::simple_math_local_cost::SimpleMathLocalCost,
@@ -33,12 +35,23 @@ fn initialize_system() -> TermRewritingSystem {
 
 fn main() {
     let trs = initialize_system();
-    let lang = trs.language();
 
-    let expressions = vec![
-        lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap(),
-        lang.parse_no_vars("(+ 1 1)").unwrap(),
-    ];
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    path.push("expressions");
+    path.push("simple-math.json");
+
+    let multi_expressions: LangMultiExpression = utils::json::load_json(path).unwrap();
+    let lang = multi_expressions.language();
+    let expressions_with_vars = multi_expressions.expressions();
+
+    let expressions: Vec<VarFreeExpression> = expressions_with_vars
+        .iter()
+        .map(|expr| {
+            expr.without_variables().expect(
+                "All expressions in simple-math.json should be variable-free for benchmarking",
+            )
+        })
+        .collect();
 
     let config = benchmark::BenchmarkConfig {
         saturation_config: SaturationConfig {
