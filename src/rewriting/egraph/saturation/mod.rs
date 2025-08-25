@@ -7,6 +7,8 @@ use super::{Analysis, EGraph};
 pub mod simple_saturator;
 pub use simple_saturator::SimpleSaturator;
 pub mod directed_saturator;
+pub mod scheduler;
+pub mod scheduled_saturator;
 
 #[derive(Clone, Debug, Default)]
 pub struct SaturationConfig {
