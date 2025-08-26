@@ -5,17 +5,17 @@ use crate::rewriting::rule::Rule;
 use super::{Analysis, EGraph, SaturationConfig, SaturationStopReason, Saturator, check_limits};
 use crate::rewriting::egraph::matching::Matcher;
 
-pub struct SimpleSaturator<M: Matcher> {
-    matcher: M,
+pub struct SimpleSaturator {
+    matcher: Box<dyn Matcher>,
 }
 
-impl<M: Matcher> SimpleSaturator<M> {
-    pub fn new(matcher: M) -> Self {
+impl SimpleSaturator {
+    pub fn new(matcher: Box<dyn Matcher>) -> Self {
         Self { matcher }
     }
 }
 
-impl<A: Analysis, M: Matcher> Saturator<A> for SimpleSaturator<M> {
+impl<A: Analysis> Saturator<A> for SimpleSaturator {
     fn saturate(
         &self,
         egraph: &mut EGraph<A>,
@@ -41,7 +41,7 @@ impl<A: Analysis, M: Matcher> Saturator<A> for SimpleSaturator<M> {
                     return SaturationStopReason::Timeout;
                 }
 
-                if rule.apply(egraph, &self.matcher) {
+                if rule.apply(egraph, &*self.matcher) {
                     applications += 1;
                     any_applied = true;
 
@@ -86,7 +86,7 @@ mod tests {
         let mut egraph =
             EGraph::<()>::from_expression(lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap());
 
-        let saturator = SimpleSaturator::new(BottomUpMatcher);
+        let saturator = SimpleSaturator::new(Box::new(BottomUpMatcher));
         let reason = saturator.saturate(&mut egraph, &rules, &SaturationConfig::default());
         assert_eq!(reason, SaturationStopReason::Saturated);
 
@@ -103,7 +103,7 @@ mod tests {
         ];
         let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
 
-        let saturator = SimpleSaturator::new(BottomUpMatcher);
+        let saturator = SimpleSaturator::new(Box::new(BottomUpMatcher));
         let reason = saturator.saturate(
             &mut egraph,
             &rules,
@@ -124,7 +124,7 @@ mod tests {
         ];
         let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
 
-        let saturator = SimpleSaturator::new(BottomUpMatcher);
+        let saturator = SimpleSaturator::new(Box::new(BottomUpMatcher));
         let reason = saturator.saturate(
             &mut egraph,
             &rules,
@@ -145,7 +145,7 @@ mod tests {
         ];
         let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
 
-        let saturator = SimpleSaturator::new(BottomUpMatcher);
+        let saturator = SimpleSaturator::new(Box::new(BottomUpMatcher));
         let reason = saturator.saturate(
             &mut egraph,
             &rules,
@@ -166,7 +166,7 @@ mod tests {
         ];
         let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
 
-        let saturator = SimpleSaturator::new(BottomUpMatcher);
+        let saturator = SimpleSaturator::new(Box::new(BottomUpMatcher));
         let reason = saturator.saturate(
             &mut egraph,
             &rules,

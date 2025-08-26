@@ -79,7 +79,7 @@ fn main() {
         },
     );
 
-    let simple_saturator = SimpleSaturator::new(BottomUpMatcher);
+    let simple_saturator = SimpleSaturator::new(Box::new(BottomUpMatcher));
     let simple_outcomes =
         benchmark::benchmark::<(), _>(&trs, &expressions, &config, &extractor, &simple_saturator);
 
@@ -100,7 +100,7 @@ fn main() {
         },
     );
 
-    let directed_saturator = DirectedSaturator::new(BottomUpMatcher);
+    let directed_saturator = DirectedSaturator::new(Box::new(BottomUpMatcher));
     let directed_outcomes = benchmark::benchmark::<SimpleMathLocalCost, SimpleExtractor<usize, _, _>>(
         &trs,
         &expressions,

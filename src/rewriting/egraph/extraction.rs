@@ -268,7 +268,7 @@ mod tests {
             EGraph::<()>::from_expression(lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap());
         let top_class_id = egraph.containing_class(egraph.find_symbols(lang.get_id("/"))[0]);
 
-        let saturator = SimpleSaturator::new(BottomUpMatcher);
+        let saturator = SimpleSaturator::new(Box::new(BottomUpMatcher));
         let _ = saturator.saturate(&mut egraph, &rules, &SaturationConfig::default());
 
         let extractor = SimpleExtractor::<usize, _, _>::new(

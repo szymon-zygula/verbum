@@ -7,8 +7,8 @@ use super::{Analysis, DynEGraph, EGraph};
 pub mod simple_saturator;
 pub use simple_saturator::SimpleSaturator;
 pub mod directed_saturator;
-pub mod scheduler;
 pub mod scheduled_saturator;
+pub mod scheduler;
 
 #[derive(Clone, Debug, Default)]
 pub struct SaturationConfig {
@@ -27,8 +27,8 @@ pub enum SaturationStopReason {
     Timeout,
 }
 
-pub fn check_limits<A: Analysis>(
-    egraph: &EGraph<A>,
+pub fn check_limits(
+    egraph: &dyn DynEGraph,
     applications: usize,
     start: Instant,
     cfg: &SaturationConfig,

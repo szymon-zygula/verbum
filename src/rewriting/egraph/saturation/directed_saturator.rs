@@ -3,32 +3,32 @@ use std::time::Instant;
 use itertools::Itertools;
 
 use crate::rewriting::{
-    egraph::{class::local_cost::LocalCost, matching::Matcher},
+    egraph::{EGraph, class::local_cost::LocalCost, matching::Matcher},
     rule::Rule,
 };
 
-use super::{SaturationStopReason, Saturator, check_limits};
+use super::{SaturationConfig, SaturationStopReason, Saturator, check_limits};
 
 pub fn rule_cost<LC: LocalCost>(rule: &Rule) -> LC {
     LC::expression_cost(rule.to()) - LC::expression_cost(rule.from())
 }
 
-pub struct DirectedSaturator<M: Matcher> {
-    matcher: M,
+pub struct DirectedSaturator {
+    matcher: Box<dyn Matcher>,
 }
 
-impl<M: Matcher> DirectedSaturator<M> {
-    pub fn new(matcher: M) -> Self {
+impl DirectedSaturator {
+    pub fn new(matcher: Box<dyn Matcher>) -> Self {
         Self { matcher }
     }
 }
 
-impl<LC: LocalCost, M: Matcher> Saturator<LC> for DirectedSaturator<M> {
+impl<LC: LocalCost> Saturator<LC> for DirectedSaturator {
     fn saturate(
         &self,
-        egraph: &mut crate::rewriting::egraph::EGraph<LC>,
-        rules: &[crate::rewriting::rule::Rule],
-        config: &super::SaturationConfig,
+        egraph: &mut EGraph<LC>,
+        rules: &[Rule],
+        config: &SaturationConfig,
     ) -> SaturationStopReason {
         let sorted_rules = rules
             .iter()
@@ -56,7 +56,7 @@ impl<LC: LocalCost, M: Matcher> Saturator<LC> for DirectedSaturator<M> {
                     return SaturationStopReason::Timeout;
                 }
 
-                if rule.apply(egraph, &self.matcher) {
+                if rule.apply(egraph, &*self.matcher) {
                     applications += 1;
                     any_applied = true;
 
@@ -110,7 +110,7 @@ mod tests {
         let initial_expr_1_root_id =
             egraph_1.add_expression(lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap());
 
-        let saturator_1 = DirectedSaturator::new(BottomUpMatcher);
+        let saturator_1 = DirectedSaturator::new(Box::new(BottomUpMatcher));
         let reason_1 = saturator_1.saturate(&mut egraph_1, &rules, &config);
         assert_eq!(reason_1, SaturationStopReason::Saturated);
 
@@ -132,7 +132,7 @@ mod tests {
             EGraph::<SimpleMathLocalCost>::from_expression(lang.parse_no_vars("(+ 1 2)").unwrap());
         let initial_id = egraph.add_expression(lang.parse_no_vars("(+ 1 2)").unwrap());
 
-        let saturator = DirectedSaturator::new(BottomUpMatcher);
+        let saturator = DirectedSaturator::new(Box::new(BottomUpMatcher));
         let reason = saturator.saturate(&mut egraph, &rules, &config);
         assert_eq!(reason, SaturationStopReason::Saturated);
 
@@ -155,7 +155,7 @@ mod tests {
             EGraph::<SimpleMathLocalCost>::from_expression(lang.parse_no_vars("(sin 5)").unwrap());
         let initial_id = egraph.add_expression(lang.parse_no_vars("(sin 5)").unwrap());
 
-        let saturator = DirectedSaturator::new(BottomUpMatcher);
+        let saturator = DirectedSaturator::new(Box::new(BottomUpMatcher));
         let reason = saturator.saturate(&mut egraph, &rules, &config);
         assert_eq!(reason, SaturationStopReason::Saturated);
 
@@ -180,7 +180,7 @@ mod tests {
         );
         let initial_id = egraph.add_expression(lang.parse_no_vars("(+ (+ 1 1) (+ 1 1))").unwrap());
 
-        let saturator = DirectedSaturator::new(BottomUpMatcher);
+        let saturator = DirectedSaturator::new(Box::new(BottomUpMatcher));
         let reason = saturator.saturate(&mut egraph, &rules, &config);
         assert_eq!(reason, SaturationStopReason::Saturated);
 
@@ -206,7 +206,7 @@ mod tests {
             EGraph::<SimpleMathLocalCost>::from_expression(lang.parse_no_vars("(+ 1 1)").unwrap());
         let initial_id = egraph.add_expression(lang.parse_no_vars("(+ 1 1)").unwrap());
 
-        let saturator = DirectedSaturator::new(BottomUpMatcher);
+        let saturator = DirectedSaturator::new(Box::new(BottomUpMatcher));
         let reason = saturator.saturate(&mut egraph, &rules, &config);
         assert_eq!(reason, SaturationStopReason::Saturated);
 
@@ -235,7 +235,7 @@ mod tests {
             EGraph::<SimpleMathLocalCost>::from_expression(lang.parse_no_vars("(+ 1 1)").unwrap());
         let initial_id = egraph.add_expression(lang.parse_no_vars("(+ 1 1)").unwrap());
 
-        let saturator = DirectedSaturator::new(BottomUpMatcher);
+        let saturator = DirectedSaturator::new(Box::new(BottomUpMatcher));
         let reason = saturator.saturate(&mut egraph, &rules, &config);
         assert_eq!(reason, SaturationStopReason::MaxApplications);
 
@@ -263,7 +263,7 @@ mod tests {
         let mut egraph =
             EGraph::<SimpleMathLocalCost>::from_expression(lang.parse_no_vars("(+ 1 1)").unwrap());
 
-        let saturator = DirectedSaturator::new(BottomUpMatcher);
+        let saturator = DirectedSaturator::new(Box::new(BottomUpMatcher));
         let reason = saturator.saturate(&mut egraph, &rules, &config);
         assert_eq!(reason, SaturationStopReason::Timeout);
 

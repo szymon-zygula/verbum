@@ -54,7 +54,7 @@ mod tests {
             .expect("valid expression");
         let mut egraph = EGraph::<()>::from_expression(expr);
 
-        let saturator = SimpleSaturator::new(BottomUpMatcher);
+        let saturator = SimpleSaturator::new(Box::new(BottomUpMatcher));
         let _reason = saturator.saturate(
             &mut egraph,
             trs.rules(),

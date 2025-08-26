@@ -37,7 +37,7 @@ impl TermRewritingSystem {
     /// Returns the saturated e-graph.
     pub fn rewrite<A: Analysis>(&self, expression: VarFreeExpression) -> EGraph<A> {
         let mut egraph = EGraph::<A>::from_expression(expression);
-        let saturator = SimpleSaturator::new(BottomUpMatcher);
+        let saturator = SimpleSaturator::new(Box::new(BottomUpMatcher));
         let _ = saturator.saturate(&mut egraph, &self.rules, &SaturationConfig::default());
         egraph
     }

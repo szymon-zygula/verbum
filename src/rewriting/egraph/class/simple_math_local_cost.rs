@@ -124,7 +124,7 @@ mod tests {
             lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap(),
         );
 
-        let saturator = SimpleSaturator::new(BottomUpMatcher);
+        let saturator = SimpleSaturator::new(Box::new(BottomUpMatcher));
         let _ = saturator.saturate(&mut egraph, &rules, &SaturationConfig::default());
 
         let extracted_cost = egraph.class(top_class_id).analysis().0;
