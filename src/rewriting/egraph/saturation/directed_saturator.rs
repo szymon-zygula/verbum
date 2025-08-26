@@ -56,8 +56,10 @@ impl<LC: LocalCost> Saturator<LC> for DirectedSaturator {
                     return SaturationStopReason::Timeout;
                 }
 
-                if rule.apply(egraph, &*self.matcher) {
-                    applications += 1;
+                let current_applications = rule.apply(egraph, &*self.matcher);
+
+                if current_applications > 0 {
+                    applications += current_applications;
                     any_applied = true;
 
                     if let Some(reason) = check_limits(egraph, applications, start, config) {

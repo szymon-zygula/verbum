@@ -1,5 +1,6 @@
-use serde::{Deserialize, Serialize};
 use crate::language::{Language, expression::Expression};
+use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 
 use super::egraph::{Analysis, DynEGraph, EGraph, matching::Matcher};
 
@@ -25,12 +26,16 @@ impl Rule {
         &self.to
     }
 
-    /// Returns `true` if anything changed on application, `false` if fixed-point reached.
-    pub fn apply<A: Analysis>(&self, egraph: &mut EGraph<A>, matcher: &(impl Matcher + ?Sized)) -> bool {
+    /// Returns the number of positions at which the rule was applied
+    pub fn apply<A: Analysis>(
+        &self,
+        egraph: &mut EGraph<A>,
+        matcher: &(impl Matcher + ?Sized),
+    ) -> usize {
         matcher
             .try_match(egraph, &self.from)
             .into_iter()
-            .any(|matching| {
+            .map(|matching| {
                 let to_add = self.to.clone().mixed_expression(&matching);
                 let added = egraph.add_mixed_expression(to_add);
                 egraph
@@ -39,6 +44,8 @@ impl Rule {
                     .is_some()
                     || added.new().is_some()
             })
+            .filter(|x| *x)
+            .count()
     }
 }
 
@@ -82,7 +89,7 @@ mod tests {
 
         let expected = lang.parse("(+ (sin 5) 2)").unwrap();
 
-                assert_eq!(TopDownMatcher.try_match(&egraph, &expected).len(), 1);
+        assert_eq!(TopDownMatcher.try_match(&egraph, &expected).len(), 1);
     }
 
     #[test]
