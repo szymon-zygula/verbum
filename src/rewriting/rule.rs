@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use crate::language::{Language, expression::Expression};
 
-use super::egraph::{Analysis, EGraph, matching::Matcher};
+use super::egraph::{Analysis, DynEGraph, EGraph, matching::Matcher};
 
 #[derive(Serialize, Deserialize)]
 pub struct Rule {
@@ -47,7 +47,7 @@ mod tests {
     use crate::{
         language::{Language, expression::Literal},
         rewriting::egraph::{
-            EGraph, Node,
+            DynEGraph, EGraph, Node,
             matching::{Matcher, top_down::TopDownMatcher},
         },
     };

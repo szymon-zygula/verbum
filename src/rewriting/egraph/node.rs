@@ -1,6 +1,6 @@
 use crate::language::{expression::Literal, symbol::Symbol};
 
-use super::{ClassId, EGraph, Analysis};
+use super::{Analysis, ClassId, DynEGraph, EGraph};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Node {

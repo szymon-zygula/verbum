@@ -5,7 +5,7 @@ use itertools::Itertools;
 use crate::{
     index_selector::IndexSelector,
     language::{expression::Expression, symbol::Symbol},
-    rewriting::egraph::{ClassId, EGraph, NodeId, Analysis},
+    rewriting::egraph::{ClassId, DynEGraph, EGraph, NodeId, Analysis},
 };
 
 use super::{EGraphMatch, Matcher};

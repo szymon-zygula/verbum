@@ -49,46 +49,6 @@ impl<A: Analysis> EGraph<A> {
         Self::from_expression_with_id(expression).0
     }
 
-    /// Adds `expression` to the e-graph as a new class.
-    pub fn add_expression(&mut self, expression: VarFreeExpression) -> NodeId {
-        let node = match expression {
-            VarFreeExpression::Literal(literal) => Node::Literal(literal),
-            VarFreeExpression::Symbol(symbol) => Node::Symbol(Symbol {
-                id: symbol.id,
-                children: symbol
-                    .children
-                    .into_iter()
-                    .map(|child| self.add_expression(child))
-                    .collect(),
-            }),
-        };
-
-        self.add_node(node).any()
-    }
-
-    pub fn add_mixed_expression(&mut self, expression: MixedExpression) -> Seen<ClassId> {
-        match expression {
-            MixedExpression::Literal(literal) => {
-                let node_id = self.add_node(Node::Literal(literal));
-                node_id.map(|node_id| self.containing_class(node_id))
-            }
-            MixedExpression::Symbol(symbol) => {
-                let node = Node::Symbol(Symbol {
-                    id: symbol.id,
-                    children: symbol
-                        .children
-                        .into_iter()
-                        .map(|child| self.add_mixed_expression(child).any())
-                        .collect(),
-                });
-
-                self.add_node(node)
-                    .map(|node_id| self.containing_class(node_id))
-            }
-            MixedExpression::Class(class_id) => Seen::Old(class_id),
-        }
-    }
-
     /// Adds a node to the egraph, returning `Old(id)` if the node exists, or `New(id)` if the node
     /// has been added by this call
     fn add_node(&mut self, node: Node) -> Seen<NodeId> {
@@ -113,27 +73,8 @@ impl<A: Analysis> EGraph<A> {
         Seen::New(node_id)
     }
 
-    /// If a given node exists in the e-graph, returns it. Otherwise gives `None`.
-    pub fn node_id(&self, node: &Node) -> Option<NodeId> {
-        // TODO: Add hashcons so that this is speedy
-        let node = node.canonical(self);
-
-        for (&candidate_id, candidate_node) in self.nodes.iter() {
-            let candidate_node = candidate_node.canonical(self);
-            if candidate_node == node {
-                return Some(candidate_id);
-            }
-        }
-
-        None
-    }
-
     fn add_parent(&mut self, class_id: ClassId, parent_id: NodeId) {
         self.class_mut(class_id).parents_ids_mut().insert(parent_id);
-    }
-
-    pub fn canonical_class(&self, class_id: ClassId) -> ClassId {
-        self.union_find.find(class_id)
     }
 
     pub fn iter_classes(&self) -> hash_map::Iter<'_, usize, Class<A>> {
@@ -148,65 +89,6 @@ impl<A: Analysis> EGraph<A> {
     pub fn class_mut(&mut self, class_id: ClassId) -> &mut Class<A> {
         let class_id = self.canonical_class(class_id);
         self.classes.get_mut(&class_id).unwrap()
-    }
-
-    pub fn node(&self, node_id: NodeId) -> &Node {
-        &self.nodes[&node_id]
-    }
-
-    pub fn node_mut(&mut self, node_id: NodeId) -> &mut Node {
-        self.nodes.get_mut(&node_id).unwrap()
-    }
-
-    pub fn class_count(&self) -> usize {
-        self.classes.len()
-    }
-
-    /// Returns the total number of nodes which were added to the egraph at any point
-    pub fn total_node_count(&self) -> usize {
-        self.nodes.len()
-    }
-
-    /// Returns the current number of nodes in the egraph
-    pub fn actual_node_count(&self) -> usize {
-        self.classes
-            .values()
-            .map(|class| class.nodes_ids().len())
-            .sum()
-    }
-
-    pub fn parents(&self, class_id: ClassId) -> &HashSet<NodeId> {
-        self.class(class_id).parents_ids()
-    }
-
-    pub fn nodes(&self, class_id: ClassId) -> &HashSet<NodeId> {
-        self.class(class_id).nodes_ids()
-    }
-
-    pub fn containing_class(&self, node_id: NodeId) -> ClassId {
-        // On creation of a node, its containing class has the same id.
-        // The canonical ID of the class might change, but UF will give it to us.
-        self.union_find.find(node_id)
-    }
-
-    /// Merges given classes, returns the canonical ID of the merged class as `Old(id)`
-    /// if the IDs refered to a single class already, or `New(id)` otherwise
-    pub fn merge_classes(&mut self, class_1_id: ClassId, class_2_id: ClassId) -> Seen<ClassId> {
-        let class_1_id = self.union_find.find(class_1_id);
-        let class_2_id = self.union_find.find(class_2_id);
-
-        if class_1_id == class_2_id {
-            return Seen::Old(class_1_id);
-        }
-
-        self.union_find.union(class_1_id, class_2_id);
-
-        let class_1 = self.classes.remove(&class_1_id).unwrap();
-        self.classes.get_mut(&class_2_id).unwrap().merge(class_1);
-
-        self.rebuild_class(class_2_id);
-
-        Seen::New(class_2_id)
     }
 
     /// Makes all nodes in an eclass have canonical children
@@ -276,9 +158,177 @@ impl<A: Analysis> EGraph<A> {
             self.merge_classes(class_1_id, class_2_id);
         }
     }
+}
 
+pub trait DynEGraph {
+    /// If a given node exists in the e-graph, returns it. Otherwise gives `None`.
+    fn node_id(&self, node: &Node) -> Option<NodeId>;
+
+    fn canonical_class(&self, class_id: ClassId) -> ClassId;
+
+    /// Adds `expression` to the e-graph as a new class.
+    fn add_expression(&mut self, expression: VarFreeExpression) -> NodeId;
+
+    fn add_mixed_expression(&mut self, expression: MixedExpression) -> Seen<ClassId>;
+
+    fn node_mut(&mut self, node_id: NodeId) -> &mut Node;
+    fn class_count(&self) -> usize;
+
+    /// Returns the total number of nodes which were added to the egraph at any point
+    fn total_node_count(&self) -> usize;
+
+    /// Returns the current number of nodes in the egraph
+    fn actual_node_count(&self) -> usize;
+
+    fn parents(&self, class_id: ClassId) -> &HashSet<NodeId>;
+
+    fn nodes(&self, class_id: ClassId) -> &HashSet<NodeId>;
+
+    fn node(&self, node_id: NodeId) -> &Node;
+
+    fn containing_class(&self, node_id: NodeId) -> ClassId;
+
+    /// Merges given classes, returns the canonical ID of the merged class as `Old(id)`
+    /// if the IDs refered to a single class already, or `New(id)` otherwise
+    fn merge_classes(&mut self, class_1_id: ClassId, class_2_id: ClassId) -> Seen<ClassId>;
     /// Finds symbols with a specified ID
-    pub fn find_symbols(&self, symbol_id: SymbolId) -> Vec<NodeId> {
+    fn find_symbols(&self, symbol_id: SymbolId) -> Vec<NodeId>;
+
+    /// Checks if a given literal is contained in the e-graph and if so, returns its class ID.
+    fn find_literal(&self, literal: Literal) -> Option<ClassId>;
+
+    /// Checks if a given symbol is contained in the e-graph and if so, returns its class ID.
+    fn find_symbol(&self, symbol: Symbol<ClassId>) -> Option<ClassId>;
+
+    /// `true` if the class with id `class_id` contains a node whose type is literal and
+    /// is identical to `literal`, `false` otherwise
+    fn class_contains_literal(&self, class_id: ClassId, literal: &Literal) -> bool;
+
+    /// Returns the list of `NodeId`s of nodes which have the same shape as
+    /// `symbol` and are contained in the class with id `class_id`.
+    fn same_shape_symbols<E>(&self, class_id: ClassId, symbol: &Symbol<E>) -> Vec<NodeId>;
+}
+
+impl<A: Analysis> DynEGraph for EGraph<A> {
+    /// If a given node exists in the e-graph, returns it. Otherwise gives `None`.
+    fn node_id(&self, node: &Node) -> Option<NodeId> {
+        // TODO: Add hashcons so that this is speedy
+        let node = node.canonical(self);
+
+        for (&candidate_id, candidate_node) in self.nodes.iter() {
+            let candidate_node = candidate_node.canonical(self);
+            if candidate_node == node {
+                return Some(candidate_id);
+            }
+        }
+
+        None
+    }
+
+    fn canonical_class(&self, class_id: ClassId) -> ClassId {
+        self.union_find.find(class_id)
+    }
+
+    /// Adds `expression` to the e-graph as a new class.
+    fn add_expression(&mut self, expression: VarFreeExpression) -> NodeId {
+        let node = match expression {
+            VarFreeExpression::Literal(literal) => Node::Literal(literal),
+            VarFreeExpression::Symbol(symbol) => Node::Symbol(Symbol {
+                id: symbol.id,
+                children: symbol
+                    .children
+                    .into_iter()
+                    .map(|child| self.add_expression(child))
+                    .collect(),
+            }),
+        };
+
+        self.add_node(node).any()
+    }
+
+    fn add_mixed_expression(&mut self, expression: MixedExpression) -> Seen<ClassId> {
+        match expression {
+            MixedExpression::Literal(literal) => {
+                let node_id = self.add_node(Node::Literal(literal));
+                node_id.map(|node_id| self.containing_class(node_id))
+            }
+            MixedExpression::Symbol(symbol) => {
+                let node = Node::Symbol(Symbol {
+                    id: symbol.id,
+                    children: symbol
+                        .children
+                        .into_iter()
+                        .map(|child| self.add_mixed_expression(child).any())
+                        .collect(),
+                });
+
+                self.add_node(node)
+                    .map(|node_id| self.containing_class(node_id))
+            }
+            MixedExpression::Class(class_id) => Seen::Old(class_id),
+        }
+    }
+
+    fn node_mut(&mut self, node_id: NodeId) -> &mut Node {
+        self.nodes.get_mut(&node_id).unwrap()
+    }
+
+    fn class_count(&self) -> usize {
+        self.classes.len()
+    }
+
+    /// Returns the total number of nodes which were added to the egraph at any point
+    fn total_node_count(&self) -> usize {
+        self.nodes.len()
+    }
+
+    /// Returns the current number of nodes in the egraph
+    fn actual_node_count(&self) -> usize {
+        self.classes
+            .values()
+            .map(|class| class.nodes_ids().len())
+            .sum()
+    }
+
+    fn parents(&self, class_id: ClassId) -> &HashSet<NodeId> {
+        self.class(class_id).parents_ids()
+    }
+
+    fn nodes(&self, class_id: ClassId) -> &HashSet<NodeId> {
+        self.class(class_id).nodes_ids()
+    }
+
+    fn node(&self, node_id: NodeId) -> &Node {
+        &self.nodes[&node_id]
+    }
+
+    fn containing_class(&self, node_id: NodeId) -> ClassId {
+        // On creation of a node, its containing class has the same id.
+        // The canonical ID of the class might change, but UF will give it to us.
+        self.union_find.find(node_id)
+    }
+
+    /// Merges given classes, returns the canonical ID of the merged class as `Old(id)`
+    /// if the IDs refered to a single class already, or `New(id)` otherwise
+    fn merge_classes(&mut self, class_1_id: ClassId, class_2_id: ClassId) -> Seen<ClassId> {
+        let class_1_id = self.union_find.find(class_1_id);
+        let class_2_id = self.union_find.find(class_2_id);
+
+        if class_1_id == class_2_id {
+            return Seen::Old(class_1_id);
+        }
+
+        self.union_find.union(class_1_id, class_2_id);
+
+        let class_1 = self.classes.remove(&class_1_id).unwrap();
+        self.classes.get_mut(&class_2_id).unwrap().merge(class_1);
+
+        self.rebuild_class(class_2_id);
+
+        Seen::New(class_2_id)
+    }
+    /// Finds symbols with a specified ID
+    fn find_symbols(&self, symbol_id: SymbolId) -> Vec<NodeId> {
         self.nodes
             .iter()
             .filter_map(|(&id, node)| (node.try_as_symbol()?.id == symbol_id).then_some(id))
@@ -286,18 +336,18 @@ impl<A: Analysis> EGraph<A> {
     }
 
     /// Checks if a given literal is contained in the e-graph and if so, returns its class ID.
-    pub fn find_literal(&self, literal: Literal) -> Option<ClassId> {
+    fn find_literal(&self, literal: Literal) -> Option<ClassId> {
         Some(self.containing_class(self.node_id(&Node::Literal(literal))?))
     }
 
     /// Checks if a given symbol is contained in the e-graph and if so, returns its class ID.
-    pub fn find_symbol(&self, symbol: Symbol<ClassId>) -> Option<ClassId> {
+    fn find_symbol(&self, symbol: Symbol<ClassId>) -> Option<ClassId> {
         Some(self.containing_class(self.node_id(&Node::Symbol(symbol))?))
     }
 
     /// `true` if the class with id `class_id` contains a node whose type is literal and
     /// is identical to `literal`, `false` otherwise
-    pub fn class_contains_literal(&self, class_id: ClassId, literal: &Literal) -> bool {
+    fn class_contains_literal(&self, class_id: ClassId, literal: &Literal) -> bool {
         self.class(class_id)
             .iter_nodes()
             .filter(|&&node_id| {
@@ -313,7 +363,7 @@ impl<A: Analysis> EGraph<A> {
 
     /// Returns the list of `NodeId`s of nodes which have the same shape as
     /// `symbol` and are contained in the class with id `class_id`.
-    pub fn same_shape_symbols<E>(&self, class_id: ClassId, symbol: &Symbol<E>) -> Vec<NodeId> {
+    fn same_shape_symbols<E>(&self, class_id: ClassId, symbol: &Symbol<E>) -> Vec<NodeId> {
         self.class(class_id)
             .iter_nodes()
             .filter_map(|&node_id| {
@@ -335,7 +385,7 @@ mod tests {
             expression::{Literal, VarFreeExpression},
             symbol::Symbol,
         },
-        rewriting::egraph::Node,
+        rewriting::egraph::{DynEGraph, Node},
     };
 
     use super::EGraph;

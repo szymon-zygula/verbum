@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use crate::rewriting::rule::Rule;
 
-use super::{Analysis, EGraph};
+use super::{Analysis, DynEGraph, EGraph};
 
 pub mod simple_saturator;
 pub use simple_saturator::SimpleSaturator;

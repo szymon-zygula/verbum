@@ -8,7 +8,7 @@ use crate::{
         expression::{Expression, Literal},
         symbol::SymbolId,
     },
-    rewriting::egraph::Node,
+    rewriting::egraph::{DynEGraph, Node},
 };
 
 use super::{Analysis, EGraph, NodeId};

@@ -5,7 +5,7 @@ use crate::language::{
     symbol::Symbol,
 };
 
-use super::{Analysis, ClassId, EGraph, Node, NodeId};
+use super::{Analysis, ClassId, DynEGraph, EGraph, Node, NodeId};
 
 #[derive(Clone, Debug)]
 pub struct ExtractionResult<C> {
@@ -182,7 +182,7 @@ mod tests {
         language::Language,
         rewriting::{
             egraph::{
-                EGraph,
+                DynEGraph, EGraph,
                 matching::bottom_up::BottomUpMatcher,
                 saturation::{SaturationConfig, Saturator, SimpleSaturator},
             },
@@ -271,11 +271,7 @@ mod tests {
         let top_class_id = egraph.containing_class(egraph.find_symbols(lang.get_id("/"))[0]);
 
         let saturator = SimpleSaturator::new(BottomUpMatcher);
-        let _ = saturator.saturate(
-            &mut egraph,
-            &rules,
-            &SaturationConfig::default(),
-        );
+        let _ = saturator.saturate(&mut egraph, &rules, &SaturationConfig::default());
 
         let extractor = SimpleExtractor::<usize, _, _, ()>::new(
             |_| 1,

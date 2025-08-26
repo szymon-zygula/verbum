@@ -65,7 +65,7 @@ mod tests {
     use crate::{
         language::Language,
         rewriting::{
-            egraph::{EGraph, matching::bottom_up::BottomUpMatcher},
+            egraph::{DynEGraph, EGraph, matching::bottom_up::BottomUpMatcher},
             rule::Rule,
         },
     };

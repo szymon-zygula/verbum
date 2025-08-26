@@ -81,10 +81,10 @@ mod tests {
     use super::DirectedSaturator;
     use crate::language::Language;
     use crate::macros::rules;
-    use crate::rewriting::egraph::EGraph;
     use crate::rewriting::egraph::class::simple_math_local_cost::SimpleMathLocalCost;
     use crate::rewriting::egraph::matching::bottom_up::BottomUpMatcher;
     use crate::rewriting::egraph::saturation::{SaturationConfig, SaturationStopReason, Saturator};
+    use crate::rewriting::egraph::{DynEGraph, EGraph};
     use crate::rewriting::rule::Rule;
     use std::time::Duration;
 

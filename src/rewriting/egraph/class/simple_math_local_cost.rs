@@ -55,7 +55,7 @@ impl LocalCost for SimpleMathLocalCost {
 mod tests {
     use crate::language::Language;
     use crate::rewriting::egraph::{
-        EGraph,
+        DynEGraph, EGraph,
         matching::bottom_up::BottomUpMatcher,
         saturation::{SaturationConfig, Saturator, SimpleSaturator},
     };

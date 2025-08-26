@@ -38,7 +38,7 @@ mod tests {
     use super::calculus;
     use crate::language::expression::Literal;
     use crate::rewriting::egraph::{
-        EGraph,
+        DynEGraph, EGraph,
         matching::bottom_up::BottomUpMatcher,
         saturation::{SaturationConfig, Saturator, SimpleSaturator},
     };

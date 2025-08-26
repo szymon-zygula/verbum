@@ -7,7 +7,7 @@ use crate::{
         expression::{Expression, VariableId},
         symbol::Symbol,
     },
-    rewriting::egraph::{ClassId, EGraph, Analysis},
+    rewriting::egraph::{ClassId, DynEGraph, EGraph, Analysis},
 };
 
 use super::{EGraphMatch, Matcher};

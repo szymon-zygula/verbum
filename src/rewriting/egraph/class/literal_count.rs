@@ -1,3 +1,5 @@
+use crate::rewriting::egraph::DynEGraph;
+
 use super::{Analysis, EGraph};
 
 /// A simple analysis class used only for testing

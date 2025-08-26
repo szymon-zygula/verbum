@@ -11,7 +11,7 @@ use crate::{
     language::expression::VarFreeExpression,
     rewriting::{
         egraph::{
-            Analysis, EGraph,
+            Analysis, DynEGraph, EGraph,
             extraction::Extractor,
             saturation::{SaturationConfig, SaturationStopReason, Saturator},
         },

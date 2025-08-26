@@ -137,7 +137,7 @@ mod tests {
     use crate::language::Language;
     use crate::language::expression::AnyExpression;
     use crate::macros::rules;
-    use crate::rewriting::egraph::EGraph;
+    use crate::rewriting::egraph::{DynEGraph, EGraph};
 
     #[test]
     fn trs_rewrite_classical() {

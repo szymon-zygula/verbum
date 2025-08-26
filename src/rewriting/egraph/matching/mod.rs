@@ -70,7 +70,7 @@ mod tests {
 
     use crate::{
         language::{Language, expression::Literal},
-        rewriting::egraph::{EGraph, Node, Analysis},
+        rewriting::egraph::{DynEGraph, EGraph, Node, Analysis},
     };
 
     use super::{EGraphMatch, Matcher};

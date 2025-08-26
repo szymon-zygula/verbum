@@ -23,7 +23,7 @@ impl<A: Analysis> ScheduledSaturator<A> {
 mod tests {
     use super::*;
     use crate::language::{Language, expression::Literal};
-    use crate::rewriting::egraph::{Node, matching::top_down::TopDownMatcher};
+    use crate::rewriting::egraph::{DynEGraph, Node, matching::top_down::TopDownMatcher};
 
     // A simple scheduler for testing purposes
     struct TestScheduler {
