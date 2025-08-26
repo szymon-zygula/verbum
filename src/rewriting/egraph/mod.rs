@@ -6,6 +6,7 @@ pub mod node;
 pub mod saturation;
 
 pub use class::Class;
+use class::DynClass;
 pub use class::analysis::Analysis;
 pub use node::Node;
 
@@ -158,6 +159,19 @@ impl<A: Analysis> EGraph<A> {
             self.merge_classes(class_1_id, class_2_id);
         }
     }
+
+    /// Returns the list of `NodeId`s of nodes which have the same shape as
+    /// `symbol` and are contained in the class with id `class_id`.
+    fn same_shape_symbols<E>(&self, class_id: ClassId, symbol: &Symbol<E>) -> Vec<NodeId> {
+        self.class(class_id)
+            .iter_nodes()
+            .filter_map(|&node_id| {
+                let node = self.node(node_id);
+                let node_symbol = node.try_as_symbol()?;
+                node_symbol.same_shape_as(symbol).then_some(node_id)
+            })
+            .collect_vec()
+    }
 }
 
 pub trait DynEGraph {
@@ -191,6 +205,7 @@ pub trait DynEGraph {
     /// Merges given classes, returns the canonical ID of the merged class as `Old(id)`
     /// if the IDs refered to a single class already, or `New(id)` otherwise
     fn merge_classes(&mut self, class_1_id: ClassId, class_2_id: ClassId) -> Seen<ClassId>;
+
     /// Finds symbols with a specified ID
     fn find_symbols(&self, symbol_id: SymbolId) -> Vec<NodeId>;
 
@@ -204,9 +219,11 @@ pub trait DynEGraph {
     /// is identical to `literal`, `false` otherwise
     fn class_contains_literal(&self, class_id: ClassId, literal: &Literal) -> bool;
 
-    /// Returns the list of `NodeId`s of nodes which have the same shape as
-    /// `symbol` and are contained in the class with id `class_id`.
-    fn same_shape_symbols<E>(&self, class_id: ClassId, symbol: &Symbol<E>) -> Vec<NodeId>;
+    fn dyn_classes(&self) -> Vec<(&usize, &dyn DynClass)>;
+
+    fn dyn_class(&self, class_id: ClassId) -> &dyn DynClass;
+
+    fn dyn_class_mut(&mut self, class_id: ClassId) -> &mut dyn DynClass;
 }
 
 impl<A: Analysis> DynEGraph for EGraph<A> {
@@ -361,17 +378,21 @@ impl<A: Analysis> DynEGraph for EGraph<A> {
             > 0
     }
 
-    /// Returns the list of `NodeId`s of nodes which have the same shape as
-    /// `symbol` and are contained in the class with id `class_id`.
-    fn same_shape_symbols<E>(&self, class_id: ClassId, symbol: &Symbol<E>) -> Vec<NodeId> {
-        self.class(class_id)
-            .iter_nodes()
-            .filter_map(|&node_id| {
-                let node = self.node(node_id);
-                let node_symbol = node.try_as_symbol()?;
-                node_symbol.same_shape_as(symbol).then_some(node_id)
-            })
+    fn dyn_classes(&self) -> Vec<(&usize, &dyn DynClass)> {
+        self.classes
+            .iter()
+            .map(|(k, v)| (k, v as &dyn DynClass))
             .collect_vec()
+    }
+
+    fn dyn_class(&self, class_id: ClassId) -> &dyn DynClass {
+        let class_id = self.canonical_class(class_id);
+        &self.classes[&class_id]
+    }
+
+    fn dyn_class_mut(&mut self, class_id: ClassId) -> &mut dyn DynClass {
+        let class_id = self.canonical_class(class_id);
+        self.classes.get_mut(&class_id).unwrap()
     }
 }
 
@@ -385,7 +406,7 @@ mod tests {
             expression::{Literal, VarFreeExpression},
             symbol::Symbol,
         },
-        rewriting::egraph::{DynEGraph, Node},
+        rewriting::egraph::{DynEGraph, Node, class::DynClass},
     };
 
     use super::EGraph;

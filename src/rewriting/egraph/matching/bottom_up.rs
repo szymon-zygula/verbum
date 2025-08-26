@@ -7,7 +7,7 @@ use crate::{
         expression::{Expression, VariableId},
         symbol::Symbol,
     },
-    rewriting::egraph::{ClassId, DynEGraph, EGraph, Analysis},
+    rewriting::egraph::{ClassId, DynEGraph},
 };
 
 use super::{EGraphMatch, Matcher};
@@ -15,9 +15,9 @@ use super::{EGraphMatch, Matcher};
 pub struct BottomUpMatcher;
 
 impl BottomUpMatcher {
-    fn try_match_with_variable_assignment<A: Analysis>(
+    fn try_match_with_variable_assignment(
         &self,
-        egraph: &EGraph<A>,
+        egraph: &dyn DynEGraph,
         expression: &Expression,
         assignment: &HashMap<VariableId, ClassId>,
     ) -> Option<ClassId> {
@@ -28,9 +28,9 @@ impl BottomUpMatcher {
         }
     }
 
-    fn try_match_symbol<A: Analysis>(
+    fn try_match_symbol(
         &self,
-        egraph: &EGraph<A>,
+        egraph: &dyn DynEGraph,
         symbol: &Symbol<Expression>,
         assignment: &HashMap<VariableId, ClassId>,
     ) -> Option<ClassId> {
@@ -48,13 +48,14 @@ impl BottomUpMatcher {
 }
 
 impl Matcher for BottomUpMatcher {
-    fn try_match<A: Analysis>(&self, egraph: &EGraph<A>, expression: &Expression) -> Vec<EGraphMatch> {
+    fn try_match(&self, egraph: &dyn DynEGraph, expression: &Expression) -> Vec<EGraphMatch> {
         expression
             .variables()
             .iter()
             .map(|variable_id| {
                 egraph
-                    .iter_classes()
+                    .dyn_classes()
+                    .into_iter()
                     .map(|(class_id, _)| (*variable_id, *class_id))
             })
             .multi_cartesian_product()
@@ -101,6 +102,8 @@ mod tests {
 
     #[test]
     fn match_with_repeated_variables_fail() {
-        super::super::tests::match_with_repeated_variables_fail::<BottomUpMatcher, ()>(BottomUpMatcher);
+        super::super::tests::match_with_repeated_variables_fail::<BottomUpMatcher, ()>(
+            BottomUpMatcher,
+        );
     }
 }

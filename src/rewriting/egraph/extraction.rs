@@ -5,7 +5,7 @@ use crate::language::{
     symbol::Symbol,
 };
 
-use super::{Analysis, ClassId, DynEGraph, EGraph, Node, NodeId};
+use super::{Analysis, ClassId, DynEGraph, EGraph, Node, NodeId, class::DynClass};
 
 #[derive(Clone, Debug)]
 pub struct ExtractionResult<C> {

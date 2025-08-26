@@ -30,27 +30,41 @@ impl<A: Analysis> Class<A> {
         self.analysis = A::merge(self.analysis.clone(), other.analysis);
     }
 
-    pub fn iter_nodes(&self) -> hash_set::Iter<'_, usize> {
+    pub fn analysis(&self) -> &A {
+        &self.analysis
+    }
+}
+
+pub trait DynClass {
+    fn iter_nodes(&self) -> hash_set::Iter<'_, usize>;
+
+    fn nodes_ids(&self) -> &HashSet<NodeId>;
+
+    fn nodes_ids_mut(&mut self) -> &mut HashSet<NodeId>;
+
+    fn parents_ids(&self) -> &HashSet<NodeId>;
+
+    fn parents_ids_mut(&mut self) -> &mut HashSet<NodeId>;
+}
+
+impl<A: Analysis> DynClass for Class<A> {
+    fn iter_nodes(&self) -> hash_set::Iter<'_, usize> {
         self.nodes_ids.iter()
     }
 
-    pub fn nodes_ids(&self) -> &HashSet<NodeId> {
+    fn nodes_ids(&self) -> &HashSet<NodeId> {
         &self.nodes_ids
     }
 
-    pub fn nodes_ids_mut(&mut self) -> &mut HashSet<NodeId> {
+    fn nodes_ids_mut(&mut self) -> &mut HashSet<NodeId> {
         &mut self.nodes_ids
     }
 
-    pub fn parents_ids(&self) -> &HashSet<NodeId> {
+    fn parents_ids(&self) -> &HashSet<NodeId> {
         &self.parents_ids
     }
 
-    pub fn parents_ids_mut(&mut self) -> &mut HashSet<NodeId> {
+    fn parents_ids_mut(&mut self) -> &mut HashSet<NodeId> {
         &mut self.parents_ids
-    }
-
-    pub fn analysis(&self) -> &A {
-        &self.analysis
     }
 }

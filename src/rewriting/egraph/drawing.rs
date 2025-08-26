@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Write, fs::File, path::Path};
 
 use crate::language::Language;
 
-use super::{ClassId, EGraph, Node, NodeId, Analysis};
+use super::{Analysis, ClassId, EGraph, Node, NodeId, class::DynClass};
 
 // This file contains only debugging code for drawing egraphs using `dot`.
 // It was written by ChatGPT, as I don't know this language.

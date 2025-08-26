@@ -5,7 +5,7 @@ use itertools::Itertools;
 use crate::{
     index_selector::IndexSelector,
     language::{expression::Expression, symbol::Symbol},
-    rewriting::egraph::{ClassId, DynEGraph, EGraph, NodeId, Analysis},
+    rewriting::egraph::{ClassId, DynEGraph, NodeId},
 };
 
 use super::{EGraphMatch, Matcher};
@@ -13,9 +13,9 @@ use super::{EGraphMatch, Matcher};
 pub struct TopDownMatcher;
 
 impl TopDownMatcher {
-    fn try_match_symbol_at_node<A: Analysis>(
+    fn try_match_symbol_at_node(
         &self,
-        egraph: &EGraph<A>,
+        egraph: &dyn DynEGraph,
         node_id: NodeId,
         symbol: &Symbol<Expression>,
     ) -> Vec<EGraphMatch> {
@@ -66,9 +66,9 @@ impl TopDownMatcher {
         all_matches
     }
 
-    fn try_match_at_class<A: Analysis>(
+    fn try_match_at_class(
         &self,
-        egraph: &EGraph<A>,
+        egraph: &dyn DynEGraph,
         class_id: ClassId,
         expression: &Expression,
     ) -> Vec<EGraphMatch> {
@@ -84,7 +84,7 @@ impl TopDownMatcher {
                 }
             }
             Expression::Symbol(symbol) => egraph
-                .class(class_id)
+                .dyn_class(class_id)
                 .iter_nodes()
                 .flat_map(|&node_id| self.try_match_symbol_at_node(egraph, node_id, symbol))
                 .collect(),
@@ -97,10 +97,11 @@ impl TopDownMatcher {
 }
 
 impl Matcher for TopDownMatcher {
-    fn try_match<A: Analysis>(&self, egraph: &EGraph<A>, expression: &Expression) -> Vec<EGraphMatch> {
+    fn try_match(&self, egraph: &dyn DynEGraph, expression: &Expression) -> Vec<EGraphMatch> {
         egraph
-            .iter_classes()
-            .flat_map(|(&class_id, _)| self.try_match_at_class(egraph, class_id, expression))
+            .dyn_classes()
+            .iter()
+            .flat_map(|(class_id, _)| self.try_match_at_class(egraph, **class_id, expression))
             .collect()
     }
 }
@@ -136,6 +137,8 @@ mod tests {
 
     #[test]
     fn match_with_repeated_variables_fail() {
-        super::super::tests::match_with_repeated_variables_fail::<TopDownMatcher, ()>(TopDownMatcher);
+        super::super::tests::match_with_repeated_variables_fail::<TopDownMatcher, ()>(
+            TopDownMatcher,
+        );
     }
 }

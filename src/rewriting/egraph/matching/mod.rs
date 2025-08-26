@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use crate::language::expression::{Expression, VariableId};
 
-use super::{ClassId, EGraph, Analysis};
+use super::{ClassId, DynEGraph};
 
 #[derive(Clone, Debug)]
 pub struct EGraphMatch {
@@ -61,7 +61,7 @@ impl EGraphMatch {
 }
 
 pub trait Matcher {
-    fn try_match<A: Analysis>(&self, egraph: &EGraph<A>, expression: &Expression) -> Vec<EGraphMatch>;
+    fn try_match(&self, egraph: &dyn DynEGraph, expression: &Expression) -> Vec<EGraphMatch>;
 }
 
 #[cfg(test)]
@@ -70,7 +70,7 @@ mod tests {
 
     use crate::{
         language::{Language, expression::Literal},
-        rewriting::egraph::{DynEGraph, EGraph, Node, Analysis},
+        rewriting::egraph::{Analysis, DynEGraph, EGraph, Node},
     };
 
     use super::{EGraphMatch, Matcher};
