@@ -5,7 +5,7 @@ use crate::language::{
     symbol::Symbol,
 };
 
-use super::{Analysis, ClassId, DynEGraph, EGraph, Node, NodeId, class::DynClass};
+use super::{ClassId, DynEGraph, Node, NodeId};
 
 #[derive(Clone, Debug)]
 pub struct ExtractionResult<C> {
@@ -27,13 +27,13 @@ impl<C> ExtractionResult<C> {
     }
 }
 
-pub trait Extractor<A: Analysis> {
+pub trait Extractor {
     type Cost;
 
     /// Finds the cheapest expression represented by `egraph` that's represented by class with id `equivalent`.
     fn extract(
         &self,
-        egraph: &EGraph<A>,
+        egraph: &dyn DynEGraph,
         equivalent: ClassId,
     ) -> Option<ExtractionResult<Self::Cost>>;
 }
@@ -45,7 +45,7 @@ trait_set::trait_set! {
 
 /// A simple extractor, finding the cheapest class, calculating the cost
 /// using given functions
-pub struct SimpleExtractor<C, SC, LC, A: Analysis>
+pub struct SimpleExtractor<C, SC, LC>
 where
     C: Ord + PartialEq + Clone,
     LC: SimpleLiteralCost<C>,
@@ -54,10 +54,9 @@ where
     literal_cost: LC,
     symbol_cost: SC,
     cost: PhantomData<C>,
-    analysis: PhantomData<A>,
 }
 
-impl<C, SC, LC, A: Analysis> SimpleExtractor<C, SC, LC, A>
+impl<C, SC, LC> SimpleExtractor<C, SC, LC>
 where
     C: Ord + PartialEq + Clone,
     LC: SimpleLiteralCost<C>,
@@ -68,7 +67,6 @@ where
             literal_cost,
             symbol_cost,
             cost: PhantomData,
-            analysis: PhantomData,
         }
     }
 
@@ -81,7 +79,7 @@ where
 
     fn calculate_costs(
         &self,
-        egraph: &EGraph<A>,
+        egraph: &dyn DynEGraph,
     ) -> (HashMap<ClassId, NodeId>, HashMap<ClassId, C>) {
         let mut work_remaining = true;
         let mut class_costs = HashMap::new();
@@ -91,7 +89,7 @@ where
         while work_remaining {
             work_remaining = false;
 
-            for (&class_id, class) in egraph.iter_classes() {
+            for (&class_id, class) in egraph.dyn_classes() {
                 for &node_id in class.iter_nodes() {
                     let node = egraph.node(node_id);
                     if let Some(node_cost) = self.node_cost(node, &class_costs) {
@@ -121,7 +119,7 @@ where
     }
 
     fn extract_expression(
-        egraph: &EGraph<A>,
+        egraph: &dyn DynEGraph,
         cheapest_nodes: &HashMap<ClassId, NodeId>,
         class_id: ClassId,
     ) -> VarFreeExpression {
@@ -153,7 +151,7 @@ where
         .sum::<Option<C>>()
 }
 
-impl<C, SC, LC, A: Analysis> Extractor<A> for SimpleExtractor<C, SC, LC, A>
+impl<C, SC, LC> Extractor for SimpleExtractor<C, SC, LC>
 where
     C: Ord + PartialEq + Clone,
     LC: SimpleLiteralCost<C>,
@@ -163,7 +161,7 @@ where
 
     fn extract(
         &self,
-        egraph: &EGraph<A>,
+        egraph: &dyn DynEGraph,
         equivalent: ClassId,
     ) -> Option<ExtractionResult<Self::Cost>> {
         let equivalent = egraph.canonical_class(equivalent);
@@ -207,7 +205,7 @@ mod tests {
 
         let merged_id = egraph.merge_classes(class_1_id, class_2_id).new().unwrap();
 
-        let extractor = SimpleExtractor::<usize, _, _, ()>::new(
+        let extractor = SimpleExtractor::<usize, _, _>::new(
             |literal| match literal {
                 crate::language::expression::Literal::UInt(x) => *x as usize,
                 crate::language::expression::Literal::Int(_) => 0,
@@ -236,7 +234,7 @@ mod tests {
 
         let merged_id = egraph.merge_classes(class_1_id, class_2_id).new().unwrap();
 
-        let extractor = SimpleExtractor::<usize, _, _, ()>::new(
+        let extractor = SimpleExtractor::<usize, _, _>::new(
             |literal| match literal {
                 crate::language::expression::Literal::UInt(x) => *x as usize,
                 crate::language::expression::Literal::Int(_) => 0,
@@ -273,7 +271,7 @@ mod tests {
         let saturator = SimpleSaturator::new(BottomUpMatcher);
         let _ = saturator.saturate(&mut egraph, &rules, &SaturationConfig::default());
 
-        let extractor = SimpleExtractor::<usize, _, _, ()>::new(
+        let extractor = SimpleExtractor::<usize, _, _>::new(
             |_| 1,
             |symbol, costs| {
                 Some(match lang.get_symbol(symbol.id) {

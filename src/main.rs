@@ -62,7 +62,7 @@ fn main() {
         },
     };
 
-    let extractor = SimpleExtractor::<usize, _, _, ()>::new(
+    let extractor = SimpleExtractor::<usize, _, _>::new(
         |_| 1,
         |symbol, costs| {
             Some(
@@ -81,9 +81,9 @@ fn main() {
 
     let simple_saturator = SimpleSaturator::new(BottomUpMatcher);
     let simple_outcomes =
-        benchmark::benchmark(&trs, &expressions, &config, &extractor, &simple_saturator);
+        benchmark::benchmark::<(), _>(&trs, &expressions, &config, &extractor, &simple_saturator);
 
-    let extractor_2 = SimpleExtractor::<usize, _, _, _>::new(
+    let extractor_2 = SimpleExtractor::<usize, _, _>::new(
         |_| 1,
         |symbol, costs| {
             Some(
@@ -101,10 +101,7 @@ fn main() {
     );
 
     let directed_saturator = DirectedSaturator::new(BottomUpMatcher);
-    let directed_outcomes = benchmark::benchmark::<
-        SimpleMathLocalCost,
-        SimpleExtractor<usize, _, _, SimpleMathLocalCost>,
-    >(
+    let directed_outcomes = benchmark::benchmark::<SimpleMathLocalCost, SimpleExtractor<usize, _, _>>(
         &trs,
         &expressions,
         &config,

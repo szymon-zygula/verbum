@@ -62,7 +62,7 @@ fn run_single_benchmark<A, E>(
 ) -> Outcome
 where
     A: Analysis,
-    E: Extractor<A, Cost = usize>,
+    E: Extractor<Cost = usize>,
 {
     let (mut egraph, class_id) = EGraph::<A>::from_expression_with_id(expression.clone());
 
@@ -100,7 +100,7 @@ pub fn benchmark<A, E>(
 ) -> Vec<Outcome>
 where
     A: Analysis,
-    E: Extractor<A, Cost = usize>,
+    E: Extractor<Cost = usize>,
 {
     let mut averaged_outcomes = Vec::with_capacity(expressions.len());
 
@@ -138,20 +138,14 @@ pub fn benchmark_saturators<A, E>(
 ) -> BTreeMap<String, Vec<Outcome>>
 where
     A: Analysis,
-    E: Extractor<A, Cost = usize>,
+    E: Extractor<Cost = usize>,
 {
     saturators
         .into_iter()
         .map(|(name, saturator)| {
             (
                 name,
-                benchmark(
-                    trs,
-                    expressions,
-                    config,
-                    extractor,
-                    saturator.as_ref(),
-                ),
+                benchmark(trs, expressions, config, extractor, saturator.as_ref()),
             )
         })
         .collect()
@@ -168,7 +162,7 @@ fn benchmark_multiple_times<A, E>(
 ) -> Vec<Outcome>
 where
     A: Analysis,
-    E: Extractor<A, Cost = usize>,
+    E: Extractor<Cost = usize>,
 {
     let mut expression_outcomes: Vec<Outcome> = Vec::with_capacity(RUN_COUNT + 1);
     for _ in 0..(RUN_COUNT + 1) {
