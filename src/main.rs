@@ -27,6 +27,63 @@ mod seen;
 mod union_find;
 mod utils;
 
+fn save_graph_dot() {
+    use graph::Graph;
+    use std::fs::File;
+    use std::io::Write;
+
+    let mut graph = Graph::new();
+    let v0 = graph.add_vertex();
+    let v1 = graph.add_vertex();
+    let v2 = graph.add_vertex();
+    graph.add_edge(v0, v1);
+    graph.add_edge(v1, v2);
+    graph.add_edge(v2, v0);
+
+    let dot_output = graph.dot();
+    let mut file = File::create("graph.dot").expect("Unable to create file");
+    file.write_all(dot_output.as_bytes()).expect("Unable to write data");
+    println!("Saved graph.dot");
+}
+
+fn save_data_graph_dot() {
+    use graph::DataGraph;
+    use std::fs::File;
+    use std::io::Write;
+
+    let mut graph = DataGraph::new();
+    let v0 = graph.add_vertex("A");
+    let v1 = graph.add_vertex("B");
+    let v2 = graph.add_vertex("C");
+    graph.add_edge(v0, v1);
+    graph.add_edge(v1, v2);
+    graph.add_edge(v2, v0);
+
+    let dot_output = graph.dot();
+    let mut file = File::create("data_graph.dot").expect("Unable to create file");
+    file.write_all(dot_output.as_bytes()).expect("Unable to write data");
+    println!("Saved data_graph.dot");
+}
+
+fn save_edge_data_graph_dot() {
+    use graph::EdgeDataGraph;
+    use std::fs::File;
+    use std::io::Write;
+
+    let mut graph = EdgeDataGraph::new();
+    let v0 = graph.add_vertex("Node A");
+    let v1 = graph.add_vertex("Node B");
+    let v2 = graph.add_vertex("Node C");
+    graph.add_edge(v0, v1, "Edge 1");
+    graph.add_edge(v1, v2, "Edge 2");
+    graph.add_edge(v2, v0, "Edge 3");
+
+    let dot_output = graph.dot();
+    let mut file = File::create("edge_data_graph.dot").expect("Unable to create file");
+    file.write_all(dot_output.as_bytes()).expect("Unable to write data");
+    println!("Saved edge_data_graph.dot");
+}
+
 fn initialize_system() -> TermRewritingSystem {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.push("rewriting-systems");
@@ -147,4 +204,8 @@ fn main() {
     println!("\nCSV Output:\n{csv_output}");
 
     test_saturation_and_dot_output();
+
+    save_graph_dot();
+    save_data_graph_dot();
+    save_edge_data_graph_dot();
 }

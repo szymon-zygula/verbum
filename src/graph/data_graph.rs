@@ -68,6 +68,26 @@ impl<T> DataGraph<T> {
     pub fn get_data(&self, vertex_idx: VertexId) -> Option<&T> {
         self.data.get(vertex_idx)
     }
+
+    /// Returns a string in DOT format representing the graph.
+    /// The data of each vertex is displayed using the `Display` trait.
+    pub fn dot(&self) -> String
+    where
+        T: std::fmt::Display,
+    {
+        let mut dot = String::new();
+        dot.push_str("digraph G {\n");
+        for (i, data) in self.data.iter().enumerate() {
+            dot.push_str(&format!("    {} [label=\"{}\"];\n", i, data));
+        }
+        for i in 0..self.graph.num_vertices() {
+            for &neighbor in self.graph.out_neighbors(i) {
+                dot.push_str(&format!("    {} -> {};\n", i, neighbor));
+            }
+        }
+        dot.push_str("}");
+        dot
+    }
 }
 
 #[cfg(test)]

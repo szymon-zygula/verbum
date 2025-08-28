@@ -91,6 +91,30 @@ impl<V, E> EdgeDataGraph<V, E> {
     pub fn get_edge_data(&self, from: VertexId, to: VertexId) -> Option<&E> {
         self.edge_data.get(&(from, to))
     }
+
+    /// Returns a string in DOT format representing the graph.
+    /// The data of each vertex and edge is displayed using the `Display` trait.
+    pub fn dot(&self) -> String
+    where
+        V: std::fmt::Display,
+        E: std::fmt::Display,
+    {
+        let mut dot = String::new();
+        dot.push_str("digraph G {\n");
+        for (i, data) in self.data_graph.data.iter().enumerate() {
+            dot.push_str(&format!("    {} [label=\"{}\"];\n", i, data));
+        }
+        for (&(from, to), data) in &self.edge_data {
+            dot.push_str(&format!(
+                "    {} -> {} [label=\"{}\"];\n",
+                from,
+                to,
+                data
+            ));
+        }
+        dot.push_str("}");
+        dot
+    }
 }
 
 #[cfg(test)]
