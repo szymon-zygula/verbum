@@ -13,7 +13,6 @@ To consider in directed saturation:
 - Formulate clearly: creating target expressions
 
 Agent chores:
-- Add analysis to `dot`
 - Add Scheduler trait with `next_rule` method.
 - Make it so that languages are in a different JSON, together with costs?
 - Add a new extractor implemetnation for Analysis implementing `LocalCost`,
