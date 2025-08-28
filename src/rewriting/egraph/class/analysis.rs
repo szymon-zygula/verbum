@@ -6,6 +6,10 @@ pub trait Analysis: Sized + Clone + Default {
 
     // Creates analysis data by merging data from two other classes.
     fn merge(a: Self, b: Self) -> Self;
+
+    fn to_string(&self) -> Option<String> {
+        None
+    }
 }
 
 impl Analysis for () {

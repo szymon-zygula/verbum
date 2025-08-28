@@ -49,6 +49,10 @@ impl LocalCost for SimpleMathLocalCost {
     fn literal_cost(_: &Literal) -> Self {
         Self(1)
     }
+
+    fn to_string(&self) -> String {
+        format!("Cost: {}", self.0.to_string())
+    }
 }
 
 #[cfg(test)]

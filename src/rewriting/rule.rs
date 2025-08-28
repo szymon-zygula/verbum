@@ -1,5 +1,5 @@
 use crate::language::{Language, expression::Expression};
-use itertools::Itertools;
+
 use serde::{Deserialize, Serialize};
 
 use super::egraph::{Analysis, DynEGraph, EGraph, matching::Matcher};

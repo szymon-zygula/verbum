@@ -10,7 +10,8 @@ use rewriting::{
         class::simple_math_local_cost::SimpleMathLocalCost,
         extraction::{SimpleExtractor, children_cost_sum},
         matching::bottom_up::BottomUpMatcher,
-        saturation::{SaturationConfig, SimpleSaturator, directed_saturator::DirectedSaturator},
+        saturation::{SaturationConfig, SimpleSaturator, directed_saturator::DirectedSaturator, Saturator},
+        EGraph,
     },
     system::TermRewritingSystem,
 };
@@ -33,6 +34,25 @@ fn initialize_system() -> TermRewritingSystem {
     utils::json::load_json(path).unwrap()
 }
 
+fn test_saturation_and_dot_output() {
+    let lang = language::Language::simple_math();
+    let rules = macros::rules!(lang;
+        "(* $0 2)" => "(<< $0 1)",
+        "(* $0 1)" => "$0",
+        "(/ (* $0 $1) $2)" => "(* $0 (/ $1 $2))",
+        "(/ $0 $0)" => "1",
+    );
+
+    let expression = lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap();
+    let mut egraph = EGraph::<SimpleMathLocalCost>::from_expression(expression);
+
+    let saturator = SimpleSaturator::new(Box::new(BottomUpMatcher));
+    let config = SaturationConfig::default();
+    saturator.saturate(&mut egraph, &rules, &config);
+
+    egraph.save_dot(&lang, "output.dot").unwrap();
+}
+
 fn main() {
     let trs = initialize_system();
 
@@ -47,8 +67,7 @@ fn main() {
     let expressions: Vec<VarFreeExpression> = expressions_with_vars
         .iter()
         .map(|expr| {
-            expr.without_variables().expect(
-                "All expressions in simple-math.json should be variable-free for benchmarking",
+            expr.without_variables().expect("All expressions in simple-math.json should be variable-free for benchmarking",
             )
         })
         .collect();
@@ -115,7 +134,7 @@ fn main() {
     ]);
 
     use benchmark::{
-        OutcomeFormatter, csv_output::CsvFormatter, pretty_printing::PrettyTableFormatter,
+        OutcomeFormatter, csv_output::CsvFormatter, pretty_printing::PrettyTableFormatter
     };
 
     let pretty_formatter = PrettyTableFormatter;
@@ -125,4 +144,6 @@ fn main() {
     let csv_formatter = CsvFormatter;
     let csv_output = csv_formatter.format_saturator_outcomes(map);
     println!("\nCSV Output:\n{csv_output}");
+
+    test_saturation_and_dot_output();
 }

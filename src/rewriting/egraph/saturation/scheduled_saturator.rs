@@ -45,7 +45,7 @@ mod tests {
 
             let mut changed = false;
             for rule in rules {
-                changed |= rule.apply(egraph, &TopDownMatcher);
+                changed |= rule.apply(egraph, &TopDownMatcher) > 0;
             }
             changed
         }

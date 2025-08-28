@@ -37,7 +37,11 @@ impl<A: Analysis> EGraph<A> {
 
         for (class_id, class) in &self.classes {
             writeln!(out, "  subgraph cluster_{class_id:?} {{").unwrap();
-            writeln!(out, "    label = \"Class {class_id:?}\";").unwrap();
+            let mut label = format!("Class {:?}", class_id);
+            if let Some(analysis_str) = class.analysis().to_string() {
+                write!(label, " ({})", analysis_str).unwrap();
+            }
+            writeln!(out, "    label = \"{label}\";").unwrap();
 
             for node_id in class.nodes_ids() {
                 class_repr.entry(*class_id).or_insert(*node_id);

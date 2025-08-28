@@ -33,6 +33,8 @@ pub trait LocalCost:
             Expression::Variable(_) => Self::default(),
         }
     }
+
+    fn to_string(&self) -> String;
 }
 
 impl<LC> Analysis for LC
@@ -56,5 +58,9 @@ where
 
     fn merge(a: Self, b: Self) -> Self {
         std::cmp::min(a, b)
+    }
+
+    fn to_string(&self) -> Option<String> {
+        Some(self.to_string())
     }
 }
