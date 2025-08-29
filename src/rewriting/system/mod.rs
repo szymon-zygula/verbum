@@ -7,6 +7,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Visitor, ser::
 use std::fmt;
 
 mod calculus;
+mod dependency_graph;
 
 // Helper struct for serializing/deserializing rules
 #[derive(Serialize, Deserialize)]

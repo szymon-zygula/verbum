@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::egraph::{Analysis, DynEGraph, EGraph, matching::Matcher};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Rule {
     from: Expression,
     to: Expression,
