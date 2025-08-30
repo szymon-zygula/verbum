@@ -7,17 +7,20 @@ use crate::language::expression::LangMultiExpression;
 use crate::language::expression::VarFreeExpression;
 use rewriting::{
     egraph::{
+        EGraph,
         class::simple_math_local_cost::SimpleMathLocalCost,
         extraction::{SimpleExtractor, children_cost_sum},
         matching::bottom_up::BottomUpMatcher,
-        saturation::{SaturationConfig, SimpleSaturator, directed_saturator::DirectedSaturator, Saturator},
-        EGraph,
+        saturation::{
+            SaturationConfig, Saturator, SimpleSaturator, directed_saturator::DirectedSaturator,
+        },
     },
     system::TermRewritingSystem,
 };
 
 mod benchmark;
 mod data_union_find;
+mod did;
 mod equation;
 mod graph;
 mod index_selector;
@@ -43,7 +46,8 @@ fn save_graph_dot() {
 
     let dot_output = graph.dot();
     let mut file = File::create("graph.dot").expect("Unable to create file");
-    file.write_all(dot_output.as_bytes()).expect("Unable to write data");
+    file.write_all(dot_output.as_bytes())
+        .expect("Unable to write data");
     println!("Saved graph.dot");
 }
 
@@ -62,7 +66,8 @@ fn save_data_graph_dot() {
 
     let dot_output = graph.dot();
     let mut file = File::create("data_graph.dot").expect("Unable to create file");
-    file.write_all(dot_output.as_bytes()).expect("Unable to write data");
+    file.write_all(dot_output.as_bytes())
+        .expect("Unable to write data");
     println!("Saved data_graph.dot");
 }
 
@@ -81,7 +86,8 @@ fn save_edge_data_graph_dot() {
 
     let dot_output = graph.dot();
     let mut file = File::create("edge_data_graph.dot").expect("Unable to create file");
-    file.write_all(dot_output.as_bytes()).expect("Unable to write data");
+    file.write_all(dot_output.as_bytes())
+        .expect("Unable to write data");
     println!("Saved edge_data_graph.dot");
 }
 
@@ -126,7 +132,8 @@ fn main() {
     let expressions: Vec<VarFreeExpression> = expressions_with_vars
         .iter()
         .map(|expr| {
-            expr.without_variables().expect("All expressions in simple-math.json should be variable-free for benchmarking",
+            expr.without_variables().expect(
+                "All expressions in simple-math.json should be variable-free for benchmarking",
             )
         })
         .collect();
@@ -193,7 +200,7 @@ fn main() {
     ]);
 
     use benchmark::{
-        OutcomeFormatter, csv_output::CsvFormatter, pretty_printing::PrettyTableFormatter
+        OutcomeFormatter, csv_output::CsvFormatter, pretty_printing::PrettyTableFormatter,
     };
 
     let pretty_formatter = PrettyTableFormatter;
