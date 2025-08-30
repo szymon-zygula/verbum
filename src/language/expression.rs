@@ -22,31 +22,38 @@ impl OwnedPath {
         Path(&self.0)
     }
 
+    /// Returns the child path of this path
     pub fn child(&self) -> Path<'_> {
         self.as_ref().child()
     }
 
+    /// Returns the first element on the path, or `None` if the path is empty
     pub fn head(&self) -> Option<usize> {
         self.0.first().copied()
     }
 
+    /// Adds a new position at the end of the path
     pub fn push(&mut self, location: usize) {
         self.0.push(location)
     }
 
+    /// Removes the last position from the path
     pub fn pop(&mut self) -> Option<usize> {
         self.0.pop()
     }
 }
 
-#[derive(Clone, Debug)]
+/// Path to a subexpression in an expression
+#[derive(Clone, Debug, PartialEq)]
 pub struct Path<'p>(&'p [usize]);
 
 impl<'p> Path<'p> {
+    /// Returns the child path of this path
     pub fn child(&self) -> Self {
         Path(&self.0[1..])
     }
 
+    /// Returns the first element on the path, or `None` if the path is empty
     pub fn head(&self) -> Option<usize> {
         self.0.first().copied()
     }
@@ -216,6 +223,24 @@ impl Expression {
                 }
             }
             Expression::Literal(_) => {}
+        }
+    }
+
+    /// Returns the maximal variable ID found in the expression
+    pub fn max_variable_id(&self) -> Option<VariableId> {
+        self.variables().into_iter().max()
+    }
+
+    /// Renames all variables by adding `shift` to their IDs
+    pub fn shift_variables(&mut self, shift: usize) {
+        match self {
+            Expression::Variable(id) => *id += shift,
+            Expression::Symbol(symbol) => {
+                for child in &mut symbol.children {
+                    child.shift_variables(shift);
+                }
+            }
+            _ => {}
         }
     }
 }
