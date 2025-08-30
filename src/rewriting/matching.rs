@@ -8,17 +8,17 @@ use crate::language::{
 };
 
 #[derive(Clone, Debug, Default)]
-pub struct Matches<'e> {
+pub struct Match<'e> {
     substitutions: HashMap<VariableId, &'e VarFreeExpression>,
 }
 
-impl<'e> Matches<'e> {
+impl<'e> Match<'e> {
     fn try_merge(&self, other: &Self) -> Option<Self> {
         let new_match = self.clone();
         new_match.try_add_match(other)
     }
 
-    fn try_add_match(mut self, other: &Matches<'e>) -> Option<Self> {
+    fn try_add_match(mut self, other: &Match<'e>) -> Option<Self> {
         for (key, value) in &self.substitutions {
             if let Some(other_value) = other.substitutions.get(key)
                 && other_value != value
@@ -46,7 +46,7 @@ impl<'e> Matches<'e> {
 
 impl Expression {
     /// `self` is treated as a pattern which may match `expression`
-    pub fn try_match<'e>(&self, expression: &'e VarFreeExpression) -> Option<Matches<'e>> {
+    pub fn try_match<'e>(&self, expression: &'e VarFreeExpression) -> Option<Match<'e>> {
         match (self, expression) {
             (
                 Expression::Symbol(Symbol {
@@ -59,7 +59,7 @@ impl Expression {
                 }),
             ) => {
                 if id_1 == id_2 && children_1.len() == children_2.len() {
-                    let mut entire_match = Matches::default();
+                    let mut entire_match = Match::default();
 
                     for (child_1, child_2) in children_1.iter().zip_eq(children_2.iter()) {
                         let child_match = child_1.try_match(child_2)?;
@@ -71,11 +71,11 @@ impl Expression {
                     None
                 }
             }
-            (Expression::Variable(variable), expression) => Some(Matches::<'e> {
+            (Expression::Variable(variable), expression) => Some(Match::<'e> {
                 substitutions: HashMap::from([(*variable, expression)]),
             }),
             (Expression::Literal(lit_1), VarFreeExpression::Literal(lit_2)) => {
-                (lit_1 == lit_2).then_some(Matches::<'e>::default())
+                (lit_1 == lit_2).then_some(Match::<'e>::default())
             }
             _ => None,
         }
@@ -84,7 +84,7 @@ impl Expression {
 
 #[cfg(test)]
 mod tests {
-    use super::Matches;
+    use super::Match;
     use crate::language::{
         Language,
         expression::{Literal, VarFreeExpression},
@@ -92,28 +92,28 @@ mod tests {
 
     #[test]
     fn match_merge() {
-        let mut matches_1 = Matches::default();
-        let mut matches_2 = Matches::default();
+        let mut match_1 = Match::default();
+        let mut match_2 = Match::default();
 
         let expr_1 = VarFreeExpression::Literal(Literal::Int(0));
         let expr_2 = VarFreeExpression::Literal(Literal::Int(1));
 
-        matches_1.set(0, &expr_1);
-        matches_1.set(1, &expr_2);
+        match_1.set(0, &expr_1);
+        match_1.set(1, &expr_2);
 
-        matches_2.set(0, &expr_1);
-        matches_2.set(2, &expr_2);
+        match_2.set(0, &expr_1);
+        match_2.set(2, &expr_2);
 
-        let merged = matches_1.try_merge(&matches_2).unwrap();
+        let merged = match_1.try_merge(&match_2).unwrap();
 
         assert_eq!(merged.substitutions().len(), 3);
         assert_eq!(merged.at(0).unwrap(), &expr_1);
         assert_eq!(merged.at(1).unwrap(), &expr_2);
         assert_eq!(merged.at(2).unwrap(), &expr_2);
 
-        matches_1.set(3, &expr_1);
-        matches_2.set(3, &expr_2);
-        assert!(matches_1.try_merge(&matches_2).is_none());
+        match_1.set(3, &expr_1);
+        match_2.set(3, &expr_2);
+        assert!(match_1.try_merge(&match_2).is_none());
     }
 
     #[test]
@@ -172,8 +172,8 @@ mod tests {
             .parse_no_vars("(+ (* (sin 1) 5) (* (sin 1) 3u))")
             .unwrap();
 
-        let matches = pattern.try_match(&expr).unwrap();
-        assert_eq!(matches.substitutions().len(), 3);
+        let match_ = pattern.try_match(&expr).unwrap();
+        assert_eq!(match_.substitutions().len(), 3);
 
         let add_args = expr.expect_symbol("+", &lang);
         let mul_1_args = add_args[0].expect_symbol("*", &lang);
@@ -181,11 +181,11 @@ mod tests {
 
         // Any of these two is semantically correct
         assert!(
-            std::ptr::eq(matches.at(0).unwrap(), &mul_1_args[0])
-                || std::ptr::eq(matches.at(0).unwrap(), &mul_2_args[0])
+            std::ptr::eq(match_.at(0).unwrap(), &mul_1_args[0])
+                || std::ptr::eq(match_.at(0).unwrap(), &mul_2_args[0])
         );
-        assert!(std::ptr::eq(matches.at(1).unwrap(), &mul_1_args[1]));
-        assert!(std::ptr::eq(matches.at(2).unwrap(), &mul_2_args[1]));
+        assert!(std::ptr::eq(match_.at(1).unwrap(), &mul_1_args[1]));
+        assert!(std::ptr::eq(match_.at(2).unwrap(), &mul_2_args[1]));
 
         let expr = lang
             .parse_no_vars("(+ (* (sin 1) 5) (* (sin 2) 3u))")
