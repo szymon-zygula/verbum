@@ -20,10 +20,10 @@ impl<E> Symbol<E> {
         self.id == other.id && self.children.len() == other.children.len()
     }
 
-    pub fn map_children<T>(&self, mut f: impl FnMut(&E) -> T) -> Symbol<T> {
+    pub fn map_children<T>(&self, f: impl FnMut(&E) -> T) -> Symbol<T> {
         Symbol::<T> {
             id: self.id,
-            children: self.children.iter().map(|child| f(child)).collect(),
+            children: self.children.iter().map(f).collect(),
         }
     }
 }

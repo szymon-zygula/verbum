@@ -51,7 +51,7 @@ impl LocalCost for SimpleMathLocalCost {
     }
 
     fn to_string(&self) -> String {
-        format!("Cost: {}", self.0.to_string())
+        format!("Cost: {}", self.0)
     }
 }
 

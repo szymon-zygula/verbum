@@ -37,9 +37,9 @@ impl<A: Analysis> EGraph<A> {
 
         for (class_id, class) in &self.classes {
             writeln!(out, "  subgraph cluster_{class_id:?} {{").unwrap();
-            let mut label = format!("Class {:?}", class_id);
+            let mut label = format!("Class {class_id:?}");
             if let Some(analysis_str) = class.analysis().to_string() {
-                write!(label, " ({})", analysis_str).unwrap();
+                write!(label, " ({analysis_str})").unwrap();
             }
             writeln!(out, "    label = \"{label}\";").unwrap();
 
