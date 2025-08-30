@@ -18,7 +18,8 @@ use rewriting::{
 
 mod benchmark;
 mod data_union_find;
-pub mod graph;
+mod equation;
+mod graph;
 mod index_selector;
 mod language;
 mod macros;
