@@ -42,4 +42,60 @@ impl<'e> Unifier<'e> {
     }
 }
 
-mod tests {}
+#[cfg(test)]
+mod tests {
+    use crate::language::Language;
+
+    use super::*;
+
+    #[test]
+    fn test_unify_simple() {
+        let lang = Language::simple_math();
+        let expression_1 = lang.parse("(* $0 2)").unwrap();
+        let expression_2 = lang.parse("(* 3 $1)").unwrap();
+        let unifier = Unifier::unify_robinson(&expression_1, &expression_2).unwrap();
+        let left_sub = unifier.left_substitution();
+        let right_sub = unifier.right_substitution();
+        assert_eq!(*left_sub.0.get(&0).unwrap(), &lang.parse("3").unwrap());
+        assert_eq!(*right_sub.0.get(&1).unwrap(), &lang.parse("2").unwrap());
+    }
+
+    #[test]
+    fn test_unify_nested() {
+        let lang = Language::simple_math();
+        let expression_1 = lang.parse("(+ (* $0 2) $2)").unwrap();
+        let expression_2 = lang.parse("(+ $1 5)").unwrap();
+        let unifier = Unifier::unify_robinson(&expression_1, &expression_2).unwrap();
+        let left_sub = unifier.left_substitution();
+        let right_sub = unifier.right_substitution();
+        assert_eq!(*left_sub.0.get(&2).unwrap(), &lang.parse("5").unwrap());
+        assert_eq!(
+            *right_sub.0.get(&1).unwrap(),
+            &lang.parse("(* $0 2)").unwrap()
+        );
+    }
+
+    #[test]
+    fn test_unify_no_unification() {
+        let lang = Language::simple_math();
+        let expression_1 = lang.parse("(* $0 2)").unwrap();
+        let expression_2 = lang.parse("(+ 3 $1)").unwrap();
+        assert!(Unifier::unify_robinson(&expression_1, &expression_2).is_none());
+    }
+
+    #[test]
+    fn test_unify_occur_check() {
+        let lang = Language::simple_math();
+        let expression_1 = lang.parse("$0").unwrap();
+        let expression_2 = lang.parse("(* $0 2)").unwrap();
+        assert!(Unifier::unify_robinson(&expression_1, &expression_2).is_some());
+    }
+
+    #[test]
+    fn test_unify_variable_conflict() {
+        let lang = Language::simple_math();
+        let expression_1 = lang.parse("(+ $1 (+ $1 (+ 1 2)))").unwrap();
+        let expression_2 = lang.parse("(+ $2 (+ 1 (+ $1 $2)))").unwrap();
+        assert!(Unifier::unify_robinson(&expression_1, &expression_2).is_none())
+    }
+}
