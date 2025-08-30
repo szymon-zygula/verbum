@@ -157,6 +157,7 @@ impl Expression {
         children
     }
 
+    /// Returns a `HashSet` of all variables occuriring in `self`
     pub fn variables(&self) -> HashSet<VariableId> {
         match self {
             Expression::Literal(_) => HashSet::new(),
@@ -169,6 +170,19 @@ impl Expression {
         }
     }
 
+    /// Checks if `self` contains `variable_id` as a descendant
+    pub fn contains_variable(&self, variable_id: VariableId) -> bool {
+        match self {
+            Expression::Literal(_) => false,
+            Expression::Symbol(symbol) => symbol
+                .children
+                .iter()
+                .any(|child| child.contains_variable(variable_id)),
+            Expression::Variable(x) => *x == variable_id,
+        }
+    }
+
+    /// Returns a vector of all variables occurring in `self`
     pub fn variables_vec(&self) -> Vec<VariableId> {
         self.variables().into_iter().collect_vec()
     }
@@ -241,6 +255,22 @@ impl Expression {
                 }
             }
             _ => {}
+        }
+    }
+
+    /// Replaces all occurences of `variable_id` with `expression`
+    pub fn substitute(&mut self, variable_id: VariableId, expression: &Expression) {
+        match self {
+            Expression::Literal(_) => {}
+            Expression::Symbol(symbol) => symbol
+                .children
+                .iter_mut()
+                .for_each(|child| child.substitute(variable_id, expression)),
+            Expression::Variable(v) => {
+                if *v == variable_id {
+                    *self = expression.clone()
+                }
+            }
         }
     }
 }
@@ -449,7 +479,10 @@ impl<'de> Deserialize<'de> for LangMultiExpression {
 #[cfg(test)]
 mod tests {
     use super::{Expression, LangMultiExpression, VarFreeExpression};
-    use crate::language::expression::{AnyExpression, LangExpression};
+    use crate::language::{
+        Language,
+        expression::{AnyExpression, LangExpression},
+    };
     use serde_json;
 
     fn test_display(expression_str: &str) {
@@ -520,5 +553,24 @@ mod tests {
                 )
             );
         }
+    }
+
+    #[test]
+    fn contains_variable() {
+        let lang = Language::simple_math();
+
+        assert!(!lang.parse("4").unwrap().contains_variable(0));
+        assert!(!lang.parse("$4").unwrap().contains_variable(4));
+        assert!(
+            lang.parse("(+ 4 (* (3 $0)) 3 8)")
+                .unwrap()
+                .contains_variable(0)
+        );
+        assert!(
+            !lang
+                .parse("(+ 4 (* (3 $5)) 3 8)")
+                .unwrap()
+                .contains_variable(0)
+        );
     }
 }
