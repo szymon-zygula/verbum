@@ -23,8 +23,16 @@ impl Rule {
     /// Case 3: (Parial matching)
     /// not possible when expressions are trees. But this case is possible in
     /// general monoidal categories (e-hypergraphs or other things like that).
-    fn depends_on(&self, other: &Rule) -> bool {
-        true
+    pub fn depends_on(&self, other: &Rule) -> bool {
+        return self.depends_on_case_1(other) || self.depends_on_case_2(other);
+    }
+
+    fn depends_on_case_1(&self, other: &Rule) -> bool {
+        todo!()
+    }
+
+    fn depends_on_case_2(&self, other: &Rule) -> bool {
+        todo!()
     }
 }
 

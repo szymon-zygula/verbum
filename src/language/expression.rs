@@ -77,6 +77,15 @@ impl VarFreeExpression {
 
         children
     }
+
+    pub fn to_expression(&self) -> Expression {
+        match self {
+            VarFreeExpression::Literal(literal) => Expression::Literal(literal.clone()),
+            VarFreeExpression::Symbol(symbol) => {
+                Expression::Symbol(symbol.map_children(|child| child.to_expression()))
+            }
+        }
+    }
 }
 
 /// An expression which consists of concrete elements as well as class IDs.
@@ -211,7 +220,7 @@ impl Expression {
     }
 }
 
-pub trait AnyExpression: Clone + 'static {
+pub trait AnyExpression: Clone + PartialEq + Eq + 'static {
     fn with_language<'e, 'l>(&'e self, language: &'l Language) -> LangExpression<'e, 'l, Self> {
         LangExpression {
             expression: Cow::Borrowed(self),

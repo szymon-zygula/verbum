@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
 use super::{
     Language,
     expression::{AnyExpression, LangExpression},
 };
+use serde::{Deserialize, Serialize};
 
 pub type SymbolId = usize;
 
@@ -18,6 +18,13 @@ impl<E> Symbol<E> {
     /// i.e. the same symbol id and the same number of children
     pub fn same_shape_as<EO>(&self, other: &Symbol<EO>) -> bool {
         self.id == other.id && self.children.len() == other.children.len()
+    }
+
+    pub fn map_children<T>(&self, mut f: impl FnMut(&E) -> T) -> Symbol<T> {
+        Symbol::<T> {
+            id: self.id,
+            children: self.children.iter().map(|child| f(child)).collect(),
+        }
     }
 }
 

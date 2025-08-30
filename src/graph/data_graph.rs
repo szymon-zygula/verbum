@@ -54,9 +54,9 @@ impl<T> DataGraph<T> {
     }
 
     /// Finds a vertex by a predicate on its data.
-    pub fn find_vertex<P>(&self, predicate: P) -> Option<(VertexId, &T)> 
-    where 
-        P: Fn(&T) -> bool, 
+    pub fn find_vertex<P>(&self, predicate: P) -> Option<(VertexId, &T)>
+    where
+        P: Fn(&T) -> bool,
     {
         self.data
             .iter()

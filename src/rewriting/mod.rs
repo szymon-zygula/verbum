@@ -1,4 +1,5 @@
 pub mod egraph;
-pub mod pattern;
+pub mod matching;
 pub mod rule;
 pub mod system;
+pub mod unification;
