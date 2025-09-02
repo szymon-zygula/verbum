@@ -11,6 +11,12 @@ pub struct EdgeDataGraph<V, E> {
     pub edge_data: HashMap<(VertexId, VertexId), E>,
 }
 
+impl<V, E> Default for EdgeDataGraph<V, E> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<V, E> EdgeDataGraph<V, E> {
     /// Creates a new empty `EdgeDataGraph`.
     pub fn new() -> Self {
@@ -102,17 +108,14 @@ impl<V, E> EdgeDataGraph<V, E> {
         let mut dot = String::new();
         dot.push_str("digraph G {\n");
         for (i, data) in self.data_graph.data.iter().enumerate() {
-            dot.push_str(&format!("    {} [label=\"{}\"];\n", i, data));
+            dot.push_str(&format!("    {i} [label=\"{data}\"];\n"));
         }
         for (&(from, to), data) in &self.edge_data {
             dot.push_str(&format!(
-                "    {} -> {} [label=\"{}\"];\n",
-                from,
-                to,
-                data
+                "    {from} -> {to} [label=\"{data}\"];\n"
             ));
         }
-        dot.push_str("}");
+        dot.push('}');
         dot
     }
 }

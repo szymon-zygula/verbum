@@ -8,6 +8,12 @@ pub struct Graph {
     pub rev_adjacency: Vec<Vec<VertexId>>,
 }
 
+impl Default for Graph {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Graph {
     /// Creates a new empty graph.
     pub fn new() -> Self {
@@ -58,14 +64,14 @@ impl Graph {
         dot.push_str("digraph G {
 ");
         for i in 0..self.num_vertices() {
-            dot.push_str(&format!("    {};\n", i));
+            dot.push_str(&format!("    {i};\n"));
         }
         for i in 0..self.num_vertices() {
             for &neighbor in self.out_neighbors(i) {
-                dot.push_str(&format!("    {} -> {};\n", i, neighbor));
+                dot.push_str(&format!("    {i} -> {neighbor};\n"));
             }
         }
-        dot.push_str("}");
+        dot.push('}');
         dot
     }
 }

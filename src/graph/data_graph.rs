@@ -8,6 +8,12 @@ pub struct DataGraph<T> {
     pub data: Vec<T>,
 }
 
+impl<T> Default for DataGraph<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> DataGraph<T> {
     /// Creates a new empty `DataGraph`.
     pub fn new() -> Self {
@@ -78,14 +84,14 @@ impl<T> DataGraph<T> {
         let mut dot = String::new();
         dot.push_str("digraph G {\n");
         for (i, data) in self.data.iter().enumerate() {
-            dot.push_str(&format!("    {} [label=\"{}\"];\n", i, data));
+            dot.push_str(&format!("    {i} [label=\"{data}\"];\n"));
         }
         for i in 0..self.graph.num_vertices() {
             for &neighbor in self.graph.out_neighbors(i) {
-                dot.push_str(&format!("    {} -> {};\n", i, neighbor));
+                dot.push_str(&format!("    {i} -> {neighbor};\n"));
             }
         }
-        dot.push_str("}");
+        dot.push('}');
         dot
     }
 }
