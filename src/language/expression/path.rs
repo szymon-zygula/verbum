@@ -52,6 +52,7 @@ impl<'p> Path<'p> {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct SubexpressionPathIterator<'e, E: AnyExpression> {
     expression: &'e E,
     current_path: Option<OwnedPath>,

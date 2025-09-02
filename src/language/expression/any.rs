@@ -1,4 +1,4 @@
-use super::{Expression, Path, VarFreeExpression};
+use super::{Expression, Path, VarFreeExpression, path::SubexpressionPathIterator};
 use crate::language::Language;
 use std::borrow::Cow;
 
@@ -19,6 +19,39 @@ pub trait AnyExpression: Clone + PartialEq + Eq + 'static {
         } else {
             Some(self)
         }
+    }
+
+    fn iter_paths(&self) -> SubexpressionPathIterator<Self> {
+        SubexpressionPathIterator::new(self)
+    }
+
+    fn iter_subexpressions(&self) -> SubexpressionIterator<Self> {
+        SubexpressionIterator::new(self)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct SubexpressionIterator<'e, E: AnyExpression> {
+    expression: &'e E,
+    path_iterator: SubexpressionPathIterator<'e, E>,
+}
+
+impl<'e, E: AnyExpression> SubexpressionIterator<'e, E> {
+    pub fn new(expression: &'e E) -> Self {
+        Self {
+            expression,
+            path_iterator: expression.iter_paths(),
+        }
+    }
+}
+
+impl<'e, E: AnyExpression> Iterator for SubexpressionIterator<'e, E> {
+    type Item = E;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.expression
+            .subexpression(self.path_iterator.next()?.as_path())
+            .cloned()
     }
 }
 
@@ -100,5 +133,56 @@ mod tests {
     #[test]
     fn display_3() {
         test_display("(+ $0 (- (- (* $0 $1 $2 $3 $4 $5 $6))) (sin (cos $1)))");
+    }
+}
+
+#[cfg(test)]
+mod tests_subexpression_iterator {
+    use super::*;
+    use crate::language::Language;
+
+    fn parse_expr(lang: &Language, s: &str) -> VarFreeExpression {
+        lang.parse_no_vars(s).unwrap()
+    }
+
+    #[test]
+    fn iterate_over_leaf() {
+        let lang = Language::simple_math();
+        let expr = parse_expr(&lang, "1");
+        let mut iterator = SubexpressionIterator::new(&expr);
+        assert_eq!(iterator.next(), Some(parse_expr(&lang, "1")));
+        assert_eq!(iterator.next(), None);
+    }
+
+    #[test]
+    fn iterate_over_simple_expression() {
+        let lang = Language::simple_math();
+        let expr = parse_expr(&lang, "(+ 1 2)");
+        let subexpressions: Vec<_> = SubexpressionIterator::new(&expr).collect();
+        assert_eq!(
+            subexpressions,
+            vec![
+                parse_expr(&lang, "(+ 1 2)"),
+                parse_expr(&lang, "1"),
+                parse_expr(&lang, "2"),
+            ]
+        );
+    }
+
+    #[test]
+    fn iterate_over_nested_expression() {
+        let lang = Language::simple_math();
+        let expr = parse_expr(&lang, "(+ 1 (* 2 3))");
+        let subexpressions: Vec<_> = SubexpressionIterator::new(&expr).collect();
+        assert_eq!(
+            subexpressions,
+            vec![
+                parse_expr(&lang, "(+ 1 (* 2 3))"),
+                parse_expr(&lang, "1"),
+                parse_expr(&lang, "(* 2 3)"),
+                parse_expr(&lang, "2"),
+                parse_expr(&lang, "3"),
+            ]
+        );
     }
 }
