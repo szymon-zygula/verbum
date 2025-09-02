@@ -2,6 +2,7 @@ use itertools::Itertools;
 
 use crate::language::expression::Expression;
 
+#[derive(Clone, Debug)]
 pub struct Equation {
     pub left: Expression,
     pub right: Expression,
@@ -17,8 +18,8 @@ impl Equation {
     }
 
     /// Checks if the top level nodes are symbols of the same shape.
-    /// If so, returns an iter
-    pub fn decompose_symbol(&self) -> Option<Vec<Equation>> {
+    /// If so, decomposes the equation into equations comparing the children of the symbol.
+    pub fn decompose_if_matching_symbol(&self) -> Option<Vec<Equation>> {
         let Expression::Symbol(symbol_left) = &self.left else {
             return None;
         };
