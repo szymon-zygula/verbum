@@ -52,7 +52,7 @@ impl Substitution {
 }
 
 #[derive(Clone, Default, Debug)]
-struct IndependentVarUnifier {
+pub struct IndependentVarUnifier {
     left_substitution: Substitution,
     right_substitution: Substitution,
 }
