@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
-use super::{Expression, Literal};
-use crate::language::symbol::Symbol;
+use super::{AnyExpression, Expression, Literal};
 use crate::language::Language;
+use crate::language::symbol::Symbol;
+use serde::{Deserialize, Serialize};
 
 /// An expression which does not admit variables
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
@@ -29,6 +29,15 @@ impl VarFreeExpression {
             VarFreeExpression::Symbol(symbol) => {
                 Expression::Symbol(symbol.map_children(|child| child.to_expression()))
             }
+        }
+    }
+}
+
+impl AnyExpression for VarFreeExpression {
+    fn children(&self) -> Option<Vec<&Self>> {
+        match self {
+            VarFreeExpression::Symbol(symbol) => Some(symbol.children.iter().collect()),
+            _ => None,
         }
     }
 }

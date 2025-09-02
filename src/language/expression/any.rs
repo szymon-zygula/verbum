@@ -1,6 +1,6 @@
-use std::borrow::Cow;
 use super::{Expression, Path, VarFreeExpression};
 use crate::language::Language;
+use std::borrow::Cow;
 
 pub trait AnyExpression: Clone + PartialEq + Eq + 'static {
     fn with_language<'e, 'l>(&'e self, language: &'l Language) -> LangExpression<'e, 'l, Self> {
@@ -18,24 +18,6 @@ pub trait AnyExpression: Clone + PartialEq + Eq + 'static {
                 .and_then(|children| children.get(head)?.subexpression(path.child()))
         } else {
             Some(self)
-        }
-    }
-}
-
-impl AnyExpression for Expression {
-    fn children(&self) -> Option<Vec<&Self>> {
-        match self {
-            Expression::Symbol(symbol) => Some(symbol.children.iter().collect()),
-            _ => None,
-        }
-    }
-}
-
-impl AnyExpression for VarFreeExpression {
-    fn children(&self) -> Option<Vec<&Self>> {
-        match self {
-            VarFreeExpression::Symbol(symbol) => Some(symbol.children.iter().collect()),
-            _ => None,
         }
     }
 }

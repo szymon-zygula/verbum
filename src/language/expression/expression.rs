@@ -1,10 +1,10 @@
-use std::collections::{HashMap, HashSet};
+use super::{AnyExpression, Literal, MixedExpression, OwnedPath, VarFreeExpression};
+use crate::language::Language;
+use crate::language::symbol::Symbol;
+use crate::rewriting::egraph::matching::EGraphMatch;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use super::{Literal, MixedExpression, VarFreeExpression, OwnedPath};
-use crate::language::symbol::Symbol;
-use crate::language::Language;
-use crate::rewriting::egraph::matching::EGraphMatch;
+use std::collections::{HashMap, HashSet};
 
 pub type VariableId = usize;
 
@@ -176,6 +176,15 @@ impl Expression {
                     *self = expression.clone()
                 }
             }
+        }
+    }
+}
+
+impl AnyExpression for Expression {
+    fn children(&self) -> Option<Vec<&Self>> {
+        match self {
+            Expression::Symbol(symbol) => Some(symbol.children.iter().collect()),
+            _ => None,
         }
     }
 }
