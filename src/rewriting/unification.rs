@@ -61,6 +61,8 @@ impl IndependentVarUnifier {
     /// Solves a unification problem for a given equation, treating variables in both of them as separate.
     /// I.e. when both expressions contain `$0`, then it is treated as two variables.
     /// Returns `None` if the problem has no solution.`
+    /// If one of the variables on the left will have a variable on the right assigned to it in the solution,
+    /// the name of the variable from the right will be shifted.
     pub fn unify(mut equation: Equation) -> Option<Self> {
         let shift = equation.left.max_variable_id().map(|x| x + 1).unwrap_or(0);
         equation.right.shift_variables(shift);
@@ -214,75 +216,88 @@ mod tests {
 
     use super::*;
 
-    fn test_independent_var_unifer(
-        expression_1: &str,
-        expression_2: &str,
-    ) -> IndependentVarUnifier {
+    fn solve_unification_problem(expression_1: &str, expression_2: &str) -> Option<Substitution> {
         let lang = Language::simple_math();
         let expression_1 = lang.parse(expression_1).unwrap();
         let expression_2 = lang.parse(expression_2).unwrap();
-        IndependentVarUnifier::unify(Equation::new(expression_1, expression_2)).unwrap()
+        UnificationProblem::from_equation(Equation::new(expression_1, expression_2)).solve()
     }
 
     #[test]
     fn test_unify_trivial() {
-        let lang = Language::simple_math();
-        let expression_1 = lang.parse("1").unwrap();
-        let expression_2 = lang.parse("1").unwrap();
-        let unifier = IndependentVarUnifier::unify(Equation::new(expression_1, expression_2));
-        assert!(unifier.is_some());
+        let substitution = solve_unification_problem("1", "1");
+        assert!(substitution.is_some());
     }
 
     #[test]
     fn test_unify_simple() {
         let lang = Language::simple_math();
-        let expression_1 = lang.parse("(* $0 2)").unwrap();
-        let expression_2 = lang.parse("(* 3 $1)").unwrap();
-        let unifier =
-            IndependentVarUnifier::unify(Equation::new(expression_1, expression_2)).unwrap();
-        let left_sub = unifier.left_substitution();
-        let right_sub = unifier.right_substitution();
-        assert_eq!(*left_sub.0.get(&0).unwrap(), lang.parse("3").unwrap());
-        assert_eq!(*right_sub.0.get(&1).unwrap(), lang.parse("2").unwrap());
+        let substitution = solve_unification_problem("(* $0 2)", "(* 3 $1)").unwrap();
+        assert_eq!(*substitution.get(0).unwrap(), lang.parse("3").unwrap());
+        assert_eq!(*substitution.get(1).unwrap(), lang.parse("2").unwrap());
     }
 
     #[test]
     fn test_unify_nested() {
         let lang = Language::simple_math();
-        let expression_1 = lang.parse("(+ (* $0 2) $2)").unwrap();
-        let expression_2 = lang.parse("(+ $1 5)").unwrap();
-        let unifier =
-            IndependentVarUnifier::unify(Equation::new(expression_1, expression_2)).unwrap();
-        let left_sub = unifier.left_substitution();
-        let right_sub = unifier.right_substitution();
-        assert_eq!(*left_sub.0.get(&2).unwrap(), lang.parse("5").unwrap());
+        let substitution = solve_unification_problem("(+ (* $0 2) $2)", "(+ $1 5)").unwrap();
+        assert_eq!(*substitution.get(2).unwrap(), lang.parse("5").unwrap());
         assert_eq!(
-            *right_sub.0.get(&1).unwrap(),
+            *substitution.get(1).unwrap(),
             lang.parse("(* $0 2)").unwrap()
         );
     }
 
     #[test]
     fn test_unify_no_unification() {
-        let lang = Language::simple_math();
-        let expression_1 = lang.parse("(* 2 $0)").unwrap();
-        let expression_2 = lang.parse("(+ 3 $1)").unwrap();
-        assert!(IndependentVarUnifier::unify(Equation::new(expression_1, expression_2)).is_none());
+        assert!(solve_unification_problem("(* 2 $0)", "(+ 3 $1)").is_none());
     }
 
     #[test]
     fn test_unify_occur_check() {
-        let lang = Language::simple_math();
-        let expression_1 = lang.parse("$0").unwrap();
-        let expression_2 = lang.parse("(* $0 2)").unwrap();
-        assert!(IndependentVarUnifier::unify(Equation::new(expression_1, expression_2)).is_some());
+        assert!(solve_unification_problem("$0", "(* $0 2)").is_none());
     }
 
     #[test]
     fn test_unify_variable_conflict() {
+        assert!(
+            solve_unification_problem("(+ $1 (+ $1 (+ 1 2)))", "(+ $2 (+ 1 (+ $1 $2)))").is_none()
+        )
+    }
+
+    fn unify_independent_vars(
+        expression_1: &str,
+        expression_2: &str,
+    ) -> Option<IndependentVarUnifier> {
         let lang = Language::simple_math();
-        let expression_1 = lang.parse("(+ $1 (+ $1 (+ 1 2)))").unwrap();
-        let expression_2 = lang.parse("(+ $2 (+ 1 (+ $1 $2)))").unwrap();
-        assert!(IndependentVarUnifier::unify(Equation::new(expression_1, expression_2)).is_none())
+        let expression_1 = lang.parse(expression_1).unwrap();
+        let expression_2 = lang.parse(expression_2).unwrap();
+        IndependentVarUnifier::unify(Equation::new(expression_1, expression_2))
+    }
+
+    #[test]
+    fn test_unify_independent_vars_trivial() {
+        let unifier = unify_independent_vars("1", "1");
+        assert!(unifier.is_some());
+    }
+
+    #[test]
+    fn test_unify_independent_vars_simple() {
+        let lang = Language::simple_math();
+        let unifier = unify_independent_vars("(* $0 2)", "(* 3 $0)").unwrap();
+        let left_sub = unifier.left_substitution();
+        let right_sub = unifier.right_substitution();
+        assert_eq!(*left_sub.get(0).unwrap(), lang.parse("3").unwrap());
+        assert_eq!(*right_sub.get(0).unwrap(), lang.parse("2").unwrap());
+    }
+
+    #[test]
+    fn test_unify_independent_vars_occur_check() {
+        let lang = Language::simple_math();
+        let unifier = unify_independent_vars("$0", "(* $0 2)").unwrap();
+        let left_sub = unifier.left_substitution();
+        let right_sub = unifier.right_substitution();
+        assert_eq!(*left_sub.get(0).unwrap(), lang.parse("(* $1 2)").unwrap());
+        assert!(right_sub.get(0).is_none());
     }
 }
