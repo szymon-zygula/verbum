@@ -1,0 +1,49 @@
+use serde::{Deserialize, Serialize};
+use super::{Expression, Literal};
+use crate::language::symbol::Symbol;
+use crate::language::Language;
+
+/// An expression which does not admit variables
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub enum VarFreeExpression {
+    Literal(Literal),
+    Symbol(Symbol<VarFreeExpression>),
+}
+
+impl VarFreeExpression {
+    /// Panics if `self` is not a symbol represented by `name` in `lang`. Returns its children otherwise.
+    /// Just for doing tests.
+    pub fn expect_symbol<'a>(&'a self, name: &str, lang: &Language) -> &'a Vec<Self> {
+        let Self::Symbol(Symbol { id, children }) = self else {
+            panic!("Expected symbol but did not find a symbol")
+        };
+
+        assert_eq!(lang.get_id(name), *id);
+
+        children
+    }
+
+    pub fn to_expression(&self) -> Expression {
+        match self {
+            VarFreeExpression::Literal(literal) => Expression::Literal(literal.clone()),
+            VarFreeExpression::Symbol(symbol) => {
+                Expression::Symbol(symbol.map_children(|child| child.to_expression()))
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::VarFreeExpression;
+    use serde_json;
+
+    #[test]
+    fn test_var_free_expression_serialization() {
+        let lang = crate::language::Language::simple_math();
+        let expr = lang.parse_no_vars("(* 2 (+ 3 4))").unwrap();
+        let serialized = serde_json::to_string(&expr).unwrap();
+        let deserialized: VarFreeExpression = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(expr, deserialized);
+    }
+}
