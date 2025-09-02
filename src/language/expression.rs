@@ -560,15 +560,15 @@ mod tests {
         let lang = Language::simple_math();
 
         assert!(!lang.parse("4").unwrap().contains_variable(0));
-        assert!(!lang.parse("$4").unwrap().contains_variable(4));
+        assert!(lang.parse("$4").unwrap().contains_variable(4));
         assert!(
-            lang.parse("(+ 4 (* (3 $0)) 3 8)")
+            lang.parse("(+ 4 (* (/ 3 $0)) 3 8)")
                 .unwrap()
                 .contains_variable(0)
         );
         assert!(
             !lang
-                .parse("(+ 4 (* (3 $5)) 3 8)")
+                .parse("(+ 4 (* (/ 3 $5)) 3 8)")
                 .unwrap()
                 .contains_variable(0)
         );

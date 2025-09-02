@@ -47,3 +47,81 @@ impl Equation {
         std::mem::swap(&mut self.left, &mut self.right);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        equation::Equation,
+        language::{Language, expression::Expression},
+    };
+
+    fn lang() -> Language {
+        Language::simple_math()
+    }
+
+    fn expr(str: &str) -> Expression {
+        lang().parse(str).unwrap()
+    }
+
+    #[test]
+    fn new() {
+        let eq = Equation::new(expr("1"), expr("2"));
+        assert_eq!(eq.left, expr("1"));
+        assert_eq!(eq.right, expr("2"));
+    }
+
+    #[test]
+    fn is_trivial_simple() {
+        let eq = Equation::new(expr("1"), expr("1"));
+        assert!(eq.is_trivial());
+
+        let eq = Equation::new(expr("1"), expr("2"));
+        assert!(!eq.is_trivial());
+    }
+
+    #[test]
+    fn is_trivial() {
+        let eq = Equation::new(expr("(+ (* 3 4) 4 8)"), expr("(+ (* 3 4) 4 8)"));
+        assert!(eq.is_trivial());
+
+        let eq = Equation::new(expr("(+ (* 3 3) 4 8)"), expr("(+ (* 3 4) 4 8)"));
+        assert!(!eq.is_trivial());
+    }
+
+    #[test]
+    fn decompose_if_matching_symbol() {
+        let eq = Equation::new(expr("(+ 1 2)"), expr("(+ 3 4)"));
+        let decomposed = eq.decompose_if_matching_symbol().unwrap();
+        assert_eq!(decomposed.len(), 2);
+        assert_eq!(decomposed[0].left, expr("1"));
+        assert_eq!(decomposed[0].right, expr("3"));
+        assert_eq!(decomposed[1].left, expr("2"));
+        assert_eq!(decomposed[1].right, expr("4"));
+    }
+
+    #[test]
+    fn decompose_if_matching_symbol_different_symbols() {
+        let eq = Equation::new(expr("(+ 1 2)"), expr("(- 3 4)"));
+        assert!(eq.decompose_if_matching_symbol().is_none());
+    }
+
+    #[test]
+    fn decompose_if_matching_symbol_different_arity() {
+        let eq = Equation::new(expr("(+ 1 2)"), expr("(+ 3 4 5)"));
+        assert!(eq.decompose_if_matching_symbol().is_none());
+    }
+
+    #[test]
+    fn decompose_if_matching_symbol_not_symbols() {
+        let eq = Equation::new(expr("1"), expr("2"));
+        assert!(eq.decompose_if_matching_symbol().is_none());
+    }
+
+    #[test]
+    fn reorient() {
+        let mut eq = Equation::new(expr("1"), expr("2"));
+        eq.reorient();
+        assert_eq!(eq.left, expr("2"));
+        assert_eq!(eq.right, expr("1"));
+    }
+}
