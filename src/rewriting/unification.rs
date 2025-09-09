@@ -7,7 +7,7 @@ use crate::language::expression::{Expression, VariableId};
 /// This module implements unification algorithms, that is matching but in the case that both sides of an expression
 /// include variables
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct Substitution(HashMap<VariableId, Expression>);
 
 impl Substitution {
@@ -51,7 +51,7 @@ impl Substitution {
     }
 }
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct IndependentVarUnifier {
     left_substitution: Substitution,
     right_substitution: Substitution,
