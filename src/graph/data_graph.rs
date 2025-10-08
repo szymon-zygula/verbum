@@ -3,6 +3,7 @@
 use crate::graph::{Graph, VertexId};
 
 /// A graph that associates data with each vertex.
+#[derive(PartialEq, Debug)]
 pub struct DataGraph<T> {
     pub graph: Graph,
     pub data: Vec<T>,

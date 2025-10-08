@@ -3,6 +3,7 @@
 pub type VertexId = usize;
 
 /// A simple sparse directed graph using an adjacency list.
+#[derive(PartialEq, Debug)]
 pub struct Graph {
     pub adjacency: Vec<Vec<VertexId>>,
     pub rev_adjacency: Vec<Vec<VertexId>>,

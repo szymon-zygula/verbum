@@ -3,7 +3,7 @@ use itertools::Itertools;
 use crate::{
     equation::Equation,
     graph::DataGraph,
-    language::expression::AnyExpression,
+    language::expression::{AnyExpression, Expression},
     rewriting::{rule::Rule, unification::IndependentVarUnifier},
 };
 
@@ -34,6 +34,10 @@ impl Rule {
     // If there are more identitcal substitutions for L in R_2 than in L_2,
     // this would allow for new applications if we didn't have e-graphs.
     // But we do, so this case can be ignored. We only really care about substitutions.
+    // ^^^
+    // I'm not sure if this is strict enough. Is it possible for new subexpressions
+    // to match after `other` has been applied, but these new subexpressions to sit in the same e-classes
+    // and thus not add anything?
     fn depends_on_case_1(&self, other: &Rule) -> bool {
         let matches_in_r_2 = other
             .to()
@@ -62,29 +66,32 @@ impl Rule {
         false
     }
 
-    /// There is a substitution `σ` and position `ρ` such that `R_2[σ] = L[σ]_p`,
+    /// There is a substitution `σ` and position `ρ` such that `R_2[σ] = L[σ]_ρ`,
     /// but `L_2[σ] != L[σ]_p`, i.e. `R_2` matches a subexpression of `L`,
     /// but `L_2` does not match the same subexpression.
+    /// We don't have to compare the unifiers here! `self` matches
+    /// using the same e-classes if there is a match for both `R_2` and `L_2`,
+    /// regardless what the unifiers are.
     fn depends_on_case_2(&self, other: &Rule) -> bool {
         for subexpression in self.from().iter_subexpressions() {
-            let Some(right_unifier) = IndependentVarUnifier::unify(Equation::new(
+            if let Expression::Variable(_) = subexpression {
+                continue;
+            }
+
+            if IndependentVarUnifier::unify(Equation::new(
                 other.to().clone(),
                 subexpression.clone(),
-            )) else {
-                // Right-hand side does not match L -> try next subexpression
+            ))
+            .is_none()
+            {
+                // Right-hand side does not match L => try next subexpression
                 continue;
             };
 
-            let Some(left_unifier) =
-                IndependentVarUnifier::unify(Equation::new(other.from().clone(), subexpression))
-            else {
+            if IndependentVarUnifier::unify(Equation::new(other.from().clone(), subexpression))
+                .is_none()
+            {
                 // Right-hand side of the rule matches L but left-hand doesn't -> ok
-                return true;
-            };
-
-            if right_unifier != left_unifier {
-                // Something matching before rule applied, but it allows for new substitutions
-                // -> possibly new rewrites using `self` rule
                 return true;
             }
         }
@@ -110,5 +117,120 @@ impl TermRewritingSystem {
         }
 
         graph
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{language::Language, rewriting::rule::Rule};
+
+    fn rule(lang: &Language, from: &str, to: &str) -> Rule {
+        Rule::from_strings(from, to, lang)
+    }
+
+    #[test]
+    fn test_depends_on_case_1() {
+        let lang = Language::default()
+            .add_symbol("a")
+            .add_symbol("b")
+            .add_symbol("f")
+            .add_symbol("g");
+        let rule1 = rule(&lang, "(f $0)", "(g $0)");
+        let rule2 = rule(&lang, "(a)", "(f (b))");
+        assert!(rule1.depends_on(&rule2));
+    }
+
+    #[test]
+    fn test_depends_on_case_2() {
+        let lang = Language::default()
+            .add_symbol("a")
+            .add_symbol("b")
+            .add_symbol("c")
+            .add_symbol("f")
+            .add_symbol("g");
+        let rule1 = rule(&lang, "(f $0)", "(g $0)");
+        let rule2 = rule(&lang, "(f (b))", "(c)");
+        assert!(!rule1.depends_on(&rule2));
+    }
+
+    #[test]
+    fn test_depends_on_case_2_with_variable_lhs() {
+        let lang = Language::default()
+            .add_symbol("a")
+            .add_symbol("b")
+            .add_symbol("f")
+            .add_symbol("g");
+        let rule1 = rule(&lang, "$0", "(g $0)");
+        let rule2 = rule(&lang, "(a)", "(f (b))");
+        assert!(rule1.depends_on(&rule2));
+    }
+
+    #[test]
+    fn test_depends_on_case_1_direct() {
+        let lang = Language::default()
+            .add_symbol("a")
+            .add_symbol("b")
+            .add_symbol("f")
+            .add_symbol("g");
+        let rule1 = rule(&lang, "(f $0)", "(g $0)");
+        let rule2 = rule(&lang, "(a)", "(f (b))");
+        assert!(rule1.depends_on_case_1(&rule2));
+    }
+
+    #[test]
+    fn test_depends_on_fail() {
+        let lang = Language::default()
+            .add_symbol("a")
+            .add_symbol("b")
+            .add_symbol("c")
+            .add_symbol("f")
+            .add_symbol("g");
+
+        let rule1 = rule(&lang, "(f $0)", "(g $0)");
+        let rule2 = rule(&lang, "(f (b))", "(c)");
+        assert!(!rule1.depends_on(&rule2));
+        assert!(!rule2.depends_on(&rule1));
+    }
+
+    #[test]
+    fn test_dependency_graph() {
+        use crate::graph::DataGraph;
+        use crate::rewriting::system::TermRewritingSystem;
+
+        let lang = Language::default()
+            .add_symbol("a")
+            .add_symbol("b")
+            .add_symbol("c")
+            .add_symbol("f")
+            .add_symbol("g");
+
+        let rule1 = rule(&lang, "(f $0)", "(g $0)"); // f(x) -> g(x)
+        let rule2 = rule(&lang, "(a)", "(f (b))"); // a -> f(b) (rule1 depends on rule2 - case 1)
+        let rule3 = rule(&lang, "(g (c))", "(a)"); // g(c) -> a
+        let rule4 = rule(&lang, "(f (b))", "(c)"); // f(b) -> c (rule1 depends on rule4 - case 2)
+
+        let rules = vec![rule1.clone(), rule2.clone(), rule3.clone(), rule4.clone()];
+        let trs = TermRewritingSystem::new(lang, rules);
+
+        let graph = trs.dependency_graph();
+
+        let mut expected_graph = DataGraph::new();
+        let idx1 = expected_graph.add_vertex(rule1);
+        let idx2 = expected_graph.add_vertex(rule2);
+        let idx3 = expected_graph.add_vertex(rule3);
+        let idx4 = expected_graph.add_vertex(rule4);
+
+        // rule1 depends on rule2 (case 1)
+        expected_graph.add_edge(idx1, idx2);
+        // rule2 depends on rule3
+        expected_graph.add_edge(idx2, idx3);
+        // rule3 depends on rule1
+        expected_graph.add_edge(idx3, idx1);
+        // rule3 depends on rule4
+        expected_graph.add_edge(idx3, idx4);
+        // rule4 depends on rule2
+        expected_graph.add_edge(idx4, idx2);
+
+        assert_eq!(graph, expected_graph);
     }
 }
