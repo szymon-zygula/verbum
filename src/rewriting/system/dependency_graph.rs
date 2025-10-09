@@ -135,9 +135,9 @@ mod tests {
             .add_symbol("b")
             .add_symbol("f")
             .add_symbol("g");
-        let rule1 = rule(&lang, "(f $0)", "(g $0)");
-        let rule2 = rule(&lang, "(a)", "(f (b))");
-        assert!(rule1.depends_on(&rule2));
+        let rule_1 = rule(&lang, "(f $0)", "(g $0)");
+        let rule_2 = rule(&lang, "(a)", "(f (b))");
+        assert!(rule_1.depends_on(&rule_2));
     }
 
     #[test]
@@ -148,9 +148,9 @@ mod tests {
             .add_symbol("c")
             .add_symbol("f")
             .add_symbol("g");
-        let rule1 = rule(&lang, "(f $0)", "(g $0)");
-        let rule2 = rule(&lang, "(f (b))", "(c)");
-        assert!(!rule1.depends_on(&rule2));
+        let rule_1 = rule(&lang, "(f $0)", "(g $0)");
+        let rule_2 = rule(&lang, "(f (b))", "(c)");
+        assert!(!rule_1.depends_on(&rule_2));
     }
 
     #[test]
@@ -180,9 +180,9 @@ mod tests {
             .add_symbol("b")
             .add_symbol("f")
             .add_symbol("g");
-        let rule1 = rule(&lang, "$0", "(g $0)");
-        let rule2 = rule(&lang, "(a)", "(f (b))");
-        assert!(rule1.depends_on(&rule2));
+        let rule_1 = rule(&lang, "$0", "(g $0)");
+        let rule_2 = rule(&lang, "(a)", "(f (b))");
+        assert!(rule_1.depends_on(&rule_2));
     }
 
     #[test]
@@ -192,9 +192,9 @@ mod tests {
             .add_symbol("b")
             .add_symbol("f")
             .add_symbol("g");
-        let rule1 = rule(&lang, "(f $0)", "(g $0)");
-        let rule2 = rule(&lang, "(a)", "(f (b))");
-        assert!(rule1.depends_on_case_1(&rule2));
+        let rule_1 = rule(&lang, "(f $0)", "(g $0)");
+        let rule_2 = rule(&lang, "(a)", "(f (b))");
+        assert!(rule_1.depends_on_case_1(&rule_2));
     }
 
     #[test]
@@ -206,10 +206,10 @@ mod tests {
             .add_symbol("f")
             .add_symbol("g");
 
-        let rule1 = rule(&lang, "(f $0)", "(g $0)");
-        let rule2 = rule(&lang, "(f (b))", "(c)");
-        assert!(!rule1.depends_on(&rule2));
-        assert!(!rule2.depends_on(&rule1));
+        let rule_1 = rule(&lang, "(f $0)", "(g $0)");
+        let rule_2 = rule(&lang, "(f (b))", "(c)");
+        assert!(!rule_1.depends_on(&rule_2));
+        assert!(!rule_2.depends_on(&rule_1));
     }
 
     #[test]
@@ -224,31 +224,31 @@ mod tests {
             .add_symbol("f")
             .add_symbol("g");
 
-        let rule1 = rule(&lang, "(f $0)", "(g $0)"); // f(x) -> g(x)
-        let rule2 = rule(&lang, "(a)", "(f (b))"); // a -> f(b) (rule1 depends on rule2 - case 1)
+        let rule_1 = rule(&lang, "(f $0)", "(g $0)"); // f(x) -> g(x)
+        let rule_2 = rule(&lang, "(a)", "(f (b))"); // a -> f(b) (rule_1 depends on rule_2 - case 1)
         let rule3 = rule(&lang, "(g (c))", "(a)"); // g(c) -> a
-        let rule4 = rule(&lang, "(f (b))", "(c)"); // f(b) -> c (rule1 depends on rule4 - case 2)
+        let rule4 = rule(&lang, "(f (b))", "(c)"); // f(b) -> c (rule_1 depends on rule4 - case 2)
 
-        let rules = vec![rule1.clone(), rule2.clone(), rule3.clone(), rule4.clone()];
+        let rules = vec![rule_1.clone(), rule_2.clone(), rule3.clone(), rule4.clone()];
         let trs = TermRewritingSystem::new(lang, rules);
 
         let graph = trs.dependency_graph();
 
         let mut expected_graph = DataGraph::new();
-        let idx1 = expected_graph.add_vertex(rule1);
-        let idx2 = expected_graph.add_vertex(rule2);
+        let idx1 = expected_graph.add_vertex(rule_1);
+        let idx2 = expected_graph.add_vertex(rule_2);
         let idx3 = expected_graph.add_vertex(rule3);
         let idx4 = expected_graph.add_vertex(rule4);
 
-        // rule1 depends on rule2 (case 1)
+        // rule_1 depends on rule_2 (case 1)
         expected_graph.add_edge(idx1, idx2);
-        // rule2 depends on rule3
+        // rule_2 depends on rule3
         expected_graph.add_edge(idx2, idx3);
-        // rule3 depends on rule1
+        // rule3 depends on rule_1
         expected_graph.add_edge(idx3, idx1);
         // rule3 depends on rule4
         expected_graph.add_edge(idx3, idx4);
-        // rule4 depends on rule2
+        // rule4 depends on rule_2
         expected_graph.add_edge(idx4, idx2);
 
         assert_eq!(graph, expected_graph);
