@@ -154,6 +154,26 @@ mod tests {
     }
 
     #[test]
+    fn test_depends_on_case_1_double() {
+        let lang = Language::simple_math();
+        // Different variables in each function
+        let rule_1 = rule(&lang, "(+ (cos $0) (sin $1))", "(+ (cos $0) (cos $1))");
+        let rule_2 = rule(&lang, "(cos $0)", "(sin $0)");
+
+        assert!(rule_2.depends_on_case_1(&rule_1));
+    }
+
+    #[test]
+    fn test_depends_on_case_1_double_fail() {
+        let lang = Language::simple_math();
+        // Same variable in both functions
+        let rule_1 = rule(&lang, "(+ (cos $0) (sin $0))", "(+ (cos $0) (cos $0))");
+        let rule_2 = rule(&lang, "(cos $0)", "(sin $0)");
+
+        assert!(!rule_2.depends_on_case_1(&rule_1));
+    }
+
+    #[test]
     fn test_depends_on_case_2_with_variable_lhs() {
         let lang = Language::default()
             .add_symbol("a")
