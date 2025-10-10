@@ -1,5 +1,5 @@
-use crate::benchmark::Outcome;
 use super::OutcomeFormatter;
+use crate::benchmark::Outcome;
 use std::collections::BTreeMap;
 
 pub struct CsvFormatter;

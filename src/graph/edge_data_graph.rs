@@ -1,7 +1,7 @@
 //! A graph that associates data with both vertices and edges.
 
-use crate::graph::data_graph::DataGraph;
 use crate::graph::VertexId;
+use crate::graph::data_graph::DataGraph;
 use std::collections::HashMap;
 
 /// A graph that associates data with both vertices and edges.
@@ -41,7 +41,10 @@ impl<V, E> EdgeDataGraph<V, E> {
     }
 
     /// Returns an iterator over the out-neighbors of a given vertex, with their edge data.
-    pub fn out_neighbors_with_data(&self, vertex_idx: VertexId) -> impl Iterator<Item = (VertexId, &E)> {
+    pub fn out_neighbors_with_data(
+        &self,
+        vertex_idx: VertexId,
+    ) -> impl Iterator<Item = (VertexId, &E)> {
         self.data_graph
             .out_neighbors(vertex_idx)
             .iter()
@@ -53,7 +56,10 @@ impl<V, E> EdgeDataGraph<V, E> {
     }
 
     /// Returns an iterator over the in-neighbors of a given vertex, with their edge data.
-    pub fn in_neighbors_with_data(&self, vertex_idx: VertexId) -> impl Iterator<Item = (VertexId, &E)> {
+    pub fn in_neighbors_with_data(
+        &self,
+        vertex_idx: VertexId,
+    ) -> impl Iterator<Item = (VertexId, &E)> {
         self.data_graph
             .in_neighbors(vertex_idx)
             .iter()
@@ -68,7 +74,9 @@ impl<V, E> EdgeDataGraph<V, E> {
     pub fn out_neighbor_data(&self, vertex_idx: VertexId) -> impl Iterator<Item = (&V, &E)> {
         self.out_neighbors_with_data(vertex_idx)
             .filter_map(move |(idx, edge_data)| {
-                self.data_graph.get_data(idx).map(|vertex_data| (vertex_data, edge_data))
+                self.data_graph
+                    .get_data(idx)
+                    .map(|vertex_data| (vertex_data, edge_data))
             })
     }
 
@@ -76,14 +84,16 @@ impl<V, E> EdgeDataGraph<V, E> {
     pub fn in_neighbor_data(&self, vertex_idx: VertexId) -> impl Iterator<Item = (&V, &E)> {
         self.in_neighbors_with_data(vertex_idx)
             .filter_map(move |(idx, edge_data)| {
-                self.data_graph.get_data(idx).map(|vertex_data| (vertex_data, edge_data))
+                self.data_graph
+                    .get_data(idx)
+                    .map(|vertex_data| (vertex_data, edge_data))
             })
     }
 
     /// Finds a vertex by a predicate on its data.
-    pub fn find_vertex<P>(&self, predicate: P) -> Option<(VertexId, &V)> 
-    where 
-        P: Fn(&V) -> bool, 
+    pub fn find_vertex<P>(&self, predicate: P) -> Option<(VertexId, &V)>
+    where
+        P: Fn(&V) -> bool,
     {
         self.data_graph.find_vertex(predicate)
     }
@@ -111,9 +121,7 @@ impl<V, E> EdgeDataGraph<V, E> {
             dot.push_str(&format!("    {i} [label=\"{data}\"];\n"));
         }
         for (&(from, to), data) in &self.edge_data {
-            dot.push_str(&format!(
-                "    {from} -> {to} [label=\"{data}\"];\n"
-            ));
+            dot.push_str(&format!("    {from} -> {to} [label=\"{data}\"];\n"));
         }
         dot.push('}');
         dot

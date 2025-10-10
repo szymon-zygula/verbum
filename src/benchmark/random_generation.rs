@@ -1,9 +1,9 @@
 use rand::Rng;
 
 use crate::language::{
+    Language,
     expression::{Literal, VarFreeExpression},
     symbol::Symbol,
-    Language,
 };
 
 pub fn generate_random_expression(
@@ -44,12 +44,7 @@ fn generate_random_expression_recursive(
 
         let children: Vec<VarFreeExpression> = (0..arity)
             .map(|_| {
-                generate_random_expression_recursive(
-                    language,
-                    max_size,
-                    rng,
-                    current_size + 1,
-                )
+                generate_random_expression_recursive(language, max_size, rng, current_size + 1)
             })
             .collect();
 

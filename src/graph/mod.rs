@@ -54,7 +54,7 @@ impl Graph {
         self.adjacency.get(vertex).map_or(&[], |v| v.as_slice())
     }
 
-        /// Returns a slice of in-neighbors for a given vertex.
+    /// Returns a slice of in-neighbors for a given vertex.
     pub fn in_neighbors(&self, vertex: VertexId) -> &[VertexId] {
         self.rev_adjacency.get(vertex).map_or(&[], |v| v.as_slice())
     }
@@ -62,8 +62,10 @@ impl Graph {
     /// Returns a string in DOT format representing the graph.
     pub fn dot(&self) -> String {
         let mut dot = String::new();
-        dot.push_str("digraph G {
-");
+        dot.push_str(
+            "digraph G {
+",
+        );
         for i in 0..self.num_vertices() {
             dot.push_str(&format!("    {i};\n"));
         }
@@ -76,7 +78,6 @@ impl Graph {
         dot
     }
 }
-
 
 pub mod data_graph;
 pub mod edge_data_graph;

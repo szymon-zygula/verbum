@@ -1,7 +1,7 @@
-use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Visitor, ser::SerializeStruct};
-use std::fmt;
 use super::{AnyExpression, Expression};
 use crate::language::Language;
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Visitor, ser::SerializeStruct};
+use std::fmt;
 
 pub struct LangMultiExpression {
     language: Language,

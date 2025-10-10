@@ -1,18 +1,9 @@
-use std::fs::{
-    File,
-    OpenOptions
-};
-use std::io::{
-    Read,
-    Write
-};
-use std::path::Path;
 use std::error::Error;
+use std::fs::{File, OpenOptions};
+use std::io::{Read, Write};
+use std::path::Path;
 
-use serde::{
-    Serialize,
-    de::DeserializeOwned
-};
+use serde::{Serialize, de::DeserializeOwned};
 
 pub fn load_json<T, P>(path: P) -> Result<T, Box<dyn Error>>
 where

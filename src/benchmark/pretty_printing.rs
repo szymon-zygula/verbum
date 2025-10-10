@@ -1,9 +1,9 @@
 use super::OutcomeFormatter;
 use crate::benchmark::Outcome;
-use colored::*;
-use std::{fmt::Write, time::Duration};
-use std::collections::BTreeMap;
 use crate::language::expression::VarFreeExpression;
+use colored::*;
+use std::collections::BTreeMap;
+use std::{fmt::Write, time::Duration};
 
 pub struct PrettyTableFormatter;
 
@@ -72,7 +72,13 @@ fn print_separator_line(buffer: &mut String, col_widths: &[usize], num_headers: 
     writeln!(buffer).unwrap();
 }
 
-fn print_table_row(buffer: &mut String, cells: Vec<String>, col_widths: &[usize], num_headers: usize, is_bold: bool) {
+fn print_table_row(
+    buffer: &mut String,
+    cells: Vec<String>,
+    col_widths: &[usize],
+    num_headers: usize,
+    is_bold: bool,
+) {
     let mut lines: Vec<Vec<String>> = vec![];
     let mut max_lines = 0;
 
@@ -86,7 +92,8 @@ fn print_table_row(buffer: &mut String, cells: Vec<String>, col_widths: &[usize]
         for (j, col_lines) in lines.iter().enumerate() {
             let content = col_lines.get(i).unwrap_or(&"".to_string()).clone();
             if is_bold {
-                let formatted_content = format!("{:<width$}", content.bold(), width = col_widths[j]);
+                let formatted_content =
+                    format!("{:<width$}", content.bold(), width = col_widths[j]);
                 write!(buffer, "{formatted_content} ").unwrap();
             } else {
                 let formatted_content = format!("{:<width$}", content, width = col_widths[j]);
@@ -210,7 +217,11 @@ impl OutcomeFormatter for PrettyTableFormatter {
 
         for (saturator_name, outcomes) in outcomes_map {
             // Print saturator indicator
-            writeln!(&mut buffer, "\n--- Results for Saturator: {saturator_name} ---\n").unwrap();
+            writeln!(
+                &mut buffer,
+                "\n--- Results for Saturator: {saturator_name} ---\n"
+            )
+            .unwrap();
 
             // Print individual table for this saturator
             buffer.push_str(&self.format_outcomes(&outcomes));
@@ -235,30 +246,36 @@ impl OutcomeFormatter for PrettyTableFormatter {
                 let avg_classes = num_classes_sum / num_outcomes;
                 let avg_min_cost = min_cost_sum / num_outcomes;
 
-                all_saturator_avg_outcomes.insert(saturator_name, Outcome {
-                    original_expression: VarFreeExpression::Literal(crate::language::expression::Literal::Int(0)), // Placeholder
-                    extracted_expression: VarFreeExpression::Literal(crate::language::expression::Literal::Int(0)), // Placeholder
-                    time: avg_total_time,
-                    stop_reason: crate::rewriting::egraph::saturation::SaturationStopReason::Saturated, // Placeholder
-                    nodes: avg_num_nodes as usize,
-                    classes: avg_classes as usize,
-                    min_cost: avg_min_cost as usize,
-                });
+                all_saturator_avg_outcomes.insert(
+                    saturator_name,
+                    Outcome {
+                        original_expression: VarFreeExpression::Literal(
+                            crate::language::expression::Literal::Int(0),
+                        ), // Placeholder
+                        extracted_expression: VarFreeExpression::Literal(
+                            crate::language::expression::Literal::Int(0),
+                        ), // Placeholder
+                        time: avg_total_time,
+                        stop_reason:
+                            crate::rewriting::egraph::saturation::SaturationStopReason::Saturated, // Placeholder
+                        nodes: avg_num_nodes as usize,
+                        classes: avg_classes as usize,
+                        min_cost: avg_min_cost as usize,
+                    },
+                );
             }
         }
 
         // Print overall averages table
         if !all_saturator_avg_outcomes.is_empty() {
-            writeln!(&mut buffer, "\n--- Overall Averages Across Saturators ---\n").unwrap();
+            writeln!(
+                &mut buffer,
+                "\n--- Overall Averages Across Saturators ---\n"
+            )
+            .unwrap();
 
             // Define headers for the average table
-            let avg_headers = [
-                "Saturator",
-                "Time",
-                "Nodes",
-                "Classes",
-                "Min Cost",
-            ];
+            let avg_headers = ["Saturator", "Time", "Nodes", "Classes", "Min Cost"];
 
             // Calculate column widths for the average table
             let mut avg_col_widths: Vec<usize> = avg_headers.iter().map(|h| h.len()).collect();
@@ -267,7 +284,8 @@ impl OutcomeFormatter for PrettyTableFormatter {
                 avg_col_widths[1] = avg_col_widths[1].max(format!("{:?}", avg_outcome.time).len());
                 avg_col_widths[2] = avg_col_widths[2].max(format!("{}", avg_outcome.nodes).len());
                 avg_col_widths[3] = avg_col_widths[3].max(format!("{}", avg_outcome.classes).len());
-                avg_col_widths[4] = avg_col_widths[4].max(format!("{}", avg_outcome.min_cost).len());
+                avg_col_widths[4] =
+                    avg_col_widths[4].max(format!("{}", avg_outcome.min_cost).len());
             }
             for width in avg_col_widths.iter_mut() {
                 *width = (*width).min(MAX_COL_WIDTH);
@@ -280,10 +298,14 @@ impl OutcomeFormatter for PrettyTableFormatter {
             // Print rows for average table
             for (saturator_name, avg_outcome) in all_saturator_avg_outcomes {
                 let saturator_name_formatted = format_cell(saturator_name, avg_col_widths[0]);
-                let time_formatted = format_cell(format!("{:?}", avg_outcome.time), avg_col_widths[1]);
-                let nodes_formatted = format_cell(format!("{}", avg_outcome.nodes), avg_col_widths[2]);
-                let classes_formatted = format_cell(format!("{}", avg_outcome.classes), avg_col_widths[3]);
-                let min_cost_formatted = format_cell(format!("{}", avg_outcome.min_cost), avg_col_widths[4]);
+                let time_formatted =
+                    format_cell(format!("{:?}", avg_outcome.time), avg_col_widths[1]);
+                let nodes_formatted =
+                    format_cell(format!("{}", avg_outcome.nodes), avg_col_widths[2]);
+                let classes_formatted =
+                    format_cell(format!("{}", avg_outcome.classes), avg_col_widths[3]);
+                let min_cost_formatted =
+                    format_cell(format!("{}", avg_outcome.min_cost), avg_col_widths[4]);
 
                 let cells = vec![
                     saturator_name_formatted,
@@ -292,7 +314,13 @@ impl OutcomeFormatter for PrettyTableFormatter {
                     classes_formatted,
                     min_cost_formatted,
                 ];
-                print_table_row(&mut buffer, cells, &avg_col_widths, avg_headers.len(), false);
+                print_table_row(
+                    &mut buffer,
+                    cells,
+                    &avg_col_widths,
+                    avg_headers.len(),
+                    false,
+                );
             }
         }
 

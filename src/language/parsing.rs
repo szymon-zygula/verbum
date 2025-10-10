@@ -2,7 +2,6 @@ use super::{
     Language,
     expression::{Expression, Literal, VarFreeExpression},
     symbol::Symbol,
-    
 };
 use pest::{Parser, iterators::Pair};
 use pest_derive::Parser;
