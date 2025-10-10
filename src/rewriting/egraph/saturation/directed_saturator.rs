@@ -64,46 +64,55 @@ mod tests {
         saturator.saturate(egraph, rules, config)
     }
 
+    // Helpers to reduce repetition in assertions and runs
+    fn class_of(egraph: &mut EGraph<SimpleMathLocalCost>, lang: &Language, expr: &str) -> usize {
+        let id = egraph.add_expression(lang.parse_no_vars(expr).unwrap());
+        egraph.canonical_class(id)
+    }
+
+    fn assert_equivalent(
+        egraph: &mut EGraph<SimpleMathLocalCost>,
+        lang: &Language,
+        a: &str,
+        b: &str,
+    ) {
+        assert_eq!(class_of(egraph, lang, a), class_of(egraph, lang, b));
+    }
+
+    fn run(
+        lang: &Language,
+        start_expr: &str,
+        rules: &[Rule],
+        config: &SaturationConfig,
+    ) -> (EGraph<SimpleMathLocalCost>, SaturationStopReason) {
+        let mut egraph = make_egraph(lang, start_expr);
+        let reason = saturate(&mut egraph, rules, config);
+        (egraph, reason)
+    }
+
     #[test]
     fn test_directed_saturator_simple_math() {
         let lang = Language::simple_math();
         let rules = simple_math_rules(&lang);
         let config = SaturationConfig::default();
 
-        // Test case 1: (/ (* (sin 5) 2) 2) should become (sin 5)
-        let mut egraph_1 = make_egraph(&lang, "(/ (* (sin 5) 2) 2)");
-        let initial_expr_1_root_id =
-            egraph_1.add_expression(lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap());
+        let (mut egraph, reason) = run(&lang, "(/ (* (sin 5) 2) 2)", &rules, &config);
+        assert_eq!(reason, SaturationStopReason::Saturated);
 
-        let reason_1 = saturate(&mut egraph_1, &rules, &config);
-        assert_eq!(reason_1, SaturationStopReason::Saturated);
-
-        let expected_expr_1_root_id =
-            egraph_1.add_expression(lang.parse_no_vars("(sin 5)").unwrap());
-        assert_eq!(
-            egraph_1.union_find.find(initial_expr_1_root_id),
-            egraph_1.union_find.find(expected_expr_1_root_id)
-        );
+        assert_equivalent(&mut egraph, &lang, "(/ (* (sin 5) 2) 2)", "(sin 5)");
     }
 
     #[test]
     fn test_directed_saturator_no_rules() {
         let lang = Language::simple_math();
-        let rules = vec![];
+        let rules: Vec<Rule> = vec![];
         let config = SaturationConfig::default();
 
-        let mut egraph = make_egraph(&lang, "(+ 1 2)");
-        let initial_id = egraph.add_expression(lang.parse_no_vars("(+ 1 2)").unwrap());
-
-        let reason = saturate(&mut egraph, &rules, &config);
+        let (egraph, reason) = run(&lang, "(+ 1 2)", &rules, &config);
         assert_eq!(reason, SaturationStopReason::Saturated);
 
         // Ensure no changes occurred
-        let expected_id = egraph.add_expression(lang.parse_no_vars("(+ 1 2)").unwrap());
-        assert_eq!(
-            egraph.union_find.find(initial_id),
-            egraph.union_find.find(expected_id)
-        );
+        assert_eq!(egraph.total_node_count(), 3);
     }
 
     #[test]
@@ -112,19 +121,11 @@ mod tests {
         let rules = simple_math_rules(&lang);
         let config = SaturationConfig::default();
 
-        // E-graph is already in a saturated state for these rules
-        let mut egraph = make_egraph(&lang, "(sin 5)");
-        let initial_id = egraph.add_expression(lang.parse_no_vars("(sin 5)").unwrap());
-
-        let reason = saturate(&mut egraph, &rules, &config);
+        let (egraph, reason) = run(&lang, "(sin 5)", &rules, &config);
         assert_eq!(reason, SaturationStopReason::Saturated);
 
         // Ensure no changes occurred
-        let expected_id = egraph.add_expression(lang.parse_no_vars("(sin 5)").unwrap());
-        assert_eq!(
-            egraph.union_find.find(initial_id),
-            egraph.union_find.find(expected_id)
-        );
+        assert_eq!(egraph.total_node_count(), 2);
     }
 
     #[test]
@@ -135,19 +136,10 @@ mod tests {
         );
         let config = SaturationConfig::default();
 
-        let mut egraph = make_egraph(&lang, "(+ (+ 1 1) (+ 1 1))");
-        let initial_id = egraph.add_expression(lang.parse_no_vars("(+ (+ 1 1) (+ 1 1))").unwrap());
-
-        let reason = saturate(&mut egraph, &rules, &config);
+        let (mut egraph, reason) = run(&lang, "(+ (+ 1 1) (+ 1 1))", &rules, &config);
         assert_eq!(reason, SaturationStopReason::Saturated);
 
-        // (+ (+ 1 1) (+ 1 1)) should become (* (* 1 2) 2)
-        let expected_expr = lang.parse_no_vars("(* (* 1 2) 2)").unwrap();
-        let expected_id = egraph.add_expression(expected_expr.clone());
-        assert_eq!(
-            egraph.union_find.find(initial_id),
-            egraph.union_find.find(expected_id)
-        );
+        assert_equivalent(&mut egraph, &lang, "(+ (+ 1 1) (+ 1 1))", "(* (* 1 2) 2)");
     }
 
     #[test]
@@ -159,19 +151,10 @@ mod tests {
         );
         let config = SaturationConfig::default();
 
-        let mut egraph = make_egraph(&lang, "(+ 1 1)");
-        let initial_id = egraph.add_expression(lang.parse_no_vars("(+ 1 1)").unwrap());
-
-        let reason = saturate(&mut egraph, &rules, &config);
+        let (mut egraph, reason) = run(&lang, "(+ 1 1)", &rules, &config);
         assert_eq!(reason, SaturationStopReason::Saturated);
 
-        // (+ 1 1) should become (1 << 1)
-        let expected_expr = lang.parse_no_vars("(<< 1 1)").unwrap();
-        let expected_id = egraph.add_expression(expected_expr.clone());
-        assert_eq!(
-            egraph.union_find.find(initial_id),
-            egraph.union_find.find(expected_id)
-        );
+        assert_equivalent(&mut egraph, &lang, "(+ 1 1)", "(<< 1 1)");
     }
 
     #[test]
@@ -186,19 +169,11 @@ mod tests {
             ..Default::default()
         };
 
-        let mut egraph = make_egraph(&lang, "(+ 1 1)");
-        let initial_id = egraph.add_expression(lang.parse_no_vars("(+ 1 1)").unwrap());
-
-        let reason = saturate(&mut egraph, &rules, &config);
+        let (mut egraph, reason) = run(&lang, "(+ 1 1)", &rules, &config);
         assert_eq!(reason, SaturationStopReason::MaxApplications);
 
         // After 1 application, (+ 1 1) should become (* 1 2)
-        let expected_expr = lang.parse_no_vars("(* 1 2)").unwrap();
-        let expected_id = egraph.add_expression(expected_expr.clone());
-        assert_eq!(
-            egraph.canonical_class(initial_id),
-            egraph.canonical_class(expected_id)
-        );
+        assert_equivalent(&mut egraph, &lang, "(+ 1 1)", "(* 1 2)");
     }
 
     #[test]
@@ -213,12 +188,10 @@ mod tests {
             ..Default::default()
         };
 
-        let mut egraph = make_egraph(&lang, "(+ 1 1)");
-
-        let reason = saturate(&mut egraph, &rules, &config);
+        let (egraph, reason) = run(&lang, "(+ 1 1)", &rules, &config);
         assert_eq!(reason, SaturationStopReason::Timeout);
 
-        // The expression might not be fully simplified due to time limit
-        // We just assert that it stopped due to timeout.
+        // Ensure no changes occurred
+        assert_eq!(egraph.total_node_count(), 2);
     }
 }
