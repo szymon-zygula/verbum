@@ -38,3 +38,53 @@ impl<A: Analysis> Scheduler<A> for RoundRobinScheduler {
         0
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::language::Language;
+    use crate::macros::rules;
+    use crate::rewriting::egraph::EGraph;
+    use crate::rewriting::egraph::matching::top_down::TopDownMatcher;
+    use crate::rewriting::egraph::saturation::scheduler::Scheduler;
+    use crate::rewriting::rule::Rule;
+
+    use super::RoundRobinScheduler;
+
+    #[test]
+    fn round_robin_basic_progress() {
+        let lang = Language::simple_math();
+        let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("1").unwrap());
+        let rules = rules![
+            &lang;
+            "1" => "2",
+            "2" => "3",
+            "3" => "4",
+        ];
+
+        let mut sched = RoundRobinScheduler::new();
+
+        // Step 1: apply 1 -> 2
+        let applied1 = sched.apply_next(&mut egraph, &rules, &TopDownMatcher);
+        assert_eq!(applied1, 1);
+        // Step 2: apply 2 -> 3
+        let applied2 = sched.apply_next(&mut egraph, &rules, &TopDownMatcher);
+        assert_eq!(applied2, 1);
+        // Step 3: apply 3 -> 4
+        let applied3 = sched.apply_next(&mut egraph, &rules, &TopDownMatcher);
+        assert_eq!(applied3, 1);
+        // Step 4: saturated for these rules
+        let applied4 = sched.apply_next(&mut egraph, &rules, &TopDownMatcher);
+        assert_eq!(applied4, 0);
+    }
+
+    #[test]
+    fn round_robin_no_rules_returns_zero() {
+        let lang = Language::simple_math();
+        let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("2").unwrap());
+        let rules: Vec<Rule> = vec![];
+
+        let mut sched = RoundRobinScheduler::new();
+        let applied = sched.apply_next(&mut egraph, &rules, &TopDownMatcher);
+        assert_eq!(applied, 0);
+    }
+}
