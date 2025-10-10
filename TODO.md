@@ -1,5 +1,9 @@
-- Should implement SimpleSaturator and Directed Saturator as wrappers for ScheduledSaturator
-- Add creation of rule dependency graph
+# NOW
+- Hashconsing
+- More benchmarks!
+- Use dependency graphs
+
+# Other
 - Add target expression guessing in e-graphs
 - Add directed saturation (direction of the target expression, like A*)
 - Try creating the target expression using Monte-Carlo
@@ -12,11 +16,13 @@
 
 To consider in directed saturation:
 - Why is Directed saturation by sorting faster than regular saturation when the e-graph is saturated anyways!?
+- Formulate clearly: creating target expressions
 - When a single e-class is a child of many expressions, it contributes a lot to the cost, this should be considered.
 - if a cheapening rewrite rule is of the form f(g(...)) -> h(...) and the egraph has form g(...),
   should we look to make it of the form f(g(...))? what about when e-graph is of the form f(...) (no g inside)?
-- Formulate clearly: creating target expressions
 
 Agent chores:
+- schedulers should take rules on construction to do precomputations on them.
+- Reduce test repetition
 - Make it so that languages are in a different JSON, together with costs?
 - Add more expressions in main benchmarking
