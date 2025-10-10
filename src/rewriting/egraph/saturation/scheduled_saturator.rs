@@ -1,6 +1,10 @@
+use std::time::Instant;
+
 use super::super::Analysis;
 use crate::rewriting::egraph::EGraph;
+use crate::rewriting::egraph::matching::Matcher;
 use crate::rewriting::egraph::saturation::scheduler::Scheduler;
+use crate::rewriting::egraph::saturation::{SaturationConfig, SaturationStopReason, check_limits};
 use crate::rewriting::rule::Rule;
 
 pub struct ScheduledSaturator<A> {
@@ -12,9 +16,27 @@ impl<A: Analysis> ScheduledSaturator<A> {
         Self { scheduler }
     }
 
-    pub fn saturate(&mut self, egraph: &mut EGraph<A>, rules: &[Rule]) {
-        while self.scheduler.apply_rule(egraph, rules) {
-            // Loop until the scheduler indicates no more rules can be applied.
+    pub fn run(
+        &mut self,
+        egraph: &mut EGraph<A>,
+        rules: &[Rule],
+        config: &SaturationConfig,
+        matcher: &dyn Matcher,
+    ) -> SaturationStopReason {
+        let start = Instant::now();
+        let mut applications: usize = 0;
+
+        loop {
+            if let Some(reason) = check_limits(egraph, applications, start, config) {
+                return reason;
+            }
+
+            let applied = self.scheduler.apply_next(egraph, rules, matcher);
+            if applied == 0 {
+                return SaturationStopReason::Saturated;
+            }
+
+            applications += applied;
         }
     }
 }
@@ -23,7 +45,8 @@ impl<A: Analysis> ScheduledSaturator<A> {
 mod tests {
     use super::*;
     use crate::language::{Language, expression::Literal};
-    use crate::rewriting::egraph::{DynEGraph, Node, matching::top_down::TopDownMatcher};
+    use crate::rewriting::egraph::matching::top_down::TopDownMatcher;
+    use crate::rewriting::egraph::{DynEGraph, Node};
 
     // A simple scheduler for testing purposes
     struct TestScheduler {
@@ -37,17 +60,22 @@ mod tests {
     }
 
     impl<A: Analysis> Scheduler<A> for TestScheduler {
-        fn apply_rule(&mut self, egraph: &mut EGraph<A>, rules: &[Rule]) -> bool {
+        fn apply_next(
+            &mut self,
+            egraph: &mut EGraph<A>,
+            rules: &[Rule],
+            matcher: &dyn Matcher,
+        ) -> usize {
             if self.iterations == 0 {
-                return false;
+                return 0;
             }
             self.iterations -= 1;
 
-            let mut changed = false;
+            let mut total = 0usize;
             for rule in rules {
-                changed |= rule.apply(egraph, &TopDownMatcher) > 0;
+                total += rule.apply(egraph, matcher);
             }
-            changed
+            total
         }
     }
 
@@ -61,7 +89,13 @@ mod tests {
         let scheduler = Box::new(TestScheduler::new(1)); // Apply rules once
         let mut saturator = ScheduledSaturator::new(scheduler);
 
-        saturator.saturate(&mut egraph, &rules);
+        let reason = saturator.run(
+            &mut egraph,
+            &rules,
+            &SaturationConfig::default(),
+            &TopDownMatcher,
+        );
+        assert_eq!(reason, SaturationStopReason::Saturated);
 
         assert_eq!(egraph.class_count(), 1);
         assert_eq!(egraph.actual_node_count(), 2);
@@ -80,7 +114,13 @@ mod tests {
         let scheduler = Box::new(TestScheduler::new(2)); // Apply rules twice
         let mut saturator = ScheduledSaturator::new(scheduler);
 
-        saturator.saturate(&mut egraph, &rules);
+        let reason = saturator.run(
+            &mut egraph,
+            &rules,
+            &SaturationConfig::default(),
+            &TopDownMatcher,
+        );
+        assert_eq!(reason, SaturationStopReason::Saturated);
 
         assert_eq!(egraph.class_count(), 1);
         assert_eq!(egraph.actual_node_count(), 3);

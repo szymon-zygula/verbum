@@ -1,9 +1,9 @@
-use std::time::Instant;
-
 use crate::rewriting::rule::Rule;
 
-use super::{Analysis, EGraph, SaturationConfig, SaturationStopReason, Saturator, check_limits};
+use super::{Analysis, EGraph, SaturationConfig, SaturationStopReason, Saturator};
 use crate::rewriting::egraph::matching::Matcher;
+use crate::rewriting::egraph::saturation::scheduled_saturator::ScheduledSaturator;
+use crate::rewriting::egraph::saturation::scheduler::RoundRobinScheduler;
 
 pub struct SimpleSaturator {
     matcher: Box<dyn Matcher>,
@@ -22,41 +22,9 @@ impl<A: Analysis> Saturator<A> for SimpleSaturator {
         rules: &[Rule],
         config: &SaturationConfig,
     ) -> SaturationStopReason {
-        let start = Instant::now();
-        let mut applications: usize = 0;
-
-        // Early check in case the initial graph already violates limits
-        if let Some(reason) = check_limits(egraph, applications, start, config) {
-            return reason;
-        }
-
-        loop {
-            let mut any_applied = false;
-
-            for rule in rules.iter() {
-                // Check time on each rule iteration
-                if let Some(SaturationStopReason::Timeout) =
-                    check_limits(egraph, applications, start, config)
-                {
-                    return SaturationStopReason::Timeout;
-                }
-
-                let current_applications = rule.apply(egraph, &*self.matcher);
-
-                if current_applications > 0 {
-                    applications += current_applications;
-                    any_applied = true;
-
-                    if let Some(reason) = check_limits(egraph, applications, start, config) {
-                        return reason;
-                    }
-                }
-            }
-
-            if !any_applied {
-                return SaturationStopReason::Saturated;
-            }
-        }
+        let scheduler = Box::new(RoundRobinScheduler::new());
+        let mut saturator = ScheduledSaturator::new(scheduler);
+        saturator.run(egraph, rules, config, &*self.matcher)
     }
 }
 
