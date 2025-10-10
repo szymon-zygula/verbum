@@ -51,6 +51,19 @@ mod tests {
         )
     }
 
+    fn make_egraph(lang: &Language, expr: &str) -> EGraph<SimpleMathLocalCost> {
+        EGraph::from_expression(lang.parse_no_vars(expr).unwrap())
+    }
+
+    fn saturate(
+        egraph: &mut EGraph<SimpleMathLocalCost>,
+        rules: &[Rule],
+        config: &SaturationConfig,
+    ) -> SaturationStopReason {
+        let saturator = DirectedSaturator::new(Box::new(BottomUpMatcher));
+        saturator.saturate(egraph, rules, config)
+    }
+
     #[test]
     fn test_directed_saturator_simple_math() {
         let lang = Language::simple_math();
@@ -58,14 +71,11 @@ mod tests {
         let config = SaturationConfig::default();
 
         // Test case 1: (/ (* (sin 5) 2) 2) should become (sin 5)
-        let mut egraph_1 = EGraph::<SimpleMathLocalCost>::from_expression(
-            lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap(),
-        );
+        let mut egraph_1 = make_egraph(&lang, "(/ (* (sin 5) 2) 2)");
         let initial_expr_1_root_id =
             egraph_1.add_expression(lang.parse_no_vars("(/ (* (sin 5) 2) 2)").unwrap());
 
-        let saturator_1 = DirectedSaturator::new(Box::new(BottomUpMatcher));
-        let reason_1 = saturator_1.saturate(&mut egraph_1, &rules, &config);
+        let reason_1 = saturate(&mut egraph_1, &rules, &config);
         assert_eq!(reason_1, SaturationStopReason::Saturated);
 
         let expected_expr_1_root_id =
@@ -82,12 +92,10 @@ mod tests {
         let rules = vec![];
         let config = SaturationConfig::default();
 
-        let mut egraph =
-            EGraph::<SimpleMathLocalCost>::from_expression(lang.parse_no_vars("(+ 1 2)").unwrap());
+        let mut egraph = make_egraph(&lang, "(+ 1 2)");
         let initial_id = egraph.add_expression(lang.parse_no_vars("(+ 1 2)").unwrap());
 
-        let saturator = DirectedSaturator::new(Box::new(BottomUpMatcher));
-        let reason = saturator.saturate(&mut egraph, &rules, &config);
+        let reason = saturate(&mut egraph, &rules, &config);
         assert_eq!(reason, SaturationStopReason::Saturated);
 
         // Ensure no changes occurred
@@ -105,12 +113,10 @@ mod tests {
         let config = SaturationConfig::default();
 
         // E-graph is already in a saturated state for these rules
-        let mut egraph =
-            EGraph::<SimpleMathLocalCost>::from_expression(lang.parse_no_vars("(sin 5)").unwrap());
+        let mut egraph = make_egraph(&lang, "(sin 5)");
         let initial_id = egraph.add_expression(lang.parse_no_vars("(sin 5)").unwrap());
 
-        let saturator = DirectedSaturator::new(Box::new(BottomUpMatcher));
-        let reason = saturator.saturate(&mut egraph, &rules, &config);
+        let reason = saturate(&mut egraph, &rules, &config);
         assert_eq!(reason, SaturationStopReason::Saturated);
 
         // Ensure no changes occurred
@@ -129,13 +135,10 @@ mod tests {
         );
         let config = SaturationConfig::default();
 
-        let mut egraph = EGraph::<SimpleMathLocalCost>::from_expression(
-            lang.parse_no_vars("(+ (+ 1 1) (+ 1 1))").unwrap(),
-        );
+        let mut egraph = make_egraph(&lang, "(+ (+ 1 1) (+ 1 1))");
         let initial_id = egraph.add_expression(lang.parse_no_vars("(+ (+ 1 1) (+ 1 1))").unwrap());
 
-        let saturator = DirectedSaturator::new(Box::new(BottomUpMatcher));
-        let reason = saturator.saturate(&mut egraph, &rules, &config);
+        let reason = saturate(&mut egraph, &rules, &config);
         assert_eq!(reason, SaturationStopReason::Saturated);
 
         // (+ (+ 1 1) (+ 1 1)) should become (* (* 1 2) 2)
@@ -156,12 +159,10 @@ mod tests {
         );
         let config = SaturationConfig::default();
 
-        let mut egraph =
-            EGraph::<SimpleMathLocalCost>::from_expression(lang.parse_no_vars("(+ 1 1)").unwrap());
+        let mut egraph = make_egraph(&lang, "(+ 1 1)");
         let initial_id = egraph.add_expression(lang.parse_no_vars("(+ 1 1)").unwrap());
 
-        let saturator = DirectedSaturator::new(Box::new(BottomUpMatcher));
-        let reason = saturator.saturate(&mut egraph, &rules, &config);
+        let reason = saturate(&mut egraph, &rules, &config);
         assert_eq!(reason, SaturationStopReason::Saturated);
 
         // (+ 1 1) should become (1 << 1)
@@ -185,12 +186,10 @@ mod tests {
             ..Default::default()
         };
 
-        let mut egraph =
-            EGraph::<SimpleMathLocalCost>::from_expression(lang.parse_no_vars("(+ 1 1)").unwrap());
+        let mut egraph = make_egraph(&lang, "(+ 1 1)");
         let initial_id = egraph.add_expression(lang.parse_no_vars("(+ 1 1)").unwrap());
 
-        let saturator = DirectedSaturator::new(Box::new(BottomUpMatcher));
-        let reason = saturator.saturate(&mut egraph, &rules, &config);
+        let reason = saturate(&mut egraph, &rules, &config);
         assert_eq!(reason, SaturationStopReason::MaxApplications);
 
         // After 1 application, (+ 1 1) should become (* 1 2)
@@ -214,11 +213,9 @@ mod tests {
             ..Default::default()
         };
 
-        let mut egraph =
-            EGraph::<SimpleMathLocalCost>::from_expression(lang.parse_no_vars("(+ 1 1)").unwrap());
+        let mut egraph = make_egraph(&lang, "(+ 1 1)");
 
-        let saturator = DirectedSaturator::new(Box::new(BottomUpMatcher));
-        let reason = saturator.saturate(&mut egraph, &rules, &config);
+        let reason = saturate(&mut egraph, &rules, &config);
         assert_eq!(reason, SaturationStopReason::Timeout);
 
         // The expression might not be fully simplified due to time limit

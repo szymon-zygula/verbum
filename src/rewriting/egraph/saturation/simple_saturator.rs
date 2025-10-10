@@ -43,6 +43,26 @@ mod tests {
     use super::SimpleSaturator;
     use super::{SaturationConfig, SaturationStopReason, Saturator};
 
+    fn default_rules(lang: &Language) -> Vec<Rule> {
+        vec![
+            Rule::from_strings("(* $0 2)", "(<< $0 1)", lang),
+            Rule::from_strings("(* $0 1)", "$0", lang),
+        ]
+    }
+
+    fn new_egraph(lang: &Language, expr: &str) -> EGraph<()> {
+        EGraph::from_expression(lang.parse_no_vars(expr).unwrap())
+    }
+
+    fn run(
+        egraph: &mut EGraph<()>,
+        rules: &[Rule],
+        config: &SaturationConfig,
+    ) -> SaturationStopReason {
+        let saturator = SimpleSaturator::new(Box::new(BottomUpMatcher));
+        saturator.saturate(egraph, rules, config)
+    }
+
     #[test]
     fn classical_test() {
         let lang = Language::simple_math();
@@ -67,14 +87,10 @@ mod tests {
     #[test]
     fn stops_on_max_applications() {
         let lang = Language::simple_math();
-        let rules = vec![
-            Rule::from_strings("(* $0 2)", "(<< $0 1)", &lang),
-            Rule::from_strings("(* $0 1)", "$0", &lang),
-        ];
-        let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
+        let rules = default_rules(&lang);
+        let mut egraph = new_egraph(&lang, "(* 3 2)");
 
-        let saturator = SimpleSaturator::new(Box::new(BottomUpMatcher));
-        let reason = saturator.saturate(
+        let reason = run(
             &mut egraph,
             &rules,
             &SaturationConfig {
@@ -88,14 +104,10 @@ mod tests {
     #[test]
     fn stops_on_timeout() {
         let lang = Language::simple_math();
-        let rules = vec![
-            Rule::from_strings("(* $0 2)", "(<< $0 1)", &lang),
-            Rule::from_strings("(* $0 1)", "$0", &lang),
-        ];
-        let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
+        let rules = default_rules(&lang);
+        let mut egraph = new_egraph(&lang, "(* 3 2)");
 
-        let saturator = SimpleSaturator::new(Box::new(BottomUpMatcher));
-        let reason = saturator.saturate(
+        let reason = run(
             &mut egraph,
             &rules,
             &SaturationConfig {
@@ -109,14 +121,10 @@ mod tests {
     #[test]
     fn stops_on_max_nodes() {
         let lang = Language::simple_math();
-        let rules = vec![
-            Rule::from_strings("(* $0 2)", "(<< $0 1)", &lang),
-            Rule::from_strings("(* $0 1)", "$0", &lang),
-        ];
-        let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
+        let rules = default_rules(&lang);
+        let mut egraph = new_egraph(&lang, "(* 3 2)");
 
-        let saturator = SimpleSaturator::new(Box::new(BottomUpMatcher));
-        let reason = saturator.saturate(
+        let reason = run(
             &mut egraph,
             &rules,
             &SaturationConfig {
@@ -130,14 +138,10 @@ mod tests {
     #[test]
     fn stops_on_max_classes() {
         let lang = Language::simple_math();
-        let rules = vec![
-            Rule::from_strings("(* $0 2)", "(<< $0 1)", &lang),
-            Rule::from_strings("(* $0 1)", "$0", &lang),
-        ];
-        let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(* 3 2)").unwrap());
+        let rules = default_rules(&lang);
+        let mut egraph = new_egraph(&lang, "(* 3 2)");
 
-        let saturator = SimpleSaturator::new(Box::new(BottomUpMatcher));
-        let reason = saturator.saturate(
+        let reason = run(
             &mut egraph,
             &rules,
             &SaturationConfig {
