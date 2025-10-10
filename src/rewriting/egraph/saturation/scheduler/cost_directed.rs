@@ -9,7 +9,7 @@ use crate::rewriting::rule::Rule;
 
 use super::Scheduler;
 
-/// Computes the cost of a rule for a given `LocalCost` analysis.
+/// Computes the local-cost delta of a rule for a given `LocalCost` analysis.
 pub fn rule_cost<LC: LocalCost>(rule: &Rule) -> LC {
     LC::expression_cost(rule.to()) - LC::expression_cost(rule.from())
 }
@@ -34,8 +34,8 @@ impl<LC: LocalCost> Scheduler<LC> for CostDirectedScheduler<LC> {
         rules: &[Rule],
         matcher: &dyn Matcher,
     ) -> usize {
-        // Sort by increasing cost delta; recompute each step to keep it simple for now.
-        // TODO: this should be computed only once of course.
+        // Sort by increasing cost, recompute each step to keep it simple.
+        // TODO: This should of course be precomputed only once
         for rule in rules
             .iter()
             .map(|r| (r, rule_cost::<LC>(r)))
@@ -49,5 +49,47 @@ impl<LC: LocalCost> Scheduler<LC> for CostDirectedScheduler<LC> {
         }
 
         0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::language::Language;
+    use crate::macros::rules;
+    use crate::rewriting::egraph::class::simple_math_local_cost::SimpleMathLocalCost;
+    use crate::rewriting::egraph::matching::top_down::TopDownMatcher;
+    use crate::rewriting::egraph::saturation::scheduler::Scheduler;
+    use crate::rewriting::egraph::{DynEGraph, EGraph};
+
+    use super::CostDirectedScheduler;
+
+    #[test]
+    fn cost_directed_prefers_lower_cost_delta() {
+        let lang = Language::simple_math();
+        // Start from an expression matching both rules
+        let mut egraph =
+            EGraph::<SimpleMathLocalCost>::from_expression(lang.parse_no_vars("(+ 3 0)").unwrap());
+
+        // Put the more expensive rule first to ensure ordering is by cost, not input order.
+        // Costs with SimpleMathLocalCost:
+        //   from: (+ $0 0) => cost = 1 ("+") + 0 (var) + 1 (literal) = 2
+        //   to1:  (* $0 1) => 4 ("*") + 0 (var) + 1 (literal) = 5   => delta = +3
+        //   to2:  $0        => 0                                   => delta = -2
+        let rules = rules![
+            &lang;
+            "(+ $0 0)" => "(* $0 1)", // expensive
+            "(+ $0 0)" => "$0",        // cheap
+        ];
+
+        let mut sched = CostDirectedScheduler::<SimpleMathLocalCost>::new();
+        let applied = sched.apply_next(&mut egraph, &rules, &TopDownMatcher);
+        assert_eq!(applied, 1, "scheduler should make progress on first step");
+
+        // The first step should choose the cheaper rewrite, so no '*' nodes should be introduced yet.
+        let star_nodes = egraph.find_symbols(lang.get_id("*"));
+        assert!(
+            star_nodes.is_empty(),
+            "expensive '*' rewrite should not be chosen first"
+        );
     }
 }
