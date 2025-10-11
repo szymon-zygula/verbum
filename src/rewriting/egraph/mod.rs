@@ -186,7 +186,7 @@ impl<A: Analysis> EGraph<A> {
         for (&node_id, node) in self.nodes.iter() {
             let canonical = node.canonical(self);
             // `self.nodes` may contain duplicated nodes (e.g. if their children were merged at some point),
-            // after rebuilding hashcons always refer to the id of the largest node_id refering
+            // after rebuilding hashcons always refer to the id of the largest node_id referring
             // to a given node.
             self.node_hashcons.insert(canonical, node_id);
         }
