@@ -21,7 +21,7 @@ pub struct CostDirectedScheduler<LC: LocalCost> {
 
 impl<LC: LocalCost> CostDirectedScheduler<LC> {
     pub fn new(mut rules: Vec<Rule>) -> Self {
-        rules.sort_by(|a, b| rule_cost::<LC>(a).cmp(&rule_cost::<LC>(b)));
+        rules.sort_by_key(|a| rule_cost::<LC>(a));
         Self {
             rules,
             _phantom: PhantomData,

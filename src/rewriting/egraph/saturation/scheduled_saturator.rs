@@ -5,7 +5,6 @@ use crate::rewriting::egraph::EGraph;
 use crate::rewriting::egraph::matching::Matcher;
 use crate::rewriting::egraph::saturation::scheduler::Scheduler;
 use crate::rewriting::egraph::saturation::{SaturationConfig, SaturationStopReason, check_limits};
-use crate::rewriting::rule::Rule;
 
 pub struct ScheduledSaturator<A> {
     scheduler: Box<dyn Scheduler<A>>,
@@ -46,6 +45,7 @@ mod tests {
     use crate::language::{Language, expression::Literal};
     use crate::rewriting::egraph::matching::top_down::TopDownMatcher;
     use crate::rewriting::egraph::{DynEGraph, Node};
+    use crate::rewriting::rule::Rule;
 
     // A simple scheduler for testing purposes
     struct TestScheduler {
