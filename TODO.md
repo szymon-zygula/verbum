@@ -9,10 +9,8 @@
 - Add a new extractor implemetnation for Analysis implementing `LocalCost`,
   such that it does not calculate the costs from the beginning but takes them from the analysis instead.
   This will probably run in `O(1)`.
-  
 
 To consider in directed saturation:
-- Why is Directed saturation by sorting faster than regular saturation when the e-graph is saturated anyways!?
 - Formulate clearly: creating target expressions
 - When a single e-class is a child of many expressions, it contributes a lot to the cost, this should be considered.
 - if a cheapening rewrite rule is of the form f(g(...)) -> h(...) and the egraph has form g(...),
