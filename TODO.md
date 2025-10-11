@@ -1,5 +1,4 @@
 # NOW
-- Hashconsing
 - More benchmarks!
 - Use dependency graphs
 
@@ -10,8 +9,6 @@
 - Add a new extractor implemetnation for Analysis implementing `LocalCost`,
   such that it does not calculate the costs from the beginning but takes them from the analysis instead.
   This will probably run in `O(1)`.
-- make EGraphs not generic over analysis? Analysis dynamic, additionally AnalysisManager?
-   (then it would be possible to have one `LocalCost` whose manager keeps hashmap of symbol costs and exposes the `make` method)
   
 
 To consider in directed saturation:

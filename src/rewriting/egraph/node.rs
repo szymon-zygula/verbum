@@ -2,7 +2,7 @@ use crate::language::{expression::Literal, symbol::Symbol};
 
 use super::{Analysis, ClassId, DynEGraph, EGraph};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Node {
     Literal(Literal),
     Symbol(Symbol<ClassId>),
