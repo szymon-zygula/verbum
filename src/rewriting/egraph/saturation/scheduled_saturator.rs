@@ -19,7 +19,6 @@ impl<A: Analysis> ScheduledSaturator<A> {
     pub fn run(
         &mut self,
         egraph: &mut EGraph<A>,
-        rules: &[Rule],
         config: &SaturationConfig,
         matcher: &dyn Matcher,
     ) -> SaturationStopReason {
@@ -31,7 +30,7 @@ impl<A: Analysis> ScheduledSaturator<A> {
                 return reason;
             }
 
-            let applied = self.scheduler.apply_next(egraph, rules, matcher);
+            let applied = self.scheduler.apply_next(egraph, matcher);
             if applied == 0 {
                 return SaturationStopReason::Saturated;
             }
@@ -51,28 +50,24 @@ mod tests {
     // A simple scheduler for testing purposes
     struct TestScheduler {
         iterations: usize,
+        rules: Vec<Rule>,
     }
 
     impl TestScheduler {
-        fn new(iterations: usize) -> Self {
-            Self { iterations }
+        fn new(iterations: usize, rules: Vec<Rule>) -> Self {
+            Self { iterations, rules }
         }
     }
 
     impl<A: Analysis> Scheduler<A> for TestScheduler {
-        fn apply_next(
-            &mut self,
-            egraph: &mut EGraph<A>,
-            rules: &[Rule],
-            matcher: &dyn Matcher,
-        ) -> usize {
+        fn apply_next(&mut self, egraph: &mut EGraph<A>, matcher: &dyn Matcher) -> usize {
             if self.iterations == 0 {
                 return 0;
             }
             self.iterations -= 1;
 
             let mut total = 0usize;
-            for rule in rules {
+            for rule in &self.rules {
                 total += rule.apply(egraph, matcher);
             }
             total
@@ -83,18 +78,12 @@ mod tests {
     fn test_scheduled_saturator_basic() {
         let lang = Language::simple_math();
         let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("1").unwrap());
-        let rule = Rule::from_strings("1", "2", &lang);
-        let rules = vec![rule];
+        let rules = vec![Rule::from_strings("1", "2", &lang)];
 
-        let scheduler = Box::new(TestScheduler::new(1)); // Apply rules once
+        let scheduler = Box::new(TestScheduler::new(1, rules)); // Apply rules once
         let mut saturator = ScheduledSaturator::new(scheduler);
 
-        let reason = saturator.run(
-            &mut egraph,
-            &rules,
-            &SaturationConfig::default(),
-            &TopDownMatcher,
-        );
+        let reason = saturator.run(&mut egraph, &SaturationConfig::default(), &TopDownMatcher);
         assert_eq!(reason, SaturationStopReason::Saturated);
 
         assert_eq!(egraph.class_count(), 1);
@@ -107,19 +96,15 @@ mod tests {
     fn test_scheduled_saturator_multiple_iterations() {
         let lang = Language::simple_math();
         let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("1").unwrap());
-        let rule1 = Rule::from_strings("1", "2", &lang);
-        let rule2 = Rule::from_strings("2", "3", &lang);
-        let rules = vec![rule1, rule2];
+        let rules = vec![
+            Rule::from_strings("1", "2", &lang),
+            Rule::from_strings("2", "3", &lang),
+        ];
 
-        let scheduler = Box::new(TestScheduler::new(2)); // Apply rules twice
+        let scheduler = Box::new(TestScheduler::new(2, rules)); // Apply rules twice
         let mut saturator = ScheduledSaturator::new(scheduler);
 
-        let reason = saturator.run(
-            &mut egraph,
-            &rules,
-            &SaturationConfig::default(),
-            &TopDownMatcher,
-        );
+        let reason = saturator.run(&mut egraph, &SaturationConfig::default(), &TopDownMatcher);
         assert_eq!(reason, SaturationStopReason::Saturated);
 
         assert_eq!(egraph.class_count(), 1);

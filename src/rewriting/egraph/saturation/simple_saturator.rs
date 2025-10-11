@@ -22,9 +22,9 @@ impl<A: Analysis> Saturator<A> for SimpleSaturator {
         rules: &[Rule],
         config: &SaturationConfig,
     ) -> SaturationStopReason {
-        let scheduler = Box::new(RoundRobinScheduler::new());
+        let scheduler = Box::new(RoundRobinScheduler::new(rules.to_vec()));
         let mut saturator = ScheduledSaturator::new(scheduler);
-        saturator.run(egraph, rules, config, &*self.matcher)
+        saturator.run(egraph, config, &*self.matcher)
     }
 }
 

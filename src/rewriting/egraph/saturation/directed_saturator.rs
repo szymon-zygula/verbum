@@ -24,9 +24,9 @@ impl<LC: LocalCost + 'static> Saturator<LC> for DirectedSaturator {
         rules: &[Rule],
         config: &SaturationConfig,
     ) -> SaturationStopReason {
-        let scheduler = Box::new(CostDirectedScheduler::<LC>::new());
+        let scheduler = Box::new(CostDirectedScheduler::<LC>::new(rules.to_vec()));
         let mut saturator = ScheduledSaturator::new(scheduler);
-        saturator.run(egraph, rules, config, &*self.matcher)
+        saturator.run(egraph, config, &*self.matcher)
     }
 }
 

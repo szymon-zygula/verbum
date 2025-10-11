@@ -22,7 +22,6 @@ To consider in directed saturation:
   should we look to make it of the form f(g(...))? what about when e-graph is of the form f(...) (no g inside)?
 
 Agent chores:
-- schedulers should take rules on construction to do precomputations on them.
 - Reduce test repetition
 - Make it so that languages are in a different JSON, together with costs?
 - Add more expressions in main benchmarking

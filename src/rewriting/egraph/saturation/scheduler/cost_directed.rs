@@ -1,7 +1,5 @@
 use std::marker::PhantomData;
 
-use itertools::Itertools;
-
 use crate::rewriting::egraph::EGraph;
 use crate::rewriting::egraph::class::local_cost::LocalCost;
 use crate::rewriting::egraph::matching::Matcher;
@@ -16,32 +14,24 @@ pub fn rule_cost<LC: LocalCost>(rule: &Rule) -> LC {
 
 /// Cost-directed scheduler that orders rules by `rule_cost` (ascending) and
 /// applies the first rule that makes progress in each step.
-#[derive(Default)]
 pub struct CostDirectedScheduler<LC: LocalCost> {
+    rules: Vec<Rule>,
     _phantom: PhantomData<LC>,
 }
 
 impl<LC: LocalCost> CostDirectedScheduler<LC> {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(mut rules: Vec<Rule>) -> Self {
+        rules.sort_by(|a, b| rule_cost::<LC>(a).cmp(&rule_cost::<LC>(b)));
+        Self {
+            rules,
+            _phantom: PhantomData,
+        }
     }
 }
 
 impl<LC: LocalCost> Scheduler<LC> for CostDirectedScheduler<LC> {
-    fn apply_next(
-        &mut self,
-        egraph: &mut EGraph<LC>,
-        rules: &[Rule],
-        matcher: &dyn Matcher,
-    ) -> usize {
-        // Sort by increasing cost, recompute each step to keep it simple.
-        // TODO: This should of course be precomputed only once
-        for rule in rules
-            .iter()
-            .map(|r| (r, rule_cost::<LC>(r)))
-            .sorted_by(|(_, c1), (_, c2)| c1.cmp(c2))
-            .map(|(r, _)| r)
-        {
+    fn apply_next(&mut self, egraph: &mut EGraph<LC>, matcher: &dyn Matcher) -> usize {
+        for rule in self.rules.iter() {
             let applied = rule.apply(egraph, matcher);
             if applied > 0 {
                 return applied;
@@ -81,8 +71,8 @@ mod tests {
             "(+ $0 0)" => "$0",        // cheap
         ];
 
-        let mut sched = CostDirectedScheduler::<SimpleMathLocalCost>::new();
-        let applied = sched.apply_next(&mut egraph, &rules, &TopDownMatcher);
+        let mut sched = CostDirectedScheduler::<SimpleMathLocalCost>::new(rules);
+        let applied = sched.apply_next(&mut egraph, &TopDownMatcher);
         assert_eq!(applied, 1, "scheduler should make progress on first step");
 
         // The first step should choose the cheaper rewrite, so no '*' nodes should be introduced yet.

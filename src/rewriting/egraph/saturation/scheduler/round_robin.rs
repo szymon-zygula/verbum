@@ -6,29 +6,27 @@ use super::Scheduler;
 
 /// Round-robin scheduler that cycles through rules and applies the first
 /// applicable rule. It advances the starting index after each successful step.
-#[derive(Default)]
 pub struct RoundRobinScheduler {
+    rules: Vec<Rule>,
     next_index: usize,
 }
 
 impl RoundRobinScheduler {
-    pub fn new() -> Self {
-        Self { next_index: 0 }
+    pub fn new(rules: Vec<Rule>) -> Self {
+        Self {
+            rules,
+            next_index: 0,
+        }
     }
 }
 
 impl<A: Analysis> Scheduler<A> for RoundRobinScheduler {
-    fn apply_next(
-        &mut self,
-        egraph: &mut EGraph<A>,
-        rules: &[Rule],
-        matcher: &dyn Matcher,
-    ) -> usize {
-        let n = rules.len();
+    fn apply_next(&mut self, egraph: &mut EGraph<A>, matcher: &dyn Matcher) -> usize {
+        let n = self.rules.len();
 
         for offset in 0..n {
             let idx = (self.next_index + offset) % n;
-            let applied = rules[idx].apply(egraph, matcher);
+            let applied = self.rules[idx].apply(egraph, matcher);
             if applied > 0 {
                 self.next_index = (idx + 1) % n;
                 return applied;
@@ -61,19 +59,19 @@ mod tests {
             "3" => "4",
         ];
 
-        let mut sched = RoundRobinScheduler::new();
+        let mut sched = RoundRobinScheduler::new(rules);
 
         // Step 1: apply 1 -> 2
-        let applied1 = sched.apply_next(&mut egraph, &rules, &TopDownMatcher);
+        let applied1 = sched.apply_next(&mut egraph, &TopDownMatcher);
         assert_eq!(applied1, 1);
         // Step 2: apply 2 -> 3
-        let applied2 = sched.apply_next(&mut egraph, &rules, &TopDownMatcher);
+        let applied2 = sched.apply_next(&mut egraph, &TopDownMatcher);
         assert_eq!(applied2, 1);
         // Step 3: apply 3 -> 4
-        let applied3 = sched.apply_next(&mut egraph, &rules, &TopDownMatcher);
+        let applied3 = sched.apply_next(&mut egraph, &TopDownMatcher);
         assert_eq!(applied3, 1);
         // Step 4: saturated for these rules
-        let applied4 = sched.apply_next(&mut egraph, &rules, &TopDownMatcher);
+        let applied4 = sched.apply_next(&mut egraph, &TopDownMatcher);
         assert_eq!(applied4, 0);
     }
 
@@ -83,8 +81,8 @@ mod tests {
         let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("2").unwrap());
         let rules: Vec<Rule> = vec![];
 
-        let mut sched = RoundRobinScheduler::new();
-        let applied = sched.apply_next(&mut egraph, &rules, &TopDownMatcher);
+        let mut sched = RoundRobinScheduler::new(rules);
+        let applied = sched.apply_next(&mut egraph, &TopDownMatcher);
         assert_eq!(applied, 0);
     }
 }
