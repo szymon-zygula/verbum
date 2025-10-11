@@ -112,7 +112,7 @@ impl<A: Analysis> EGraph<A> {
     }
 
     fn rebuild_class(&mut self, class_id: ClassId) {
-        // Canonicalize nodes in this class. This may be required when of the nodes in this class
+        // Canonicalize nodes in this class. This may be required when one of the nodes in this class
         // has it as one of its children, and a merge has just been performed.
         self.make_class_canonical(class_id);
 
