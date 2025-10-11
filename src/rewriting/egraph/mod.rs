@@ -32,6 +32,8 @@ pub struct EGraph<A: Analysis> {
     nodes: HashMap<NodeId, Node>,
     // Always kept behind canonical IDs
     classes: HashMap<ClassId, Class<A>>,
+    // Hashcons for canonical nodes
+    node_hashcons: HashMap<Node, NodeId>,
 }
 
 impl<A: Analysis> EGraph<A> {
@@ -52,7 +54,9 @@ impl<A: Analysis> EGraph<A> {
 
     /// Adds a node to the egraph, returning `Old(id)` if the node exists, or `New(id)` if the node
     /// has been added by this call
-    fn add_node(&mut self, node: Node) -> Seen<NodeId> {
+    fn add_node(&mut self, mut node: Node) -> Seen<NodeId> {
+        // Ensure canonical children before any lookup or insertion
+        node.make_canonical(self);
         if let Some(&old_id) = self.node_id(&node).as_ref() {
             return Seen::Old(old_id);
         }
@@ -66,7 +70,10 @@ impl<A: Analysis> EGraph<A> {
             }
         }
 
-        self.nodes.insert(node_id, node);
+        self.nodes.insert(node_id, node.clone());
+
+        // Insert into hashcons under canonical key
+        self.node_hashcons.insert(node, node_id);
 
         let class = Class::from_node(self, node_id);
         self.classes.insert(class_id, class);
@@ -105,7 +112,8 @@ impl<A: Analysis> EGraph<A> {
     }
 
     fn rebuild_class(&mut self, class_id: ClassId) {
-        // Canonicalize nodes in this class
+        // Canonicalize nodes in this class. This may be required when of the nodes in this class
+        // has it as one of its children, and a merge has just been perfomed.
         self.make_class_canonical(class_id);
 
         let class = &self.classes[&class_id];
@@ -172,6 +180,17 @@ impl<A: Analysis> EGraph<A> {
             })
             .collect_vec()
     }
+
+    fn rebuild_hashcons(&mut self) {
+        self.node_hashcons.clear();
+        for (&node_id, node) in self.nodes.iter() {
+            let canonical = node.canonical(self);
+            // `self.nodes` may contain duplicated nodes (e.g. if their children were merged at some point),
+            // after rebuilding hashcons always refer to the id of the largest node_id refering
+            // to a given node.
+            self.node_hashcons.insert(canonical, node_id);
+        }
+    }
 }
 
 pub trait DynEGraph {
@@ -229,17 +248,8 @@ pub trait DynEGraph {
 impl<A: Analysis> DynEGraph for EGraph<A> {
     /// If a given node exists in the e-graph, returns it. Otherwise gives `None`.
     fn node_id(&self, node: &Node) -> Option<NodeId> {
-        // TODO: Add hashcons so that this is speedy
         let node = node.canonical(self);
-
-        for (&candidate_id, candidate_node) in self.nodes.iter() {
-            let candidate_node = candidate_node.canonical(self);
-            if candidate_node == node {
-                return Some(candidate_id);
-            }
-        }
-
-        None
+        self.node_hashcons.get(&node).copied()
     }
 
     fn canonical_class(&self, class_id: ClassId) -> ClassId {
@@ -282,7 +292,7 @@ impl<A: Analysis> DynEGraph for EGraph<A> {
                 self.add_node(node)
                     .map(|node_id| self.containing_class(node_id))
             }
-            MixedExpression::Class(class_id) => Seen::Old(class_id),
+            MixedExpression::Class(class_id) => Seen::Old(self.canonical_class(class_id)),
         }
     }
 
@@ -341,6 +351,9 @@ impl<A: Analysis> DynEGraph for EGraph<A> {
         self.classes.get_mut(&class_2_id).unwrap().merge(class_1);
 
         self.rebuild_class(class_2_id);
+
+        // After rebuilds, hashcons entries may be stale; rebuild it
+        self.rebuild_hashcons();
 
         Seen::New(class_2_id)
     }
@@ -675,5 +688,77 @@ mod tests {
         egraph.merge_classes(plus_class_id, merged_mul_class_id);
         let final_plus_class_id = egraph.containing_class(plus_class_id);
         assert_eq!(egraph.class(final_plus_class_id).analysis().count(), 2);
+    }
+
+    fn assert_children_canonical<A: super::class::analysis::Analysis>(egraph: &EGraph<A>) {
+        for (_cid, class) in egraph.iter_classes() {
+            for &node_id in class.nodes_ids() {
+                let node = egraph.node(node_id);
+                for &child in node.iter_children() {
+                    assert_eq!(
+                        child,
+                        egraph.canonical_class(child),
+                        "non-canonical child {child} in node {node_id}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn canonical_children_after_build() {
+        let lang = Language::simple_math();
+        let expr: VarFreeExpression = lang.parse_no_vars("(* (+ 1 2) (+ 1 3))").unwrap();
+        let egraph = EGraph::<()>::from_expression(expr);
+        assert_children_canonical(&egraph);
+    }
+
+    #[test]
+    fn canonical_children_after_merge() {
+        let lang = Language::simple_math();
+        let expr = lang
+            .parse_no_vars("(* (+ 5 (sin (* 1 7))) (+ 5 (sin (* 1 8))))")
+            .unwrap();
+        let mut egraph = EGraph::<()>::from_expression(expr);
+        let id_7 = egraph.node_id(&Node::Literal(Literal::Int(7))).unwrap();
+        let id_8 = egraph.node_id(&Node::Literal(Literal::Int(8))).unwrap();
+        let class_7 = egraph.containing_class(id_7);
+        let class_8 = egraph.containing_class(id_8);
+        egraph.merge_classes(class_7, class_8);
+        assert_children_canonical(&egraph);
+    }
+
+    #[test]
+    fn canonical_children_after_mixed_add_with_stale_ids() {
+        use crate::language::expression::MixedExpression;
+        let lang = Language::simple_math();
+        let mut egraph = EGraph::<()>::from_expression(lang.parse_no_vars("(+ 1 2)").unwrap());
+        let class_1 = egraph.find_literal(Literal::Int(1)).unwrap();
+        let class_2 = egraph.find_literal(Literal::Int(2)).unwrap();
+        // Merge to make previous IDs stale
+        egraph.merge_classes(class_1, class_2);
+        // Use the pre-merge (potentially stale) IDs in a MixedExpression::Class
+        let plus_id = lang.get_id("+");
+        let sym = Symbol {
+            id: plus_id,
+            children: vec![
+                MixedExpression::Class(class_1),
+                MixedExpression::Class(class_2),
+            ],
+        };
+        let _ = egraph.add_mixed_expression(MixedExpression::Symbol(sym));
+        assert_children_canonical(&egraph);
+    }
+
+    #[test]
+    fn canonical_children_after_rule_application() {
+        use crate::rewriting::egraph::matching::top_down::TopDownMatcher;
+        use crate::rewriting::rule::Rule;
+        let lang = Language::simple_math();
+        let mut egraph =
+            EGraph::<()>::from_expression(lang.parse_no_vars("(* 3 (+ 0 3))").unwrap());
+        let rule = Rule::from_strings("(+ 0 $0)", "$0", &lang);
+        rule.apply(&mut egraph, &TopDownMatcher);
+        assert_children_canonical(&egraph);
     }
 }
