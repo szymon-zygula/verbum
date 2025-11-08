@@ -75,6 +75,81 @@ pub fn benchmark_pairs<A: Analysis>(
     out
 }
 
+/// Run a single reachability attempt with a custom scheduler factory.
+pub fn run_single_with_scheduler<A: Analysis, F>(
+    rules: &[Rule],
+    expr_a: VarFreeExpression,
+    expr_b: VarFreeExpression,
+    cfg: &SaturationConfig,
+    matcher: &dyn Matcher,
+    build_scheduler: F,
+) -> ReachabilityOutcome
+where
+    F: Clone + FnOnce(&[Rule]) -> Box<dyn crate::rewriting::egraph::saturation::scheduler::Scheduler<A>>,
+{
+    let start = Instant::now();
+    let res: ReachabilityResult<A> = crate::rewriting::reachability::terms_reachable(
+        rules,
+        expr_a.clone(),
+        expr_b.clone(),
+        cfg,
+        matcher,
+        build_scheduler.clone(),
+    );
+    let time = start.elapsed();
+    let nodes = res.egraph.actual_node_count();
+    let classes = res.egraph.class_count();
+    ReachabilityOutcome {
+        expr_a,
+        expr_b,
+        time,
+        stop_reason: res.reason,
+        applications: res.applications,
+        nodes,
+        classes,
+    }
+}
+
+/// Generic benchmarking over pairs using a custom scheduler factory closure.
+pub fn benchmark_pairs_with_scheduler<A: Analysis, F>(
+    rules: &[Rule],
+    pairs: &[(VarFreeExpression, VarFreeExpression)],
+    cfg: &SaturationConfig,
+    matcher: &dyn Matcher,
+    runs: usize,
+    build_scheduler: F,
+) -> Vec<ReachabilityOutcome>
+where
+    F: Clone + FnOnce(&[Rule]) -> Box<dyn crate::rewriting::egraph::saturation::scheduler::Scheduler<A>>,
+{
+    let mut out = Vec::with_capacity(pairs.len());
+    for (a, b) in pairs {
+        let mut collected = Vec::with_capacity(runs + 1);
+        for _ in 0..(runs + 1) {
+            collected.push(run_single_with_scheduler::<A, F>(
+                rules,
+                a.clone(),
+                b.clone(),
+                cfg,
+                matcher,
+                build_scheduler.clone(),
+            ));
+        }
+        let mut avg = collected.remove(0); // warm-up discard
+        for c in collected {
+            assert_eq!(avg.stop_reason, c.stop_reason);
+            assert_eq!(avg.nodes, c.nodes);
+            assert_eq!(avg.classes, c.classes);
+            avg.time += c.time;
+            avg.applications += c.applications;
+        }
+        avg.time /= runs as u32;
+        avg.applications /= runs;
+        out.push(avg);
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

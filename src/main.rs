@@ -213,9 +213,10 @@ fn main() {
     let csv_output = csv_formatter.format_saturator_outcomes(map);
     println!("\nCSV Output:\n{csv_output}");
 
-    // Demonstrate reachability benchmarking on a few pairs
-    use benchmark::reachability_benchmark_pairs;
+    // Demonstrate reachability benchmarking (current: round-robin scheduler injected locally)
+    use benchmark::reachability_benchmark_pairs_with_scheduler;
     use rewriting::egraph::matching::top_down::TopDownMatcher;
+    use rewriting::egraph::saturation::scheduler::RoundRobinScheduler;
 
     let reach_pairs = vec![
         (
@@ -232,12 +233,13 @@ fn main() {
         max_applications: Some(50),
         ..Default::default()
     };
-    let reach_outcomes = reachability_benchmark_pairs::<()>(
+    let reach_outcomes = reachability_benchmark_pairs_with_scheduler::<(), _>(
         trs.rules(),
         &reach_pairs,
         &reach_cfg,
         &TopDownMatcher,
         3,
+        |rs| Box::new(RoundRobinScheduler::new(rs.to_vec())),
     );
     println!("\nReachability Outcomes:");
     let reach_table = pretty_formatter.format_reachability_outcomes(&reach_outcomes);
