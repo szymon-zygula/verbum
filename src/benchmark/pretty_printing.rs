@@ -9,6 +9,10 @@ pub struct PrettyTableFormatter;
 
 const MAX_COL_WIDTH: usize = 40;
 
+/// A trait for formatting collections of `ReachabilityOutcome` values.
+///
+/// Implement this trait for types that provide custom formatting logic for displaying
+/// or serializing reachability analysis results.
 pub trait ReachabilityOutcomeFormatter {
     fn format_reachability_outcomes(&self, outcomes: &[ReachabilityOutcome]) -> String;
 }
