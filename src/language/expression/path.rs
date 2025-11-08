@@ -82,11 +82,12 @@ impl<'e, E: AnyExpression> Iterator for SubexpressionPathIterator<'e, E> {
         let subexpression = self.expression.subexpression(path.as_path()).unwrap();
 
         if let Some(children) = subexpression.children()
-            && !children.is_empty() {
-                path.push(0);
-                self.current_path = Some(path.clone());
-                return Some(path);
-            }
+            && !children.is_empty()
+        {
+            path.push(0);
+            self.current_path = Some(path.clone());
+            return Some(path);
+        }
 
         // Backtrack to find the next sibling
         loop {

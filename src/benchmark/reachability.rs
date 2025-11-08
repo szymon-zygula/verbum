@@ -3,9 +3,11 @@ use std::time::{Duration, Instant};
 use crate::language::expression::VarFreeExpression;
 use crate::rewriting::egraph::matching::Matcher;
 use crate::rewriting::egraph::saturation::SaturationConfig;
-use crate::rewriting::reachability::{terms_reachable_round_robin, ReachabilityStopReason, ReachabilityResult};
-use crate::rewriting::rule::Rule;
 use crate::rewriting::egraph::{Analysis, DynEGraph};
+use crate::rewriting::reachability::{
+    ReachabilityResult, ReachabilityStopReason, terms_reachable_round_robin,
+};
+use crate::rewriting::rule::Rule;
 
 #[derive(Clone, Debug)]
 pub struct ReachabilityOutcome {
@@ -85,7 +87,13 @@ mod tests {
         let lang = Language::simple_math();
         let expr = lang.parse_no_vars("1").unwrap();
         let cfg = SaturationConfig::default();
-        let outcomes = benchmark_pairs::<()>(&[], &[(expr.clone(), expr.clone())], &cfg, &TopDownMatcher, 3);
+        let outcomes = benchmark_pairs::<()>(
+            &[],
+            &[(expr.clone(), expr.clone())],
+            &cfg,
+            &TopDownMatcher,
+            3,
+        );
         assert_eq!(outcomes.len(), 1);
         let o = &outcomes[0];
         match &o.stop_reason {
@@ -122,7 +130,10 @@ mod tests {
         let outcomes = benchmark_pairs::<()>(&rules, &[(a, b)], &cfg, &TopDownMatcher, 3);
         assert_eq!(outcomes.len(), 1);
         let o = &outcomes[0];
-        assert_eq!(o.stop_reason, ReachabilityStopReason::SaturatedNoUnification);
+        assert_eq!(
+            o.stop_reason,
+            ReachabilityStopReason::SaturatedNoUnification
+        );
     }
 
     #[test]
@@ -131,12 +142,18 @@ mod tests {
         let rules = rules!(lang; "1" => "2", "2" => "3");
         let a = lang.parse_no_vars("1").unwrap();
         let b = lang.parse_no_vars("3").unwrap();
-        let cfg = SaturationConfig { max_applications: Some(1), ..Default::default() };
+        let cfg = SaturationConfig {
+            max_applications: Some(1),
+            ..Default::default()
+        };
         let outcomes = benchmark_pairs::<()>(&rules, &[(a, b)], &cfg, &TopDownMatcher, 3);
         assert_eq!(outcomes.len(), 1);
         let o = &outcomes[0];
         match &o.stop_reason {
-            ReachabilityStopReason::Limit(lim) => assert_eq!(*lim, crate::rewriting::egraph::saturation::SaturationStopReason::MaxApplications),
+            ReachabilityStopReason::Limit(lim) => assert_eq!(
+                *lim,
+                crate::rewriting::egraph::saturation::SaturationStopReason::MaxApplications
+            ),
             other => panic!("expected limit stop, got {other:?}"),
         }
     }

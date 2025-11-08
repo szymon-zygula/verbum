@@ -5,9 +5,9 @@ use crate::{
     language::expression::VarFreeExpression,
     rewriting::{
         egraph::{
+            Analysis, DynEGraph, EGraph,
             extraction::Extractor,
             saturation::{SaturationConfig, SaturationStopReason, Saturator},
-            Analysis, EGraph, DynEGraph,
         },
         system::TermRewritingSystem,
     },
