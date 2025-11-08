@@ -1,3 +1,11 @@
+//! Generic formatting module for benchmark outcomes.
+//!
+//! This module provides a unified approach to formatting benchmark results
+//! using the `tabled` library for both pretty-printed tables and CSV output.
+//! 
+//! The `Formattable` trait enables any benchmark outcome type to be formatted
+//! consistently without code duplication.
+
 use std::collections::BTreeMap;
 use std::time::Duration;
 use tabled::{
