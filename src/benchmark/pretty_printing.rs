@@ -1,5 +1,5 @@
 use super::OutcomeFormatter;
-use crate::benchmark::Outcome;
+use crate::benchmark::{Outcome, ReachabilityOutcome};
 use crate::language::expression::VarFreeExpression;
 use colored::*;
 use std::collections::BTreeMap;
@@ -7,7 +7,11 @@ use std::{fmt::Write, time::Duration};
 
 pub struct PrettyTableFormatter;
 
-const MAX_COL_WIDTH: usize = 30;
+const MAX_COL_WIDTH: usize = 40;
+
+pub trait ReachabilityOutcomeFormatter {
+    fn format_reachability_outcomes(&self, outcomes: &[ReachabilityOutcome]) -> String;
+}
 
 fn format_cell(content: String, width: usize) -> String {
     if content.len() > width {
@@ -322,6 +326,87 @@ impl OutcomeFormatter for PrettyTableFormatter {
                     false,
                 );
             }
+        }
+
+        buffer
+    }
+}
+
+impl ReachabilityOutcomeFormatter for PrettyTableFormatter {
+    fn format_reachability_outcomes(&self, outcomes: &[ReachabilityOutcome]) -> String {
+        let mut buffer = String::new();
+        let headers = [
+            "Expr A",
+            "Expr B",
+            "Time",
+            "Stop Reason",
+            "Applications(avg)",
+            "Nodes",
+            "Classes",
+        ];
+
+        // Determine column widths
+        let mut col_widths: Vec<usize> = headers.iter().map(|h| h.len()).collect();
+        for o in outcomes {
+            col_widths[0] = col_widths[0].max(format!("{}", o.expr_a).len());
+            col_widths[1] = col_widths[1].max(format!("{}", o.expr_b).len());
+            col_widths[2] = col_widths[2].max(format!("{:?}", o.time).len());
+            col_widths[3] = col_widths[3].max(format!("{:?}", o.stop_reason).len());
+            col_widths[4] = col_widths[4].max(format!("{}", o.applications).len());
+            col_widths[5] = col_widths[5].max(format!("{}", o.nodes).len());
+            col_widths[6] = col_widths[6].max(format!("{}", o.classes).len());
+        }
+        for width in col_widths.iter_mut() {
+            *width = (*width).min(MAX_COL_WIDTH);
+        }
+
+        print_table_header(&mut buffer, &headers, &col_widths);
+        print_separator_line(&mut buffer, &col_widths, headers.len());
+
+        for o in outcomes {
+            let cells = vec![
+                format_cell(format!("{}", o.expr_a), col_widths[0]),
+                format_cell(format!("{}", o.expr_b), col_widths[1]),
+                format_cell(format!("{:?}", o.time), col_widths[2]),
+                format_cell(format!("{:?}", o.stop_reason), col_widths[3]),
+                format_cell(format!("{}", o.applications), col_widths[4]),
+                format_cell(format!("{}", o.nodes), col_widths[5]),
+                format_cell(format!("{}", o.classes), col_widths[6]),
+            ];
+            print_table_row(&mut buffer, cells, &col_widths, headers.len(), false);
+        }
+
+        // averages
+        if !outcomes.is_empty() {
+            let mut total_time = Duration::default();
+            let mut total_apps: u64 = 0;
+            let mut total_nodes: u64 = 0;
+            let mut total_classes: u64 = 0;
+            for o in outcomes {
+                total_time += o.time;
+                total_apps += o.applications as u64;
+                total_nodes += o.nodes as u64;
+                total_classes += o.classes as u64;
+            }
+            let n = outcomes.len() as u64;
+            let avg_time = total_time / n as u32;
+            let avg_apps = total_apps / n;
+            let avg_nodes = total_nodes / n;
+            let avg_classes = total_classes / n;
+
+            writeln!(&mut buffer).unwrap();
+            print_separator_line(&mut buffer, &col_widths, headers.len());
+
+            let cells = vec![
+                format_cell("AVERAGE".to_string(), col_widths[0]),
+                format_cell("".to_string(), col_widths[1]),
+                format_cell(format!("{:?}", avg_time), col_widths[2]),
+                format_cell("".to_string(), col_widths[3]),
+                format_cell(format!("{}", avg_apps), col_widths[4]),
+                format_cell(format!("{}", avg_nodes), col_widths[5]),
+                format_cell(format!("{}", avg_classes), col_widths[6]),
+            ];
+            print_table_row(&mut buffer, cells, &col_widths, headers.len(), true);
         }
 
         buffer

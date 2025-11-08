@@ -200,7 +200,9 @@ fn main() {
     ]);
 
     use benchmark::{
-        OutcomeFormatter, csv_output::CsvFormatter, pretty_printing::PrettyTableFormatter,
+        OutcomeFormatter,
+        csv_output::CsvFormatter,
+        pretty_printing::{PrettyTableFormatter, ReachabilityOutcomeFormatter},
     };
 
     let pretty_formatter = PrettyTableFormatter;
@@ -210,6 +212,36 @@ fn main() {
     let csv_formatter = CsvFormatter;
     let csv_output = csv_formatter.format_saturator_outcomes(map);
     println!("\nCSV Output:\n{csv_output}");
+
+    // Demonstrate reachability benchmarking on a few pairs
+    use benchmark::reachability_benchmark_pairs;
+    use rewriting::egraph::matching::top_down::TopDownMatcher;
+
+    let reach_pairs = vec![
+        (
+            lang.parse_no_vars("(+ 1 0)").unwrap(),
+            lang.parse_no_vars("1").unwrap(),
+        ), // should unify via rule
+        (
+            lang.parse_no_vars("(* 2 3)").unwrap(),
+            lang.parse_no_vars("4").unwrap(),
+        ), // likely no unification
+    ];
+
+    let reach_cfg = SaturationConfig {
+        max_applications: Some(50),
+        ..Default::default()
+    };
+    let reach_outcomes = reachability_benchmark_pairs::<()>(
+        &trs.rules(),
+        &reach_pairs,
+        &reach_cfg,
+        &TopDownMatcher,
+        3,
+    );
+    println!("\nReachability Outcomes:");
+    let reach_table = pretty_formatter.format_reachability_outcomes(&reach_outcomes);
+    println!("{reach_table}");
 
     test_saturation_and_dot_output();
 
