@@ -1,4 +1,5 @@
 use std::time::{Duration, Instant};
+use tabled::Tabled;
 
 use crate::language::expression::VarFreeExpression;
 use crate::rewriting::egraph::matching::Matcher;
@@ -7,15 +8,27 @@ use crate::rewriting::egraph::saturation::scheduler::Scheduler;
 use crate::rewriting::egraph::{Analysis, DynEGraph};
 use crate::rewriting::reachability::{ReachabilityStopReason, terms_reachable};
 use crate::rewriting::rule::Rule;
+use super::formatter::{Formattable, format_duration, format_duration_csv};
 
-#[derive(Clone, Debug)]
+fn format_reachability_stop_reason(reason: &ReachabilityStopReason) -> String {
+    format!("{:?}", reason)
+}
+
+#[derive(Clone, Debug, Tabled)]
 pub struct ReachabilityOutcome {
+    #[tabled(rename = "Expr A")]
     pub expr_a: VarFreeExpression,
+    #[tabled(rename = "Expr B")]
     pub expr_b: VarFreeExpression,
+    #[tabled(rename = "Time", display_with = "format_duration")]
     pub time: Duration,
+    #[tabled(rename = "Stop Reason", display_with = "format_reachability_stop_reason")]
     pub stop_reason: ReachabilityStopReason,
+    #[tabled(rename = "Applications(avg)")]
     pub applications: usize,
+    #[tabled(rename = "Nodes")]
     pub nodes: usize,
+    #[tabled(rename = "Classes")]
     pub classes: usize,
 }
 
@@ -93,6 +106,32 @@ where
         out.push(avg);
     }
     out
+}
+
+impl Formattable for ReachabilityOutcome {
+    fn to_csv_row(&self) -> Vec<String> {
+        vec![
+            self.expr_a.to_string(),
+            self.expr_b.to_string(),
+            format_duration_csv(&self.time),
+            format!("{:?}", self.stop_reason),
+            self.applications.to_string(),
+            self.nodes.to_string(),
+            self.classes.to_string(),
+        ]
+    }
+
+    fn csv_headers() -> Vec<&'static str> {
+        vec![
+            "Expr A",
+            "Expr B",
+            "Time (ns)",
+            "Stop Reason",
+            "Applications(avg)",
+            "Nodes",
+            "Classes",
+        ]
+    }
 }
 
 #[cfg(test)]

@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
+use tabled::Tabled;
 
 use crate::{
     language::expression::VarFreeExpression,
@@ -12,6 +13,11 @@ use crate::{
         system::TermRewritingSystem,
     },
 };
+use super::formatter::{Formattable, format_duration, format_duration_csv};
+
+fn format_stop_reason(reason: &SaturationStopReason) -> String {
+    format!("{:?}", reason)
+}
 
 /// Number of runs (after warm-up) used for averaging.
 pub const RUN_COUNT: usize = 10;
@@ -21,14 +27,21 @@ pub trait OutcomeFormatter {
     fn format_saturator_outcomes(&self, outcomes_map: BTreeMap<String, Vec<Outcome>>) -> String;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Tabled)]
 pub struct Outcome {
+    #[tabled(rename = "Original Expression")]
     pub original_expression: VarFreeExpression,
+    #[tabled(rename = "Extracted Expression")]
     pub extracted_expression: VarFreeExpression,
+    #[tabled(rename = "Time", display_with = "format_duration")]
     pub time: Duration,
+    #[tabled(rename = "Stop Reason", display_with = "format_stop_reason")]
     pub stop_reason: SaturationStopReason,
+    #[tabled(rename = "Nodes")]
     pub nodes: usize,
+    #[tabled(rename = "Classes")]
     pub classes: usize,
+    #[tabled(rename = "Min Cost")]
     pub min_cost: usize,
 }
 
@@ -175,4 +188,30 @@ where
     expression_outcomes.remove(0);
     // Cache warm-up
     expression_outcomes
+}
+
+impl Formattable for Outcome {
+    fn to_csv_row(&self) -> Vec<String> {
+        vec![
+            self.original_expression.to_string(),
+            self.extracted_expression.to_string(),
+            format_duration_csv(&self.time),
+            format!("{:?}", self.stop_reason),
+            self.nodes.to_string(),
+            self.classes.to_string(),
+            self.min_cost.to_string(),
+        ]
+    }
+
+    fn csv_headers() -> Vec<&'static str> {
+        vec![
+            "Original Expression",
+            "Extracted Expression",
+            "Time (ns)",
+            "Stop Reason",
+            "Nodes",
+            "Classes",
+            "Min Cost",
+        ]
+    }
 }

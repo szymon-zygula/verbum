@@ -1,4 +1,5 @@
 pub mod csv_output;
+pub mod formatter;
 pub mod pretty_printing;
 pub mod random_generation;
 pub mod reachability;
