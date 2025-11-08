@@ -28,11 +28,7 @@ impl PrettyFormatter {
         let mut table = Table::new(items);
         table.with(Style::rounded());
         
-        // Calculate and display averages for numeric fields if there are items
-        let table_str = table.to_string();
-        
-        // Add average row if needed (will be handled separately for different types)
-        table_str
+        table.to_string()
     }
 
     /// Format outcomes grouped by saturator name
