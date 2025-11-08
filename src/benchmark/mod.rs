@@ -8,6 +8,5 @@ pub use saturation::{BenchmarkConfig, Outcome, OutcomeFormatter, benchmark};
 
 pub use reachability::{
     ReachabilityOutcome,
-    benchmark_pairs as reachability_benchmark_pairs,
     benchmark_pairs_with_scheduler as reachability_benchmark_pairs_with_scheduler,
 };

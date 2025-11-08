@@ -4,9 +4,7 @@ use crate::language::expression::VarFreeExpression;
 use crate::rewriting::egraph::matching::Matcher;
 use crate::rewriting::egraph::saturation::SaturationConfig;
 use crate::rewriting::egraph::{Analysis, DynEGraph};
-use crate::rewriting::reachability::{
-    ReachabilityResult, ReachabilityStopReason, terms_reachable_round_robin,
-};
+use crate::rewriting::reachability::{ReachabilityResult, ReachabilityStopReason};
 use crate::rewriting::rule::Rule;
 
 #[derive(Clone, Debug)]
@@ -20,61 +18,6 @@ pub struct ReachabilityOutcome {
     pub classes: usize,
 }
 
-fn run_single<A: Analysis>(
-    rules: &[Rule],
-    expr_a: VarFreeExpression,
-    expr_b: VarFreeExpression,
-    cfg: &SaturationConfig,
-    matcher: &dyn Matcher,
-) -> ReachabilityOutcome {
-    let start = Instant::now();
-    let res: ReachabilityResult<A> =
-        terms_reachable_round_robin(rules, expr_a.clone(), expr_b.clone(), cfg, matcher);
-    let time = start.elapsed();
-    let nodes = res.egraph.actual_node_count();
-    let classes = res.egraph.class_count();
-    ReachabilityOutcome {
-        expr_a,
-        expr_b,
-        time,
-        stop_reason: res.reason,
-        applications: res.applications,
-        nodes,
-        classes,
-    }
-}
-
-/// Benchmark reachability for multiple expression pairs.
-/// Performs `runs + 1` executions (dropping the first as warm-up) and averages time/applications.
-pub fn benchmark_pairs<A: Analysis>(
-    rules: &[Rule],
-    pairs: &[(VarFreeExpression, VarFreeExpression)],
-    cfg: &SaturationConfig,
-    matcher: &dyn Matcher,
-    runs: usize,
-) -> Vec<ReachabilityOutcome> {
-    let mut out = Vec::with_capacity(pairs.len());
-    for (a, b) in pairs {
-        let mut collected = Vec::with_capacity(runs + 1);
-        for _ in 0..(runs + 1) {
-            collected.push(run_single::<A>(rules, a.clone(), b.clone(), cfg, matcher));
-        }
-        let mut avg = collected.remove(0); // warm-up discard
-        for c in collected {
-            // Structural fields should match (except time/applications which we accumulate)
-            assert_eq!(avg.stop_reason, c.stop_reason);
-            assert_eq!(avg.nodes, c.nodes);
-            assert_eq!(avg.classes, c.classes);
-            avg.time += c.time;
-            avg.applications += c.applications;
-        }
-        avg.time /= runs as u32;
-        avg.applications /= runs; // integer average
-        out.push(avg);
-    }
-    out
-}
-
 /// Run a single reachability attempt with a custom scheduler factory.
 pub fn run_single_with_scheduler<A: Analysis, F>(
     rules: &[Rule],
@@ -85,7 +28,8 @@ pub fn run_single_with_scheduler<A: Analysis, F>(
     build_scheduler: F,
 ) -> ReachabilityOutcome
 where
-    F: Clone + FnOnce(&[Rule]) -> Box<dyn crate::rewriting::egraph::saturation::scheduler::Scheduler<A>>,
+    F: Clone
+        + FnOnce(&[Rule]) -> Box<dyn crate::rewriting::egraph::saturation::scheduler::Scheduler<A>>,
 {
     let start = Instant::now();
     let res: ReachabilityResult<A> = crate::rewriting::reachability::terms_reachable(
@@ -120,7 +64,8 @@ pub fn benchmark_pairs_with_scheduler<A: Analysis, F>(
     build_scheduler: F,
 ) -> Vec<ReachabilityOutcome>
 where
-    F: Clone + FnOnce(&[Rule]) -> Box<dyn crate::rewriting::egraph::saturation::scheduler::Scheduler<A>>,
+    F: Clone
+        + FnOnce(&[Rule]) -> Box<dyn crate::rewriting::egraph::saturation::scheduler::Scheduler<A>>,
 {
     let mut out = Vec::with_capacity(pairs.len());
     for (a, b) in pairs {
@@ -152,10 +97,25 @@ where
 
 #[cfg(test)]
 mod tests {
+    /// Benchmark reachability for multiple expression pairs.
+    /// Performs `runs + 1` executions (dropping the first as warm-up) and averages time/applications.
+    pub fn benchmark_pairs<A: Analysis>(
+        rules: &[Rule],
+        pairs: &[(VarFreeExpression, VarFreeExpression)],
+        cfg: &SaturationConfig,
+        matcher: &dyn Matcher,
+        runs: usize,
+    ) -> Vec<ReachabilityOutcome> {
+        benchmark_pairs_with_scheduler::<(), _>(rules, pairs, cfg, matcher, runs, |rs| {
+            Box::new(RoundRobinScheduler::new(rs.to_vec()))
+        })
+    }
+
     use super::*;
     use crate::language::Language;
     use crate::macros::rules;
     use crate::rewriting::egraph::matching::top_down::TopDownMatcher;
+    use crate::rewriting::egraph::saturation::scheduler::RoundRobinScheduler;
 
     #[test]
     fn identical_expressions_unify_immediately() {
