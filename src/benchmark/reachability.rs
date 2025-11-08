@@ -1,3 +1,4 @@
+use std::hint::black_box;
 use std::time::{Duration, Instant};
 
 use crate::language::expression::VarFreeExpression;
@@ -72,12 +73,12 @@ where
         let mut collected = Vec::with_capacity(runs + 1);
         for _ in 0..(runs + 1) {
             collected.push(run_single_with_scheduler::<A, F>(
-                rules,
-                a.clone(),
-                b.clone(),
-                cfg,
-                matcher,
-                build_scheduler.clone(),
+                black_box(rules),
+                black_box(a.clone()),
+                black_box(b.clone()),
+                black_box(cfg),
+                black_box(matcher),
+                black_box(build_scheduler.clone()),
             ));
         }
         let mut avg = collected.remove(0); // warm-up discard
