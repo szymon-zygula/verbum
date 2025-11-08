@@ -9,14 +9,14 @@ pub enum Node {
 }
 
 impl Node {
-    pub fn iter_mut_children(&mut self) -> std::slice::IterMut<ClassId> {
+    pub fn iter_mut_children(&mut self) -> std::slice::IterMut<'_, ClassId> {
         match self {
             Node::Literal(_) => std::slice::IterMut::default(),
             Node::Symbol(symbol) => symbol.children.iter_mut(),
         }
     }
 
-    pub fn iter_children(&self) -> std::slice::Iter<ClassId> {
+    pub fn iter_children(&self) -> std::slice::Iter<'_, ClassId> {
         match self {
             Node::Literal(_) => std::slice::Iter::default(),
             Node::Symbol(symbol) => symbol.children.iter(),

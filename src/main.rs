@@ -233,7 +233,7 @@ fn main() {
         ..Default::default()
     };
     let reach_outcomes = reachability_benchmark_pairs::<()>(
-        &trs.rules(),
+        trs.rules(),
         &reach_pairs,
         &reach_cfg,
         &TopDownMatcher,

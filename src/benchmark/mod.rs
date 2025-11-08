@@ -1,19 +1,11 @@
 pub mod csv_output;
 pub mod pretty_printing;
 pub mod random_generation;
-pub mod saturation;
 pub mod reachability;
+pub mod saturation;
 
 pub use saturation::{
-    benchmark,
-    benchmark_saturators,
-    BenchmarkConfig,
-    Outcome,
-    OutcomeFormatter,
-    RUN_COUNT,
+    BenchmarkConfig, Outcome, OutcomeFormatter, benchmark,
 };
 
-pub use reachability::{
-    benchmark_pairs as reachability_benchmark_pairs,
-    ReachabilityOutcome,
-};
+pub use reachability::{ReachabilityOutcome, benchmark_pairs as reachability_benchmark_pairs};
