@@ -3,8 +3,9 @@ use std::time::{Duration, Instant};
 use crate::language::expression::VarFreeExpression;
 use crate::rewriting::egraph::matching::Matcher;
 use crate::rewriting::egraph::saturation::SaturationConfig;
+use crate::rewriting::egraph::saturation::scheduler::Scheduler;
 use crate::rewriting::egraph::{Analysis, DynEGraph};
-use crate::rewriting::reachability::{ReachabilityResult, ReachabilityStopReason};
+use crate::rewriting::reachability::{ReachabilityStopReason, terms_reachable};
 use crate::rewriting::rule::Rule;
 
 #[derive(Clone, Debug)]
@@ -28,11 +29,10 @@ pub fn run_single_with_scheduler<A: Analysis, F>(
     build_scheduler: F,
 ) -> ReachabilityOutcome
 where
-    F: Clone
-        + FnOnce(&[Rule]) -> Box<dyn crate::rewriting::egraph::saturation::scheduler::Scheduler<A>>,
+    F: Clone + FnOnce(&[Rule]) -> Box<dyn Scheduler<A>>,
 {
     let start = Instant::now();
-    let res: ReachabilityResult<A> = crate::rewriting::reachability::terms_reachable(
+    let res = terms_reachable(
         rules,
         expr_a.clone(),
         expr_b.clone(),
@@ -43,6 +43,7 @@ where
     let time = start.elapsed();
     let nodes = res.egraph.actual_node_count();
     let classes = res.egraph.class_count();
+
     ReachabilityOutcome {
         expr_a,
         expr_b,
@@ -64,8 +65,7 @@ pub fn benchmark_pairs_with_scheduler<A: Analysis, F>(
     build_scheduler: F,
 ) -> Vec<ReachabilityOutcome>
 where
-    F: Clone
-        + FnOnce(&[Rule]) -> Box<dyn crate::rewriting::egraph::saturation::scheduler::Scheduler<A>>,
+    F: Clone + FnOnce(&[Rule]) -> Box<dyn Scheduler<A>>,
 {
     let mut out = Vec::with_capacity(pairs.len());
     for (a, b) in pairs {
