@@ -164,13 +164,13 @@ where
 {
     let mut expression_outcomes: Vec<Outcome> = Vec::with_capacity(RUN_COUNT + 1);
     for _ in 0..(RUN_COUNT + 1) {
-        expression_outcomes.push(run_single_benchmark(
+        expression_outcomes.push(black_box(run_single_benchmark(
             black_box(trs),
             black_box(expression.clone()),
             black_box(config),
             black_box(extractor),
             black_box(saturator),
-        ));
+        )));
     }
 
     expression_outcomes.remove(0);
