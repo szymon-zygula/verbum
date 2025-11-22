@@ -202,6 +202,46 @@ impl AnyExpression for Expression {
     }
 }
 
+/// Helper struct for loading expressions from JSON
+#[derive(Deserialize)]
+struct ExpressionsFile {
+    expressions: Vec<String>,
+}
+
+/// Load variable-free expressions from a JSON string
+pub fn load_expressions_from_json(
+    json_str: &str,
+    language: &Language,
+) -> Result<Vec<VarFreeExpression>, Box<dyn std::error::Error>> {
+    let file: ExpressionsFile = serde_json::from_str(json_str)?;
+    
+    file.expressions
+        .iter()
+        .map(|expr_str| {
+            language
+                .parse_no_vars(expr_str)
+                .map_err(|e| format!("Failed to parse expression '{}': {}", expr_str, e).into())
+        })
+        .collect()
+}
+
+/// Load variable-free expressions from a JSON file
+pub fn load_expressions_from_file<P: AsRef<std::path::Path>>(
+    path: P,
+    language: &Language,
+) -> Result<Vec<VarFreeExpression>, Box<dyn std::error::Error>> {
+    let file: ExpressionsFile = crate::utils::json::load_json(path)?;
+    
+    file.expressions
+        .iter()
+        .map(|expr_str| {
+            language
+                .parse_no_vars(expr_str)
+                .map_err(|e| format!("Failed to parse expression '{}': {}", expr_str, e).into())
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::Expression;

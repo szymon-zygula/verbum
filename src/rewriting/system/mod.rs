@@ -5,6 +5,8 @@ use crate::rewriting::egraph::{Analysis, EGraph, matching::bottom_up::BottomUpMa
 use crate::rewriting::rule::Rule;
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Visitor, ser::SerializeStruct};
 use std::fmt;
+use std::path::{Path, PathBuf};
+use std::error::Error;
 
 mod calculus;
 mod dependency_graph;
@@ -16,6 +18,12 @@ struct SerializableRule {
     to: String,
 }
 
+// Helper struct for loading rules from separate JSON file
+#[derive(Deserialize)]
+struct RulesFile {
+    rules: Vec<SerializableRule>,
+}
+
 pub struct TermRewritingSystem {
     language: Language,
     rules: Vec<Rule>,
@@ -24,6 +32,28 @@ pub struct TermRewritingSystem {
 impl TermRewritingSystem {
     pub fn new(language: Language, rules: Vec<Rule>) -> Self {
         Self { language, rules }
+    }
+
+    /// Load a TermRewritingSystem from a directory containing language.json and trs.json
+    pub fn from_directory<P: AsRef<Path>>(dir_path: P) -> Result<Self, Box<dyn Error>> {
+        let dir_path = dir_path.as_ref();
+
+        // Load language
+        let lang_path = dir_path.join("language.json");
+        let language: Language = crate::utils::json::load_json(lang_path)?;
+
+        // Load rules
+        let rules_path = dir_path.join("trs.json");
+        let rules_file: RulesFile = crate::utils::json::load_json(rules_path)?;
+
+        // Parse rules using the language
+        let rules: Vec<Rule> = rules_file
+            .rules
+            .into_iter()
+            .map(|sr| Rule::from_strings(&sr.from, &sr.to, &language))
+            .collect();
+
+        Ok(Self::new(language, rules))
     }
 
     pub fn language(&self) -> &Language {

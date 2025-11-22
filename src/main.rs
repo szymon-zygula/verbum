@@ -3,8 +3,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 
-use crate::language::expression::VarFreeExpression;
-use crate::language::Language;
+use crate::language::expression::{VarFreeExpression, load_expressions_from_file};
 use rewriting::{
     egraph::{
         EGraph,
@@ -15,7 +14,6 @@ use rewriting::{
             SaturationConfig, Saturator, SimpleSaturator, directed_saturator::DirectedSaturator,
         },
     },
-    rule::Rule,
     system::TermRewritingSystem,
 };
 use serde::Deserialize;
@@ -33,23 +31,7 @@ mod seen;
 mod union_find;
 mod utils;
 
-// Helper structs for loading JSON files
-#[derive(Deserialize)]
-struct RulesFile {
-    rules: Vec<RuleSpec>,
-}
-
-#[derive(Deserialize)]
-struct RuleSpec {
-    from: String,
-    to: String,
-}
-
-#[derive(Deserialize)]
-struct ExpressionsFile {
-    expressions: Vec<String>,
-}
-
+// Helper struct for loading costs from JSON
 #[derive(Deserialize)]
 struct CostsFile {
     costs: HashMap<String, usize>,
@@ -116,28 +98,11 @@ fn save_edge_data_graph_dot() {
 }
 
 fn initialize_system() -> TermRewritingSystem {
-    let mut base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    base_path.push("jsons");
-    base_path.push("simple-math");
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    path.push("jsons");
+    path.push("simple-math");
 
-    // Load language
-    let mut lang_path = base_path.clone();
-    lang_path.push("language.json");
-    let language: Language = utils::json::load_json(lang_path).unwrap();
-
-    // Load rules
-    let mut rules_path = base_path.clone();
-    rules_path.push("trs.json");
-    let rules_file: RulesFile = utils::json::load_json(rules_path).unwrap();
-
-    // Parse rules using the language
-    let rules: Vec<Rule> = rules_file
-        .rules
-        .into_iter()
-        .map(|rule_spec| Rule::from_strings(&rule_spec.from, &rule_spec.to, &language))
-        .collect();
-
-    TermRewritingSystem::new(language, rules)
+    TermRewritingSystem::from_directory(path).unwrap()
 }
 
 fn test_saturation_and_dot_output() {
@@ -163,29 +128,15 @@ fn main() {
     let trs = initialize_system();
     let lang = trs.language();
 
-    // Load expressions from new location
+    // Load expressions and costs
     let mut base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     base_path.push("jsons");
     base_path.push("simple-math");
 
-    let mut expr_path = base_path.clone();
-    expr_path.push("small.json");
-    let expressions_file: ExpressionsFile = utils::json::load_json(expr_path).unwrap();
+    let expr_path = base_path.join("small.json");
+    let expressions = load_expressions_from_file(expr_path, lang).unwrap();
 
-    // Parse expressions using the language
-    let expressions: Vec<VarFreeExpression> = expressions_file
-        .expressions
-        .iter()
-        .map(|expr_str| {
-            lang.parse_no_vars(expr_str).expect(
-                "All expressions in small.json should be variable-free for benchmarking",
-            )
-        })
-        .collect();
-
-    // Load costs from JSON
-    let mut costs_path = base_path.clone();
-    costs_path.push("costs.json");
+    let costs_path = base_path.join("costs.json");
     let costs_file: CostsFile = utils::json::load_json(costs_path).unwrap();
     let costs = costs_file.costs;
 
