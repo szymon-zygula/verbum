@@ -156,7 +156,7 @@ impl Formattable for ReachabilityOutcome {
             total_classes += outcome.classes as u64;
         }
 
-        let avg_time = total_time / num_outcomes as u32;
+        let avg_time = total_time / num_outcomes.min(u32::MAX as u64) as u32;
         let avg_apps = total_apps / num_outcomes;
         let avg_nodes = total_nodes / num_outcomes;
         let avg_classes = total_classes / num_outcomes;

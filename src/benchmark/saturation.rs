@@ -238,7 +238,7 @@ impl Formattable for Outcome {
             min_cost_sum += outcome.min_cost as u64;
         }
 
-        let avg_total_time = total_time_sum / num_outcomes as u32;
+        let avg_total_time = total_time_sum / num_outcomes.min(u32::MAX as u64) as u32;
         let avg_num_nodes = num_nodes_sum / num_outcomes;
         let avg_classes = num_classes_sum / num_outcomes;
         let avg_min_cost = min_cost_sum / num_outcomes;
