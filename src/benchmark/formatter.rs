@@ -78,7 +78,7 @@ impl CsvFormatter {
         
         wtr.flush()?;
         let bytes = wtr.into_inner().map_err(|e| {
-            csv::Error::from(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+            csv::Error::from(std::io::Error::other(e.to_string()))
         })?;
         
         String::from_utf8(bytes)
