@@ -186,7 +186,9 @@ fn main() {
     ]);
 
     use benchmark::{
-        OutcomeFormatter, csv_output::CsvFormatter, pretty_printing::PrettyTableFormatter,
+        OutcomeFormatter,
+        csv_output::CsvFormatter,
+        pretty_printing::{PrettyTableFormatter, ReachabilityOutcomeFormatter},
     };
 
     let pretty_formatter = PrettyTableFormatter;
@@ -196,6 +198,38 @@ fn main() {
     let csv_formatter = CsvFormatter;
     let csv_output = csv_formatter.format_saturator_outcomes(map);
     println!("\nCSV Output:\n{csv_output}");
+
+    // Demonstrate reachability benchmarking (current: round-robin scheduler injected locally)
+    use benchmark::reachability_benchmark_pairs_with_scheduler;
+    use rewriting::egraph::matching::top_down::TopDownMatcher;
+    use rewriting::egraph::saturation::scheduler::RoundRobinScheduler;
+
+    let reach_pairs = vec![
+        (
+            lang.parse_no_vars("(+ 1 0)").unwrap(),
+            lang.parse_no_vars("1").unwrap(),
+        ), // should unify via rule
+        (
+            lang.parse_no_vars("(* 2 3)").unwrap(),
+            lang.parse_no_vars("4").unwrap(),
+        ), // likely no unification
+    ];
+
+    let reach_cfg = SaturationConfig {
+        max_applications: Some(50),
+        ..Default::default()
+    };
+    let reach_outcomes = reachability_benchmark_pairs_with_scheduler::<(), _>(
+        trs.rules(),
+        &reach_pairs,
+        &reach_cfg,
+        &TopDownMatcher,
+        3,
+        |rs| Box::new(RoundRobinScheduler::new(rs.to_vec())),
+    );
+    println!("\nReachability Outcomes:");
+    let reach_table = pretty_formatter.format_reachability_outcomes(&reach_outcomes);
+    println!("{reach_table}");
 
     test_saturation_and_dot_output();
 

@@ -21,11 +21,11 @@ pub trait AnyExpression: Clone + PartialEq + Eq + 'static {
         }
     }
 
-    fn iter_paths(&self) -> SubexpressionPathIterator<Self> {
+    fn iter_paths(&self) -> SubexpressionPathIterator<'_, Self> {
         SubexpressionPathIterator::new(self)
     }
 
-    fn iter_subexpressions(&self) -> SubexpressionIterator<Self> {
+    fn iter_subexpressions(&self) -> SubexpressionIterator<'_, Self> {
         SubexpressionIterator::new(self)
     }
 }
