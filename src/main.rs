@@ -1,10 +1,9 @@
 #![allow(dead_code)]
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 
-use crate::language::expression::LangMultiExpression;
-use crate::language::expression::VarFreeExpression;
+use crate::language::expression::{VarFreeExpression, load_expressions_from_file};
 use rewriting::{
     egraph::{
         EGraph,
@@ -17,6 +16,7 @@ use rewriting::{
     },
     system::TermRewritingSystem,
 };
+use serde::Deserialize;
 
 mod benchmark;
 mod data_union_find;
@@ -30,6 +30,12 @@ mod rewriting;
 mod seen;
 mod union_find;
 mod utils;
+
+// Helper struct for loading costs from JSON
+#[derive(Deserialize)]
+struct CostsFile {
+    costs: HashMap<String, usize>,
+}
 
 fn save_graph_dot() {
     use graph::Graph;
@@ -93,10 +99,10 @@ fn save_edge_data_graph_dot() {
 
 fn initialize_system() -> TermRewritingSystem {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    path.push("rewriting-systems");
-    path.push("simple_math.json");
+    path.push("jsons");
+    path.push("simple-math");
 
-    utils::json::load_json(path).unwrap()
+    TermRewritingSystem::from_directory(path).unwrap()
 }
 
 fn test_saturation_and_dot_output() {
@@ -120,23 +126,19 @@ fn test_saturation_and_dot_output() {
 
 fn main() {
     let trs = initialize_system();
+    let lang = trs.language();
 
-    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    path.push("expressions");
-    path.push("simple-math.json");
+    // Load expressions and costs
+    let mut base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    base_path.push("jsons");
+    base_path.push("simple-math");
 
-    let multi_expressions: LangMultiExpression = utils::json::load_json(path).unwrap();
-    let lang = multi_expressions.language();
-    let expressions_with_vars = multi_expressions.expressions();
+    let expr_path = base_path.join("small.json");
+    let expressions = load_expressions_from_file(expr_path, lang).unwrap();
 
-    let expressions: Vec<VarFreeExpression> = expressions_with_vars
-        .iter()
-        .map(|expr| {
-            expr.without_variables().expect(
-                "All expressions in simple-math.json should be variable-free for benchmarking",
-            )
-        })
-        .collect();
+    let costs_path = base_path.join("costs.json");
+    let costs_file: CostsFile = utils::json::load_json(costs_path).unwrap();
+    let costs = costs_file.costs;
 
     let config = benchmark::BenchmarkConfig {
         saturation_config: SaturationConfig {
@@ -149,18 +151,10 @@ fn main() {
 
     let extractor = SimpleExtractor::<usize, _, _>::new(
         |_| 1,
-        |symbol, costs| {
-            Some(
-                match lang.get_symbol(symbol.id) {
-                    "+" => 1usize,
-                    "-" => 1usize,
-                    "/" => 8usize,
-                    "*" => 4usize,
-                    "<<" => 2usize,
-                    "sin" => 2usize,
-                    _ => return None,
-                } + children_cost_sum(symbol, costs)?,
-            )
+        |symbol, children_costs| {
+            let symbol_name = lang.get_symbol(symbol.id);
+            let symbol_cost = costs.get(symbol_name).copied().unwrap_or(0);
+            Some(symbol_cost + children_cost_sum(symbol, children_costs)?)
         },
     );
 
@@ -170,18 +164,10 @@ fn main() {
 
     let extractor_2 = SimpleExtractor::<usize, _, _>::new(
         |_| 1,
-        |symbol, costs| {
-            Some(
-                match lang.get_symbol(symbol.id) {
-                    "+" => 1usize,
-                    "-" => 1usize,
-                    "/" => 8usize,
-                    "*" => 4usize,
-                    "<<" => 2usize,
-                    "sin" => 2usize,
-                    _ => return None,
-                } + children_cost_sum(symbol, costs)?,
-            )
+        |symbol, children_costs| {
+            let symbol_name = lang.get_symbol(symbol.id);
+            let symbol_cost = costs.get(symbol_name).copied().unwrap_or(0);
+            Some(symbol_cost + children_cost_sum(symbol, children_costs)?)
         },
     );
 
