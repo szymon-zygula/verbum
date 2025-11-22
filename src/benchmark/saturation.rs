@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 use tabled::Tabled;
+use serde::Serialize;
 
 use crate::{
     language::expression::VarFreeExpression,
@@ -13,10 +14,31 @@ use crate::{
         system::TermRewritingSystem,
     },
 };
-use super::formatter::{Formattable, format_duration, format_duration_csv};
+use super::formatter::{Formattable, format_duration};
 
 fn format_stop_reason(reason: &SaturationStopReason) -> String {
     format!("{:?}", reason)
+}
+
+fn serialize_duration<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_u128(duration.as_nanos())
+}
+
+fn serialize_stop_reason<S>(reason: &SaturationStopReason, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_str(&format!("{:?}", reason))
+}
+
+fn serialize_expr<S>(expr: &VarFreeExpression, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_str(&expr.to_string())
 }
 
 /// Number of runs (after warm-up) used for averaging.
@@ -27,21 +49,28 @@ pub trait OutcomeFormatter {
     fn format_saturator_outcomes(&self, outcomes_map: BTreeMap<String, Vec<Outcome>>) -> String;
 }
 
-#[derive(Clone, Debug, Tabled)]
+#[derive(Clone, Debug, Tabled, Serialize)]
 pub struct Outcome {
     #[tabled(rename = "Original Expression")]
+    #[serde(rename = "Original Expression", serialize_with = "serialize_expr")]
     pub original_expression: VarFreeExpression,
     #[tabled(rename = "Extracted Expression")]
+    #[serde(rename = "Extracted Expression", serialize_with = "serialize_expr")]
     pub extracted_expression: VarFreeExpression,
     #[tabled(rename = "Time", display_with = "format_duration")]
+    #[serde(rename = "Time (ns)", serialize_with = "serialize_duration")]
     pub time: Duration,
     #[tabled(rename = "Stop Reason", display_with = "format_stop_reason")]
+    #[serde(rename = "Stop Reason", serialize_with = "serialize_stop_reason")]
     pub stop_reason: SaturationStopReason,
     #[tabled(rename = "Nodes")]
+    #[serde(rename = "Nodes")]
     pub nodes: usize,
     #[tabled(rename = "Classes")]
+    #[serde(rename = "Classes")]
     pub classes: usize,
     #[tabled(rename = "Min Cost")]
+    #[serde(rename = "Min Cost")]
     pub min_cost: usize,
 }
 
@@ -191,27 +220,62 @@ where
 }
 
 impl Formattable for Outcome {
-    fn to_csv_row(&self) -> Vec<String> {
-        vec![
-            self.original_expression.to_string(),
-            self.extracted_expression.to_string(),
-            format_duration_csv(&self.time),
-            format!("{:?}", self.stop_reason),
-            self.nodes.to_string(),
-            self.classes.to_string(),
-            self.min_cost.to_string(),
-        ]
-    }
+    fn calculate_averages(items: &[Self]) -> Option<String> {
+        if items.is_empty() {
+            return None;
+        }
 
-    fn csv_headers() -> Vec<&'static str> {
-        vec![
-            "Original Expression",
-            "Extracted Expression",
-            "Time (ns)",
-            "Stop Reason",
-            "Nodes",
-            "Classes",
-            "Min Cost",
-        ]
+        let num_outcomes = items.len() as u64;
+        let mut total_time_sum = Duration::default();
+        let mut num_nodes_sum: u64 = 0;
+        let mut num_classes_sum: u64 = 0;
+        let mut min_cost_sum: u64 = 0;
+
+        for outcome in items {
+            total_time_sum += outcome.time;
+            num_nodes_sum += outcome.nodes as u64;
+            num_classes_sum += outcome.classes as u64;
+            min_cost_sum += outcome.min_cost as u64;
+        }
+
+        let avg_total_time = total_time_sum / num_outcomes as u32;
+        let avg_num_nodes = num_nodes_sum / num_outcomes;
+        let avg_classes = num_classes_sum / num_outcomes;
+        let avg_min_cost = min_cost_sum / num_outcomes;
+
+        // Create a formatted average row
+        use tabled::{Table, settings::Style};
+        
+        #[derive(Tabled)]
+        struct AverageRow {
+            #[tabled(rename = "Original Expression")]
+            label: String,
+            #[tabled(rename = "Extracted Expression")]
+            empty1: String,
+            #[tabled(rename = "Time")]
+            time: String,
+            #[tabled(rename = "Stop Reason")]
+            empty2: String,
+            #[tabled(rename = "Nodes")]
+            nodes: u64,
+            #[tabled(rename = "Classes")]
+            classes: u64,
+            #[tabled(rename = "Min Cost")]
+            min_cost: u64,
+        }
+
+        let avg_row = AverageRow {
+            label: "AVERAGE".to_string(),
+            empty1: String::new(),
+            time: format!("{:?}", avg_total_time),
+            empty2: String::new(),
+            nodes: avg_num_nodes,
+            classes: avg_classes,
+            min_cost: avg_min_cost,
+        };
+
+        let mut table = Table::new(vec![avg_row]);
+        table.with(Style::rounded());
+        Some(table.to_string())
     }
 }

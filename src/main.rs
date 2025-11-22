@@ -202,7 +202,7 @@ fn main() {
     use benchmark::{
         OutcomeFormatter,
         csv_output::CsvOutputFormatter,
-        pretty_printing::{PrettyTableFormatter, ReachabilityOutcomeFormatter},
+        pretty_printing::PrettyTableFormatter,
     };
 
     let pretty_formatter = PrettyTableFormatter;
