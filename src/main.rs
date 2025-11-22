@@ -187,15 +187,15 @@ fn main() {
 
     use benchmark::{
         OutcomeFormatter,
-        csv_output::CsvFormatter,
-        pretty_printing::{PrettyTableFormatter, ReachabilityOutcomeFormatter},
+        csv_output::CsvOutputFormatter,
+        pretty_printing::PrettyTableFormatter,
     };
 
     let pretty_formatter = PrettyTableFormatter;
     let pretty_output = pretty_formatter.format_saturator_outcomes(map.clone());
     println!("{pretty_output}");
 
-    let csv_formatter = CsvFormatter;
+    let csv_formatter = CsvOutputFormatter;
     let csv_output = csv_formatter.format_saturator_outcomes(map);
     println!("\nCSV Output:\n{csv_output}");
 

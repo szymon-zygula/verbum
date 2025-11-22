@@ -1,5 +1,7 @@
 use std::hint::black_box;
 use std::time::{Duration, Instant};
+use tabled::Tabled;
+use serde::Serialize;
 
 use crate::language::expression::VarFreeExpression;
 use crate::rewriting::egraph::matching::Matcher;
@@ -8,15 +10,55 @@ use crate::rewriting::egraph::saturation::scheduler::Scheduler;
 use crate::rewriting::egraph::{Analysis, DynEGraph};
 use crate::rewriting::reachability::{ReachabilityStopReason, terms_reachable};
 use crate::rewriting::rule::Rule;
+use super::formatter::{Formattable, format_duration};
 
-#[derive(Clone, Debug)]
+fn format_reachability_stop_reason(reason: &ReachabilityStopReason) -> String {
+    format!("{:?}", reason)
+}
+
+fn serialize_duration<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_u128(duration.as_nanos())
+}
+
+fn serialize_reachability_stop_reason<S>(reason: &ReachabilityStopReason, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_str(&format!("{:?}", reason))
+}
+
+fn serialize_expr<S>(expr: &VarFreeExpression, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_str(&expr.to_string())
+}
+
+#[derive(Clone, Debug, Tabled, Serialize)]
 pub struct ReachabilityOutcome {
+    #[tabled(rename = "Expr A")]
+    #[serde(rename = "Expr A", serialize_with = "serialize_expr")]
     pub expr_a: VarFreeExpression,
+    #[tabled(rename = "Expr B")]
+    #[serde(rename = "Expr B", serialize_with = "serialize_expr")]
     pub expr_b: VarFreeExpression,
+    #[tabled(rename = "Time", display_with = "format_duration")]
+    #[serde(rename = "Time (ns)", serialize_with = "serialize_duration")]
     pub time: Duration,
+    #[tabled(rename = "Stop Reason", display_with = "format_reachability_stop_reason")]
+    #[serde(rename = "Stop Reason", serialize_with = "serialize_reachability_stop_reason")]
     pub stop_reason: ReachabilityStopReason,
+    #[tabled(rename = "Applications(avg)")]
+    #[serde(rename = "Applications(avg)")]
     pub applications: usize,
+    #[tabled(rename = "Nodes")]
+    #[serde(rename = "Nodes")]
     pub nodes: usize,
+    #[tabled(rename = "Classes")]
+    #[serde(rename = "Classes")]
     pub classes: usize,
 }
 
@@ -94,6 +136,67 @@ where
         out.push(avg);
     }
     out
+}
+
+impl Formattable for ReachabilityOutcome {
+    fn calculate_averages(items: &[Self]) -> Option<String> {
+        if items.is_empty() {
+            return None;
+        }
+
+        let num_outcomes = items.len() as u64;
+        let mut total_time = Duration::default();
+        let mut total_apps: u64 = 0;
+        let mut total_nodes: u64 = 0;
+        let mut total_classes: u64 = 0;
+
+        for outcome in items {
+            total_time += outcome.time;
+            total_apps += outcome.applications as u64;
+            total_nodes += outcome.nodes as u64;
+            total_classes += outcome.classes as u64;
+        }
+
+        let avg_time = total_time / num_outcomes.min(u32::MAX as u64) as u32;
+        let avg_apps = total_apps / num_outcomes;
+        let avg_nodes = total_nodes / num_outcomes;
+        let avg_classes = total_classes / num_outcomes;
+
+        // Create a formatted average row
+        use tabled::{Table, settings::Style};
+        
+        #[derive(Tabled)]
+        struct AverageRow {
+            #[tabled(rename = "Expr A")]
+            label: String,
+            #[tabled(rename = "Expr B")]
+            empty1: String,
+            #[tabled(rename = "Time")]
+            time: String,
+            #[tabled(rename = "Stop Reason")]
+            empty2: String,
+            #[tabled(rename = "Applications(avg)")]
+            applications: u64,
+            #[tabled(rename = "Nodes")]
+            nodes: u64,
+            #[tabled(rename = "Classes")]
+            classes: u64,
+        }
+
+        let avg_row = AverageRow {
+            label: "AVERAGE".to_string(),
+            empty1: String::new(),
+            time: format!("{:?}", avg_time),
+            empty2: String::new(),
+            applications: avg_apps,
+            nodes: avg_nodes,
+            classes: avg_classes,
+        };
+
+        let mut table = Table::new(vec![avg_row]);
+        table.with(Style::rounded());
+        Some(table.to_string())
+    }
 }
 
 #[cfg(test)]
