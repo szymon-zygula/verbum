@@ -1,9 +1,9 @@
-verbum/! A `UnionFind` implementation (also known as Disjoint-Set Union), used to efficiently manage equivalence classes and perform union and find operations on sets.
+//! A Union Find implementation (also known as Disjoint-Set Union), used to efficiently manage equivalence classes and perform union and find operations on sets.
 use std::cell::Cell;
 
 pub type SetId = usize;
 
-/// A `UnionFind` data structure, also known as a Disjoint-Set Union (DSU).
+/// A Union Find data structure, also known as a Disjoint-Set Union (DSU).
 ///
 /// The `UnionFind` struct is used to efficiently manage and query the connected components
 /// of a set of elements. It supports two primary operations:
@@ -23,7 +23,7 @@ pub type SetId = usize;
 ///
 /// # Example
 /// ```
-/// use verbum::UnionFind;
+/// use verbum::union_find::UnionFind;
 ///
 /// let mut uf = UnionFind::default();
 /// // Example usage would involve initializing the structure with elements,

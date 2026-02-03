@@ -77,6 +77,7 @@ mod tests {
         assert!(IndexSelector::new(vec![2, 4, 1, 0, 4, 5]).next().is_none());
     }
 
+    #[test]
     fn something() {
         assert_eq!(IndexSelector::new(vec![2, 4, 5, 8, 2]).count(), 640);
     }
