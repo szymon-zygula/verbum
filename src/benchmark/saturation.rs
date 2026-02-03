@@ -1,3 +1,8 @@
+//! Saturation benchmarking.
+//!
+//! This module provides benchmarking functionality for measuring the performance
+//! of equality saturation on various expressions and configurations.
+
 use std::collections::BTreeMap;
 use std::hint::black_box;
 use std::time::{Duration, Instant};
@@ -45,8 +50,11 @@ where
 /// Number of runs (after warm-up) used for averaging.
 pub const RUN_COUNT: usize = 10;
 
+/// Trait for formatting benchmark outcomes.
 pub trait OutcomeFormatter {
+    /// Formats a list of outcomes into a string.
     fn format_outcomes(&self, outcomes: &[Outcome]) -> String;
+    /// Formats a map of saturator names to their outcomes.
     fn format_saturator_outcomes(&self, outcomes_map: BTreeMap<String, Vec<Outcome>>) -> String;
 }
 

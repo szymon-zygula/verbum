@@ -1,12 +1,22 @@
+//! Variable-free expression representation.
+//!
+//! This module provides the [`VarFreeExpression`] type for expressions that
+//! contain no variables - only literals and symbols with concrete children.
+
 use super::{AnyExpression, Expression, Literal};
 use crate::language::Language;
 use crate::language::symbol::Symbol;
 use serde::{Deserialize, Serialize};
 
-/// An expression which does not admit variables
+/// An expression which does not contain variables.
+///
+/// Unlike [`Expression`], this type guarantees the absence of variables.
+/// These are ground terms consisting only of literals and symbols with concrete children.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum VarFreeExpression {
+    /// A literal constant value
     Literal(Literal),
+    /// A function symbol with variable-free child expressions
     Symbol(Symbol<VarFreeExpression>),
 }
 
@@ -23,6 +33,7 @@ impl VarFreeExpression {
         children
     }
 
+    /// Converts this variable-free expression to a general expression.
     pub fn to_expression(&self) -> Expression {
         match self {
             VarFreeExpression::Literal(literal) => Expression::Literal(literal.clone()),

@@ -1,3 +1,7 @@
+//! Expression types and representations.
+//!
+//! This module provides various expression types used throughout the system.
+
 pub mod any;
 pub mod literal;
 pub mod mixed;
@@ -21,15 +25,30 @@ use std::collections::{HashMap, HashSet};
 
 pub type VariableId = usize;
 
-/// An expression with variables
+/// An expression with variables.
+///
+/// Represents expressions that may contain variables (e.g., `$0`, `$1`),
+/// literals, or symbols with children. Used in pattern matching and rule definitions.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum Expression {
+    /// A literal value
     Literal(Literal),
+    /// A function symbol with child expressions
     Symbol(Symbol<Expression>),
+    /// A variable identified by its ID
     Variable(VariableId),
 }
 
 impl Expression {
+    /// Generates a variable name from its ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The variable identifier
+    ///
+    /// # Returns
+    ///
+    /// Returns a string representation like `"$0"`, `"$1"`, etc.
     pub fn variable_name(id: VariableId) -> String {
         format!("${id}")
     }

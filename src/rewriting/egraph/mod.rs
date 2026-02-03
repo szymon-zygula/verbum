@@ -1,3 +1,16 @@
+//! E-graph data structure for efficient equality representation.
+//!
+//! This module implements an e-graph (equality graph), which is a data structure
+//! that efficiently represents equivalence classes of expressions. E-graphs are
+//! used in equality saturation to explore the space of equivalent expressions
+//! and find optimal representations.
+//!
+//! The main components are:
+//! - [`EGraph`]: The core e-graph structure
+//! - [`Node`]: Individual expression nodes
+//! - [`Class`]: Equivalence classes of expressions
+//! - Various matching, extraction, and saturation algorithms
+
 pub mod class;
 pub mod drawing;
 pub mod extraction;
@@ -26,6 +39,15 @@ use crate::{
 pub type NodeId = usize;
 pub type ClassId = usize;
 
+/// An e-graph (equality graph) data structure.
+///
+/// An e-graph efficiently represents a set of expressions and their equivalences.
+/// It uses a union-find data structure to track equivalence classes and maintains
+/// a hashcons to ensure node uniqueness.
+///
+/// # Type Parameters
+///
+/// * `A` - The analysis type for computing metadata about equivalence classes
 #[derive(Default, Clone)]
 pub struct EGraph<A: Analysis> {
     union_find: UnionFind,

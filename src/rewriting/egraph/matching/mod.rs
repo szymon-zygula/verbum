@@ -1,3 +1,8 @@
+//! Pattern matching algorithms for e-graphs.
+//!
+//! This module provides algorithms for matching patterns (expressions with variables)
+//! against the expressions in an e-graph.
+
 pub mod bottom_up;
 pub mod top_down;
 
@@ -7,6 +12,10 @@ use crate::language::expression::{Expression, VariableId};
 
 use super::{ClassId, DynEGraph};
 
+/// A successful pattern match in an e-graph.
+///
+/// Represents the result of matching a pattern against the e-graph,
+/// storing the root class and substitutions for all variables in the pattern.
 #[derive(Clone, Debug)]
 pub struct EGraphMatch {
     root: ClassId,
@@ -14,6 +23,7 @@ pub struct EGraphMatch {
 }
 
 impl EGraphMatch {
+    /// Creates an empty match with no substitutions.
     fn empty(root: ClassId) -> Self {
         EGraphMatch {
             root,
@@ -38,7 +48,7 @@ impl EGraphMatch {
         Some(self)
     }
 
-    /// Same as `EgraphMatch::merge` but generalized to more than two matches
+    /// Same as [`EGraphMatch::merge`] but generalized to more than two matches
     fn merge_multiple(root: ClassId, matches: Vec<EGraphMatch>) -> Option<EGraphMatch> {
         let mut total_match = EGraphMatch::empty(root);
 

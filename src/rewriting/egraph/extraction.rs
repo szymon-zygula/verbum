@@ -1,3 +1,9 @@
+//! Expression extraction from e-graphs.
+//!
+//! This module provides algorithms for extracting concrete expressions from
+//! e-graphs, typically selecting the "best" representative according to some
+//! cost function.
+
 use std::{collections::HashMap, iter::Sum, marker::PhantomData};
 
 use crate::language::{
@@ -7,6 +13,9 @@ use crate::language::{
 
 use super::{ClassId, DynEGraph, Node, NodeId};
 
+/// The result of extracting an expression from an e-graph.
+///
+/// Contains both the extracted expression and its associated cost.
 #[derive(Clone, Debug)]
 pub struct ExtractionResult<C> {
     winner: VarFreeExpression,
@@ -14,23 +23,37 @@ pub struct ExtractionResult<C> {
 }
 
 impl<C> ExtractionResult<C> {
+    /// Returns a reference to the extracted expression.
     pub fn winner(&self) -> &VarFreeExpression {
         &self.winner
     }
 
+    /// Returns a reference to the cost of the extracted expression.
     pub fn cost(&self) -> &C {
         &self.cost
     }
 
+    /// Consumes the result and returns the cost value.
     pub fn cost_value(self) -> C {
         self.cost
     }
 }
 
+/// Trait for extracting expressions from e-graphs.
 pub trait Extractor {
+    /// The type used to represent costs
     type Cost;
 
     /// Finds the cheapest expression represented by `egraph` that's represented by class with id `equivalent`.
+    ///
+    /// # Arguments
+    ///
+    /// * `egraph` - The e-graph to extract from
+    /// * `equivalent` - The class ID to extract an expression from
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(result)` with the cheapest expression, or `None` if extraction fails
     fn extract(
         &self,
         egraph: &dyn DynEGraph,
@@ -43,8 +66,13 @@ trait_set::trait_set! {
     pub trait SimpleLiteralCost<C> = Fn(&Literal) -> C;
 }
 
-/// A simple extractor, finding the cheapest class, calculating the cost
-/// using given functions
+/// A simple extractor that finds the cheapest expression using cost functions.
+///
+/// # Type Parameters
+///
+/// * `C` - The cost type (must be ordered)
+/// * `SC` - The function type for computing symbol costs
+/// * `LC` - The function type for computing literal costs
 pub struct SimpleExtractor<C, SC, LC>
 where
     C: Ord + PartialEq + Clone,
