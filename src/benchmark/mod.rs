@@ -1,3 +1,12 @@
+//! Benchmarking utilities for term rewriting systems.
+//!
+//! This module provides tools for benchmarking the performance of term rewriting
+//! systems, including:
+//! - Saturation benchmarks
+//! - Reachability analysis
+//! - Result formatting (CSV, pretty tables)
+//! - Random expression generation
+
 pub mod csv_output;
 pub mod formatter;
 pub mod pretty_printing;

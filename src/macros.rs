@@ -1,5 +1,28 @@
+//! Convenience macros for defining rewrite rules and term rewriting systems.
+//!
+//! This module provides macros that simplify the declaration of rewrite rules
+//! and term rewriting systems with a more concise syntax.
+
 // Macros to simplify rule and TRS declarations
 
+/// Creates a vector of rewrite rules from string patterns.
+///
+/// # Syntax
+///
+/// - `rules!(lang; "pattern" => "replacement", ...)` - Creates unidirectional rules
+/// - `rules!(lang; "pattern" <=> "replacement", ...)` - Creates bidirectional rules
+///
+/// # Examples
+///
+/// ```no_run
+/// # use verbum::macros::rules;
+/// # use verbum::language::Language;
+/// let lang = Language::simple_math();
+/// let rules = rules!(lang;
+///     "(* $0 1)" => "$0",
+///     "(+ $0 0)" => "$0"
+/// );
+/// ```
 #[macro_export]
 macro_rules! rules {
     ($lang:expr; ) => {
@@ -20,6 +43,19 @@ macro_rules! rules {
     }};
 }
 
+/// Creates a complete term rewriting system with symbols and rules.
+///
+/// # Syntax
+///
+/// ```no_run
+/// # use verbum::macros::trs;
+/// let system = trs!(
+///     symbols: ["+", "*", "0", "1"],
+///     rules:
+///         "(* $0 1)" => "$0",
+///         "(+ $0 0)" => "$0"
+/// );
+/// ```
 #[macro_export]
 macro_rules! trs {
     (symbols: [ $( $sym:expr ),* $(,)? ], rules: $($rules:tt)* ) => {{

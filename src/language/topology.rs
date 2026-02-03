@@ -1,3 +1,8 @@
+//! Expression topology and distance metrics.
+//!
+//! This module provides utilities for computing the size and structural distance
+//! between expressions, useful for cost analysis and heuristics.
+
 use itertools::Itertools;
 
 use super::expression::{AnyExpression, Literal};
@@ -9,6 +14,15 @@ type ExpressionMagnitude = u32;
 const IDENTICAL_DISTANCE: ExpressionMagnitude = 0;
 const BASE_DISTANCE: ExpressionMagnitude = 1;
 
+/// Computes the size (node count) of an expression.
+///
+/// # Arguments
+///
+/// * `expr` - The expression to measure
+///
+/// # Returns
+///
+/// Returns the total number of nodes in the expression tree
 pub fn expression_size(expr: &Expression) -> ExpressionMagnitude {
     match expr {
         Expression::Literal(literal) => literal_size(literal),
@@ -17,10 +31,12 @@ pub fn expression_size(expr: &Expression) -> ExpressionMagnitude {
     }
 }
 
+/// Returns the size of a literal (always 1).
 pub fn literal_size(_: &Literal) -> ExpressionMagnitude {
     BASE_DISTANCE
 }
 
+/// Computes the size of a symbol and its children.
 pub fn symbol_size(symbol: &Symbol<Expression>) -> ExpressionMagnitude {
     BASE_DISTANCE
         + symbol
@@ -30,6 +46,16 @@ pub fn symbol_size(symbol: &Symbol<Expression>) -> ExpressionMagnitude {
             .sum::<ExpressionMagnitude>()
 }
 
+/// Computes the structural distance between two expressions.
+///
+/// # Arguments
+///
+/// * `expr_1` - The first expression
+/// * `expr_2` - The second expression
+///
+/// # Returns
+///
+/// Returns a measure of how different the two expressions are structurally
 pub fn distance<'a>(mut expr_1: &'a Expression, mut expr_2: &'a Expression) -> ExpressionMagnitude {
     let mut total_distance = distance_structural(Some(expr_1), Some(expr_2));
 

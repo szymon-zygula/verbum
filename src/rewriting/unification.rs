@@ -1,20 +1,42 @@
+//! Unification algorithms for expressions with variables.
+//!
+//! This module implements unification algorithms that match expressions where
+//! both sides may contain variables. Unification finds substitutions that make
+//! two expressions equal.
+
 use std::collections::HashMap;
 
 use crate::did::Did;
 use crate::equation::Equation;
 use crate::language::expression::{Expression, VariableId};
 
-/// This module implements unification algorithms, that is matching but in the case that both sides of an expression
-/// include variables
-
+/// A substitution mapping variables to expressions.
+///
+/// Represents the result of unification: a mapping from variable IDs to
+/// the expressions they should be replaced with.
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct Substitution(HashMap<VariableId, Expression>);
 
 impl Substitution {
+    /// Gets the expression substituted for a variable.
+    ///
+    /// # Arguments
+    ///
+    /// * `variable` - The variable ID to look up
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(&Expression)` if the variable has a substitution, `None` otherwise
     pub fn get(&self, variable: VariableId) -> Option<&Expression> {
         self.0.get(&variable)
     }
 
+    /// Sets the substitution for a variable.
+    ///
+    /// # Arguments
+    ///
+    /// * `variable` - The variable ID to set
+    /// * `expression` - The expression to substitute for the variable
     pub fn set(&mut self, variable: VariableId, expression: Expression) {
         self.0.insert(variable, expression);
     }
@@ -33,6 +55,7 @@ impl Substitution {
         (first_substitution, self)
     }
 
+    /// Maps all variable IDs using the provided function.
     pub fn map_variables(&mut self, mut f: impl FnMut(VariableId) -> VariableId) {
         self.0 = std::mem::take(&mut self.0)
             .into_iter()
@@ -40,12 +63,12 @@ impl Substitution {
             .collect();
     }
 
-    /// Renames all variables by adding `shift` to their IDs
+    /// Renames all variables by adding `shift` to their IDs.
     pub fn shift_positive(&mut self, shift: usize) {
         self.map_variables(|variable| variable + shift);
     }
 
-    /// Renames all variables by subtracting `shift` from their IDs
+    /// Renames all variables by subtracting `shift` from their IDs.
     pub fn shift_negative(&mut self, shift: usize) {
         self.map_variables(|variable| variable - shift);
     }

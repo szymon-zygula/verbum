@@ -1,3 +1,8 @@
+//! Pattern matching for expressions.
+//!
+//! This module provides pattern matching capabilities for variable-free expressions,
+//! allowing patterns with variables to be matched against concrete expressions.
+
 use std::collections::HashMap;
 
 use itertools::Itertools;
@@ -7,17 +12,23 @@ use crate::language::{
     symbol::Symbol,
 };
 
+/// A pattern match result.
+///
+/// Represents a successful match of a pattern against an expression,
+/// storing the substitutions for all variables in the pattern.
 #[derive(Clone, Debug, Default)]
 pub struct Match<'e> {
     substitutions: HashMap<VariableId, &'e VarFreeExpression>,
 }
 
 impl<'e> Match<'e> {
+    /// Tries to merge two matches, returning `None` if they conflict.
     pub fn try_merge(&self, other: &Self) -> Option<Self> {
         let new_match = self.clone();
         new_match.try_add_match(other)
     }
 
+    /// Tries to add substitutions from another match to this one.
     fn try_add_match(mut self, other: &Match<'e>) -> Option<Self> {
         for (key, value) in &self.substitutions {
             if let Some(other_value) = other.substitutions.get(key)
@@ -31,10 +42,20 @@ impl<'e> Match<'e> {
         Some(self)
     }
 
+    /// Returns the substitutions in this match.
     pub fn substitutions(&self) -> &HashMap<VariableId, &'e VarFreeExpression> {
         &self.substitutions
     }
 
+    /// Gets the expression substituted for a variable.
+    ///
+    /// # Arguments
+    ///
+    /// * `variable` - The variable ID to look up
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(expression)` if the variable was matched, `None` otherwise
     pub fn at(&self, variable: VariableId) -> Option<&'e VarFreeExpression> {
         self.substitutions.get(&variable).copied()
     }

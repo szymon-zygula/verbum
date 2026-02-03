@@ -1,3 +1,8 @@
+//! Reachability analysis for term rewriting systems.
+//!
+//! This module provides functionality to determine if two expressions can be
+//! made equivalent through the application of rewrite rules.
+
 use std::time::{Duration, Instant};
 
 use crate::language::expression::VarFreeExpression;
@@ -7,30 +12,49 @@ use crate::rewriting::egraph::saturation::{SaturationConfig, SaturationStopReaso
 use crate::rewriting::egraph::{Analysis, ClassId, DynEGraph, EGraph};
 use crate::rewriting::rule::Rule;
 
-/// Why reachability stopped.
+/// Reason why reachability analysis stopped.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ReachabilityStopReason {
-    /// The two roots ended up in the same canonical class.
+    /// The two expressions were unified (ended up in the same equivalence class).
     ReachedCommonForm { class_id: ClassId },
     /// A configured resource limit was hit.
     Limit(SaturationStopReason),
-    /// No more rule applications possible and the classes differ.
+    /// No more rule applications possible and the classes remain distinct.
     SaturatedNoUnification,
 }
 
-/// Result of a reachability attempt. Contains the final e-graph for further inspection.
+/// Result of a reachability analysis.
+///
+/// Contains the final e-graph, the reason for stopping, and statistics
+/// about the analysis process.
 #[derive(Clone)]
 pub struct ReachabilityResult<A: Analysis> {
+    /// The final e-graph after reachability analysis
     pub egraph: EGraph<A>,
+    /// The reason why the analysis stopped
     pub reason: ReachabilityStopReason,
+    /// The number of rule applications performed
     pub applications: usize,
+    /// The duration of the analysis
     pub duration: Duration,
 }
 
-/// Check reachability using a custom scheduler factory.
+/// Check if two terms can reach a common form through equality saturation.
 ///
-/// The `build_scheduler` closure receives the rules and must return a scheduler
-/// initialized to apply them in whatever policy it prefers.
+/// Uses a custom scheduler factory to control the order of rule applications.
+///
+/// # Arguments
+///
+/// * `rules` - The rewrite rules to apply
+/// * `expr_a` - The first expression
+/// * `expr_b` - The second expression
+/// * `config` - Configuration for saturation limits
+/// * `matcher` - The matcher to use for pattern matching
+/// * `build_scheduler` - A function that creates a scheduler for the rules
+///
+/// # Returns
+///
+/// Returns a `ReachabilityResult` containing the outcome
 pub fn terms_reachable<A, F>(
     rules: &[Rule],
     expr_a: VarFreeExpression,

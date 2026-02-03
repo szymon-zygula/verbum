@@ -1,3 +1,8 @@
+//! Union-Find data structure with associated data per set.
+//!
+//! This module provides a union-find (disjoint-set) data structure where each
+//! set can have associated data that is merged when sets are unified.
+
 use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
@@ -8,7 +13,16 @@ use std::{
 type SetId = usize;
 type DataId = usize;
 
+/// Trait for data that can be associated with sets in a union-find structure.
+///
+/// Types implementing this trait must define how to merge data when two sets
+/// are unified.
 pub trait UnionData: Debug {
+    /// Merges this data with another.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The data to merge into this one
     fn merge(&mut self, other: Self);
 }
 
@@ -18,6 +32,14 @@ enum DataUnionFindNode {
     Pointer(Cell<SetId>),
 }
 
+/// A union-find data structure with associated data.
+///
+/// Extends the standard union-find with the ability to store and merge data
+/// when sets are unified.
+///
+/// # Type Parameters
+///
+/// * `D` - The type of data associated with each set
 #[derive(Debug, Default)]
 pub struct DataUnionFind<D: UnionData> {
     data: HashMap<DataId, D>,
@@ -25,6 +47,12 @@ pub struct DataUnionFind<D: UnionData> {
 }
 
 impl<D: UnionData> DataUnionFind<D> {
+    /// Creates a new data union-find with a pre-allocated size.
+    ///
+    /// # Arguments
+    ///
+    /// * `size` - The initial number of sets
+    /// * `generator` - A function to generate data for each initial set
     pub fn with_size(size: usize, mut generator: impl FnMut(usize) -> D) -> Self {
         let mut data = HashMap::with_capacity(size);
         let mut contents = Vec::with_capacity(size);
@@ -37,10 +65,12 @@ impl<D: UnionData> DataUnionFind<D> {
         Self { data, contents }
     }
 
+    /// Returns the total number of sets (unified and non-unified).
     pub fn size(&self) -> usize {
         self.contents.len()
     }
 
+    /// Adds a new set with associated data.
     fn add(&mut self, data: D) -> SetId {
         let new_id = self.size();
         self.data.insert(new_id, data);

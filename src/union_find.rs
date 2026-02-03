@@ -1,4 +1,4 @@
-//! A `UnionFind` implementation (also known as Disjoint-Set Union), used to efficiently manage equivalence classes and perform union and find operations on sets.
+verbum/! A `UnionFind` implementation (also known as Disjoint-Set Union), used to efficiently manage equivalence classes and perform union and find operations on sets.
 use std::cell::Cell;
 
 pub type SetId = usize;
@@ -23,7 +23,7 @@ pub type SetId = usize;
 ///
 /// # Example
 /// ```
-/// use your_crate::UnionFind;
+/// use verbum::UnionFind;
 ///
 /// let mut uf = UnionFind::default();
 /// // Example usage would involve initializing the structure with elements,
