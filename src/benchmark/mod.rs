@@ -20,3 +20,8 @@ pub use reachability::{
     ReachabilityOutcome,
     benchmark_pairs_with_scheduler as reachability_benchmark_pairs_with_scheduler,
 };
+
+pub use random_generation::{
+    generate_random_expression, generate_random_expression_by_size,
+    generate_random_expression_with_config, LiteralGenerationConfig, RandomGenerationConfig,
+};
