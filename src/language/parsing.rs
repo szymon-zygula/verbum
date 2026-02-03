@@ -1,3 +1,8 @@
+//! Expression parsing functionality.
+//!
+//! This module provides parsing capabilities for converting string representations
+//! of expressions into the internal [`Expression`] and [`VarFreeExpression`] types.
+
 use super::{
     Language,
     expression::{Expression, Literal, VarFreeExpression},
@@ -11,6 +16,7 @@ use pest_derive::Parser;
 struct LanguageParser;
 
 impl Language {
+    /// Parses an expression from a parsed syntax tree node.
     fn parse_expression(&self, pair: Pair<Rule>) -> Expression {
         match pair.as_rule() {
             Rule::standalone_expression | Rule::expression => {
@@ -37,6 +43,15 @@ impl Language {
         }
     }
 
+    /// Parses a string into an expression.
+    ///
+    /// # Arguments
+    ///
+    /// * `string` - The string representation of the expression
+    ///
+    /// # Returns
+    ///
+    /// Returns an `Expression` on success, or an error if parsing fails
     pub fn parse(&self, string: &str) -> anyhow::Result<Expression> {
         let expr = LanguageParser::parse(Rule::standalone_expression, string)?
             .next()
@@ -45,6 +60,16 @@ impl Language {
         Ok(self.parse_expression(expr))
     }
 
+    /// Parses a string into a variable-free expression.
+    ///
+    /// # Arguments
+    ///
+    /// * `string` - The string representation of the expression
+    ///
+    /// # Returns
+    ///
+    /// Returns a `VarFreeExpression` on success, or an error if parsing fails
+    /// or if the expression contains variables
     pub fn parse_no_vars(&self, string: &str) -> anyhow::Result<VarFreeExpression> {
         self.parse(string)?
             .without_variables()
