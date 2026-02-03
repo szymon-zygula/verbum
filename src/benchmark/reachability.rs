@@ -1,8 +1,9 @@
+use serde::Serialize;
 use std::hint::black_box;
 use std::time::{Duration, Instant};
 use tabled::Tabled;
-use serde::Serialize;
 
+use super::formatter::{Formattable, format_duration};
 use crate::language::expression::VarFreeExpression;
 use crate::rewriting::egraph::matching::Matcher;
 use crate::rewriting::egraph::saturation::SaturationConfig;
@@ -10,7 +11,6 @@ use crate::rewriting::egraph::saturation::scheduler::Scheduler;
 use crate::rewriting::egraph::{Analysis, DynEGraph};
 use crate::rewriting::reachability::{ReachabilityStopReason, terms_reachable};
 use crate::rewriting::rule::Rule;
-use super::formatter::{Formattable, format_duration};
 
 fn format_reachability_stop_reason(reason: &ReachabilityStopReason) -> String {
     format!("{:?}", reason)
@@ -23,7 +23,10 @@ where
     serializer.serialize_u128(duration.as_nanos())
 }
 
-fn serialize_reachability_stop_reason<S>(reason: &ReachabilityStopReason, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_reachability_stop_reason<S>(
+    reason: &ReachabilityStopReason,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
@@ -48,8 +51,14 @@ pub struct ReachabilityOutcome {
     #[tabled(rename = "Time", display_with = "format_duration")]
     #[serde(rename = "Time (ns)", serialize_with = "serialize_duration")]
     pub time: Duration,
-    #[tabled(rename = "Stop Reason", display_with = "format_reachability_stop_reason")]
-    #[serde(rename = "Stop Reason", serialize_with = "serialize_reachability_stop_reason")]
+    #[tabled(
+        rename = "Stop Reason",
+        display_with = "format_reachability_stop_reason"
+    )]
+    #[serde(
+        rename = "Stop Reason",
+        serialize_with = "serialize_reachability_stop_reason"
+    )]
     pub stop_reason: ReachabilityStopReason,
     #[tabled(rename = "Applications(avg)")]
     #[serde(rename = "Applications(avg)")]
@@ -164,7 +173,7 @@ impl Formattable for ReachabilityOutcome {
 
         // Create a formatted average row
         use tabled::{Table, settings::Style};
-        
+
         #[derive(Tabled)]
         struct AverageRow {
             #[tabled(rename = "Expr A")]

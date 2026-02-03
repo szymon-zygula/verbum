@@ -1,9 +1,10 @@
+use serde::Serialize;
 use std::collections::BTreeMap;
 use std::hint::black_box;
 use std::time::{Duration, Instant};
 use tabled::Tabled;
-use serde::Serialize;
 
+use super::formatter::{Formattable, format_duration};
 use crate::{
     language::expression::VarFreeExpression,
     rewriting::{
@@ -15,7 +16,6 @@ use crate::{
         system::TermRewritingSystem,
     },
 };
-use super::formatter::{Formattable, format_duration};
 
 fn format_stop_reason(reason: &SaturationStopReason) -> String {
     format!("{:?}", reason)
@@ -246,7 +246,7 @@ impl Formattable for Outcome {
 
         // Create a formatted average row
         use tabled::{Table, settings::Style};
-        
+
         #[derive(Tabled)]
         struct AverageRow {
             #[tabled(rename = "Original Expression")]
