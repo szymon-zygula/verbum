@@ -4,9 +4,9 @@ use crate::rewriting::egraph::saturation::{SaturationConfig, Saturator, SimpleSa
 use crate::rewriting::egraph::{Analysis, EGraph, matching::bottom_up::BottomUpMatcher};
 use crate::rewriting::rule::Rule;
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Visitor, ser::SerializeStruct};
-use std::fmt;
-use std::path::{Path, PathBuf};
 use std::error::Error;
+use std::fmt;
+use std::path::Path;
 
 mod calculus;
 mod dependency_graph;

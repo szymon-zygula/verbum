@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 
-use crate::language::expression::{VarFreeExpression, load_expressions_from_file};
+use crate::language::expression::load_expressions_from_file;
 use rewriting::{
     egraph::{
         EGraph,
@@ -186,9 +186,7 @@ fn main() {
     ]);
 
     use benchmark::{
-        OutcomeFormatter,
-        csv_output::CsvOutputFormatter,
-        pretty_printing::PrettyTableFormatter,
+        OutcomeFormatter, csv_output::CsvOutputFormatter, pretty_printing::PrettyTableFormatter,
     };
 
     let pretty_formatter = PrettyTableFormatter;

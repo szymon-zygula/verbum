@@ -8,7 +8,6 @@ pub mod var_free;
 pub use any::{AnyExpression, LangExpression};
 pub use literal::Literal;
 pub use mixed::MixedExpression;
-pub use multi::LangMultiExpression;
 pub use path::{OwnedPath, Path};
 pub use var_free::VarFreeExpression;
 
