@@ -1,18 +1,41 @@
+//! Equation representation for term rewriting.
+//!
+//! This module provides the [`Equation`] struct that represents an equation
+//! between two expressions, used in unification and term rewriting algorithms.
+
 use itertools::Itertools;
 
 use crate::language::expression::Expression;
 
+/// An equation between two expressions.
+///
+/// An equation represents the equality `left = right` between two expressions.
+/// Equations are used in unification algorithms to determine if two expressions
+/// can be made equal through variable substitution.
 #[derive(Clone, Debug)]
 pub struct Equation {
+    /// The left-hand side of the equation
     pub left: Expression,
+    /// The right-hand side of the equation
     pub right: Expression,
 }
 
 impl Equation {
+    /// Creates a new equation from two expressions.
+    ///
+    /// # Arguments
+    ///
+    /// * `left` - The left-hand side expression
+    /// * `right` - The right-hand side expression
     pub fn new(left: Expression, right: Expression) -> Self {
         Self { left, right }
     }
 
+    /// Checks if the equation is trivial (both sides are identical).
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `left == right`, `false` otherwise
     pub fn is_trivial(&self) -> bool {
         self.left == self.right
     }

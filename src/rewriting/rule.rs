@@ -1,9 +1,19 @@
+//! Rewrite rule representation and application.
+//!
+//! This module provides the [`Rule`] struct that represents a rewrite rule
+//! (from pattern => to pattern) and handles its application to e-graphs.
+
 use crate::language::{Language, expression::Expression};
 
 use serde::{Deserialize, Serialize};
 
 use super::egraph::{Analysis, DynEGraph, EGraph, matching::Matcher};
 
+/// A rewrite rule for term rewriting.
+///
+/// A rule consists of a pattern to match (`from`) and a replacement pattern (`to`).
+/// When the `from` pattern matches an expression in the e-graph, the `to` pattern
+/// is instantiated and added, with the matched class and new class being merged.
 #[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
 pub struct Rule {
     from: Expression,
@@ -11,6 +21,13 @@ pub struct Rule {
 }
 
 impl Rule {
+    /// Creates a rule from string patterns.
+    ///
+    /// # Arguments
+    ///
+    /// * `from` - The pattern to match (left-hand side)
+    /// * `to` - The replacement pattern (right-hand side)
+    /// * `language` - The language to use for parsing the patterns
     pub fn from_strings(from: &str, to: &str, language: &Language) -> Self {
         let from = language.parse(from).unwrap();
         let to = language.parse(to).unwrap();
@@ -18,10 +35,12 @@ impl Rule {
         Self { from, to }
     }
 
+    /// Returns the pattern to match (left-hand side).
     pub fn from(&self) -> &Expression {
         &self.from
     }
 
+    /// Returns the replacement pattern (right-hand side).
     pub fn to(&self) -> &Expression {
         &self.to
     }

@@ -1,3 +1,9 @@
+//! Term rewriting system implementation.
+//!
+//! This module provides the [`TermRewritingSystem`] which combines a language
+//! definition with a set of rewrite rules to perform symbolic computation through
+//! term rewriting and equality saturation.
+
 use crate::language::expression::AnyExpression;
 use crate::language::{Language, expression::VarFreeExpression};
 use crate::rewriting::egraph::saturation::{SaturationConfig, Saturator, SimpleSaturator};
@@ -24,17 +30,36 @@ struct RulesFile {
     rules: Vec<SerializableRule>,
 }
 
+/// A complete term rewriting system.
+///
+/// Combines a [`Language`] definition with a set of [`Rule`]s to enable
+/// symbolic computation through term rewriting. The system can parse expressions,
+/// apply rewrite rules, and perform equality saturation using e-graphs.
 pub struct TermRewritingSystem {
     language: Language,
     rules: Vec<Rule>,
 }
 
 impl TermRewritingSystem {
+    /// Creates a new term rewriting system.
+    ///
+    /// # Arguments
+    ///
+    /// * `language` - The language definition containing all symbols
+    /// * `rules` - The set of rewrite rules to apply
     pub fn new(language: Language, rules: Vec<Rule>) -> Self {
         Self { language, rules }
     }
 
     /// Load a TermRewritingSystem from a directory containing language.json and trs.json
+    ///
+    /// # Arguments
+    ///
+    /// * `dir_path` - Path to a directory containing `language.json` and `trs.json` files
+    ///
+    /// # Returns
+    ///
+    /// Returns a `TermRewritingSystem` on success, or an error if files cannot be loaded
     pub fn from_directory<P: AsRef<Path>>(dir_path: P) -> Result<Self, Box<dyn Error>> {
         let dir_path = dir_path.as_ref();
 
@@ -56,16 +81,25 @@ impl TermRewritingSystem {
         Ok(Self::new(language, rules))
     }
 
+    /// Returns a reference to the system's language definition.
     pub fn language(&self) -> &Language {
         &self.language
     }
 
+    /// Returns a reference to the system's rewrite rules.
     pub fn rules(&self) -> &Vec<Rule> {
         &self.rules
     }
 
     /// Build an e-graph from the provided expression and saturate it using the system's rules.
-    /// Returns the saturated e-graph.
+    ///
+    /// # Arguments
+    ///
+    /// * `expression` - The expression to rewrite
+    ///
+    /// # Returns
+    ///
+    /// Returns the saturated e-graph containing all equivalent expressions
     pub fn rewrite<A: Analysis>(&self, expression: VarFreeExpression) -> EGraph<A> {
         let mut egraph = EGraph::<A>::from_expression(expression);
         let saturator = SimpleSaturator::new(Box::new(BottomUpMatcher));

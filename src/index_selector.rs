@@ -1,3 +1,23 @@
+//! Multi-dimensional index iteration utilities.
+//!
+//! This module provides the [`IndexSelector`] for iterating over all possible
+//! combinations of indices within given bounds, useful for cartesian product operations.
+
+/// An iterator that generates all possible index combinations within given bounds.
+///
+/// This is useful for iterating over multi-dimensional spaces, similar to nested
+/// loops but with dynamic dimensionality.
+///
+/// # Examples
+///
+/// ```no_run
+/// # use verbum::index_selector::IndexSelector;
+/// let selector = IndexSelector::new(vec![2, 3]);
+/// // Will iterate over: [0,0], [0,1], [0,2], [1,0], [1,1], [1,2]
+/// for indices in selector {
+///     println!("{:?}", indices);
+/// }
+/// ```
 #[derive(Clone, Debug)]
 pub struct IndexSelector {
     current: Vec<usize>,
@@ -6,6 +26,15 @@ pub struct IndexSelector {
 }
 
 impl IndexSelector {
+    /// Creates a new index selector with the given bounds.
+    ///
+    /// # Arguments
+    ///
+    /// * `bounds` - A vector specifying the upper bound (exclusive) for each dimension
+    ///
+    /// # Returns
+    ///
+    /// Returns an `IndexSelector` that will iterate over all index combinations
     pub fn new(bounds: Vec<usize>) -> Self {
         Self {
             current: vec![0; bounds.len()],
