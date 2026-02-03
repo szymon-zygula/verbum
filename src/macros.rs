@@ -1,5 +1,6 @@
 // Macros to simplify rule and TRS declarations
 
+#[macro_export]
 macro_rules! rules {
     ($lang:expr; ) => {
         Vec::<$crate::rewriting::rule::Rule>::new()
@@ -19,6 +20,7 @@ macro_rules! rules {
     }};
 }
 
+#[macro_export]
 macro_rules! trs {
     (symbols: [ $( $sym:expr ),* $(,)? ], rules: $($rules:tt)* ) => {{
         let mut lang = $crate::language::Language::default();
@@ -28,5 +30,5 @@ macro_rules! trs {
     }};
 }
 
-pub(crate) use rules;
-pub(crate) use trs;
+pub use rules;
+pub use trs;

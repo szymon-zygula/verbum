@@ -2,16 +2,13 @@
 //!
 //! This module provides a unified approach to formatting benchmark results
 //! using the `tabled` library for pretty-printed tables and the `csv` crate for CSV output.
-//! 
+//!
 //! The `Formattable` trait enables any benchmark outcome type to be formatted
 //! consistently without code duplication.
 
 use std::collections::BTreeMap;
 use std::time::Duration;
-use tabled::{
-    Table, Tabled,
-    settings::Style,
-};
+use tabled::{Table, Tabled, settings::Style};
 
 /// A generic trait for formatting benchmark outcomes.
 /// This trait is implemented for both Outcome and ReachabilityOutcome types.
@@ -33,25 +30,23 @@ impl PrettyFormatter {
         }
 
         let mut buffer = String::new();
-        
+
         // Create and format the main table
         let mut table = Table::new(items);
         table.with(Style::rounded());
         buffer.push_str(&table.to_string());
-        
+
         // Add averages if available
         if let Some(avg_str) = T::calculate_averages(items) {
             buffer.push('\n');
             buffer.push_str(&avg_str);
         }
-        
+
         buffer
     }
 
     /// Format outcomes grouped by saturator name
-    pub fn format_grouped<T: Formattable>(
-        outcomes_map: BTreeMap<String, Vec<T>>,
-    ) -> String {
+    pub fn format_grouped<T: Formattable>(outcomes_map: BTreeMap<String, Vec<T>>) -> String {
         let mut buffer = String::new();
 
         for (name, outcomes) in outcomes_map {
@@ -71,16 +66,16 @@ impl CsvFormatter {
     /// Format a collection of formattable items as CSV
     pub fn format<T: Formattable>(items: &[T]) -> Result<String, csv::Error> {
         let mut wtr = csv::Writer::from_writer(vec![]);
-        
+
         for item in items {
             wtr.serialize(item)?;
         }
-        
+
         wtr.flush()?;
-        let bytes = wtr.into_inner().map_err(|e| {
-            csv::Error::from(std::io::Error::other(e.to_string()))
-        })?;
-        
+        let bytes = wtr
+            .into_inner()
+            .map_err(|e| csv::Error::from(std::io::Error::other(e.to_string())))?;
+
         String::from_utf8(bytes)
             .map_err(|e| csv::Error::from(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))
     }

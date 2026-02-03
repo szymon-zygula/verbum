@@ -13,7 +13,7 @@ pub struct Match<'e> {
 }
 
 impl<'e> Match<'e> {
-    fn try_merge(&self, other: &Self) -> Option<Self> {
+    pub fn try_merge(&self, other: &Self) -> Option<Self> {
         let new_match = self.clone();
         new_match.try_add_match(other)
     }
@@ -31,7 +31,7 @@ impl<'e> Match<'e> {
         Some(self)
     }
 
-    fn substitutions(&self) -> &HashMap<VariableId, &'e VarFreeExpression> {
+    pub fn substitutions(&self) -> &HashMap<VariableId, &'e VarFreeExpression> {
         &self.substitutions
     }
 

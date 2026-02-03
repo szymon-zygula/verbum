@@ -8,8 +8,8 @@ use std::error::Error;
 use std::fmt;
 use std::path::Path;
 
-mod calculus;
-mod dependency_graph;
+pub mod calculus;
+pub mod dependency_graph;
 
 // Helper struct for serializing/deserializing rules
 #[derive(Serialize, Deserialize)]

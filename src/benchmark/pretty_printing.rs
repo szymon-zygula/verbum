@@ -1,5 +1,5 @@
-use super::{OutcomeFormatter, Outcome, ReachabilityOutcome};
 use super::formatter::PrettyFormatter;
+use super::{Outcome, OutcomeFormatter, ReachabilityOutcome};
 use std::collections::BTreeMap;
 
 pub struct PrettyTableFormatter;

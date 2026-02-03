@@ -170,7 +170,7 @@ impl<A: Analysis> EGraph<A> {
 
     /// Returns the list of `NodeId`s of nodes which have the same shape as
     /// `symbol` and are contained in the class with id `class_id`.
-    fn same_shape_symbols<E>(&self, class_id: ClassId, symbol: &Symbol<E>) -> Vec<NodeId> {
+    pub fn same_shape_symbols<E>(&self, class_id: ClassId, symbol: &Symbol<E>) -> Vec<NodeId> {
         self.class(class_id)
             .iter_nodes()
             .filter_map(|&node_id| {

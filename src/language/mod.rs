@@ -4,7 +4,7 @@ use symbol::SymbolId;
 pub mod expression;
 pub mod parsing;
 pub mod symbol;
-mod topology;
+pub mod topology;
 
 #[derive(Default, Clone, Serialize, Deserialize, PartialEq, Debug)]
 pub struct Language {
