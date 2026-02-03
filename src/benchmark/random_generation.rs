@@ -48,7 +48,7 @@ pub struct LiteralGenerationConfig {
 impl Default for LiteralGenerationConfig {
     fn default() -> Self {
         Self {
-            common_int_values: vec![0, 1, -1, 2],
+            common_int_values: vec![-1, 0, 1, 2],
             common_value_probability: 0.4,
             int_range: (-100, 100),
             uint_range: (0, 100),
@@ -321,13 +321,21 @@ fn distribute_size(total: usize, num_children: usize, rng: &mut impl Rng) -> Vec
     
     // Give each child at least 1 node
     let mut sizes = vec![1; num_children];
-    let mut remaining = total.saturating_sub(num_children);
+    let remaining = total.saturating_sub(num_children);
     
-    // Randomly distribute the remaining size
-    while remaining > 0 {
-        let idx = rng.gen_range(0..num_children);
-        sizes[idx] += 1;
-        remaining -= 1;
+    // Randomly distribute the remaining size more efficiently
+    // Generate random split points
+    if remaining > 0 {
+        let mut split_points: Vec<usize> = (0..num_children - 1)
+            .map(|_| rng.gen_range(0..=remaining))
+            .collect();
+        split_points.push(0);
+        split_points.push(remaining);
+        split_points.sort_unstable();
+        
+        for i in 0..num_children {
+            sizes[i] += split_points[i + 1] - split_points[i];
+        }
     }
     
     sizes
@@ -388,6 +396,9 @@ mod tests {
         let lang = Language::simple_math();
         let mut rng = rand::thread_rng();
 
+        // Maximum acceptable deviation from target size (as a fraction)
+        const MAX_SIZE_DEVIATION_FRACTION: usize = 3; // 1/3 = 33%
+
         for target_size in 1..20 {
             let expr = generate_random_expression_by_size(&lang, target_size, &mut rng);
             let actual_size = count_nodes(&expr);
@@ -398,7 +409,7 @@ mod tests {
             
             // The actual size should be reasonably close to the target
             // Allow some deviation due to randomness and arity constraints
-            let tolerance = if target_size < 5 { 1 } else { target_size / 3 };
+            let tolerance = if target_size < 5 { 1 } else { target_size / MAX_SIZE_DEVIATION_FRACTION };
             assert!(
                 actual_size <= target_size + tolerance,
                 "Expression size {actual_size} significantly exceeds target size {target_size}"
