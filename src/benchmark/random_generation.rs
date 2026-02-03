@@ -1,3 +1,8 @@
+//! Random expression generation for testing and benchmarking.
+//!
+//! This module provides utilities for generating random expressions,
+//! useful for stress testing and benchmarking term rewriting systems.
+
 use rand::Rng;
 
 use crate::language::{
@@ -6,6 +11,17 @@ use crate::language::{
     symbol::Symbol,
 };
 
+/// Generates a random expression up to a maximum size.
+///
+/// # Arguments
+///
+/// * `language` - The language defining available symbols
+/// * `max_size` - The maximum depth of the expression tree
+/// * `rng` - The random number generator to use
+///
+/// # Returns
+///
+/// Returns a randomly generated expression
 pub fn generate_random_expression(
     language: &Language,
     max_size: usize,
