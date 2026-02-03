@@ -11,7 +11,7 @@
 /// # Examples
 ///
 /// ```no_run
-/// # use verbum::index_selector::IndexSelector;
+/// use verbum::index_selector::IndexSelector;
 /// let selector = IndexSelector::new(vec![2, 3]);
 /// // Will iterate over: [0,0], [0,1], [0,2], [1,0], [1,1], [1,2]
 /// for indices in selector {

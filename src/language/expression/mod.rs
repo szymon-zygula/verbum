@@ -1,11 +1,6 @@
 //! Expression types and representations.
 //!
-//! This module provides various expression types used throughout the system:
-//! - [`Expression`]: Expressions with variables
-//! - [`VarFreeExpression`]: Variable-free expressions
-//! - [`MixedExpression`]: Expressions mixing variable-free and e-graph references
-//! - [`Literal`]: Literal values (integers, etc.)
-//! - [`Symbol`]: Function symbols with children
+//! This module provides various expression types used throughout the system.
 
 pub mod any;
 pub mod literal;

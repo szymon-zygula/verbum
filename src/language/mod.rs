@@ -25,7 +25,8 @@ mod topology;
 ///
 /// The `Language` struct represents a collection of symbols that can be used to
 /// build expressions. Symbols are identified by their unique IDs, which are
-/// assigned based on the order they are added to the language.
+/// assigned based on the order they are added to the language. Symbols do not
+/// have a fixed arity and can have any number of children.
 #[derive(Default, Clone, Serialize, Deserialize, PartialEq, Debug)]
 pub struct Language {
     // Runtime constraints specifying number of inputs/outputs?

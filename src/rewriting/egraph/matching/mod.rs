@@ -48,7 +48,7 @@ impl EGraphMatch {
         Some(self)
     }
 
-    /// Same as `EGraphMatch::merge` but generalized to more than two matches
+    /// Same as [`EGraphMatch::merge`] but generalized to more than two matches
     fn merge_multiple(root: ClassId, matches: Vec<EGraphMatch>) -> Option<EGraphMatch> {
         let mut total_match = EGraphMatch::empty(root);
 

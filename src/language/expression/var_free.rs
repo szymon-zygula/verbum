@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 
 /// An expression which does not contain variables.
 ///
-/// Unlike [`Expression`], this type guarantees the absence of variables,
-/// making it suitable for concrete expressions that can be directly evaluated.
+/// Unlike [`Expression`], this type guarantees the absence of variables.
+/// These are ground terms consisting only of literals and symbols with concrete children.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum VarFreeExpression {
     /// A literal constant value

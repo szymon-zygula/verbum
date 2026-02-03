@@ -1,7 +1,7 @@
 //! Random expression generation for testing and benchmarking.
 //!
 //! This module provides utilities for generating random expressions,
-//! useful for stress testing and benchmarking term rewriting systems.
+//! useful for benchmarking term rewriting systems.
 
 use rand::Rng;
 
@@ -11,12 +11,12 @@ use crate::language::{
     symbol::Symbol,
 };
 
-/// Generates a random expression up to a maximum size.
+/// Generates a random expression up to a maximum depth.
 ///
 /// # Arguments
 ///
 /// * `language` - The language defining available symbols
-/// * `max_size` - The maximum depth of the expression tree
+/// * `max_size` - The maximum depth of the expression tree (number of nested levels)
 /// * `rng` - The random number generator to use
 ///
 /// # Returns

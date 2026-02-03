@@ -21,7 +21,7 @@ pub type SymbolId = usize;
 /// * `E` - The type of the child expressions
 #[derive(Clone, Hash, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct Symbol<E> {
-    /// The symbol's unique identifier
+    /// The ID of the symbol in the language to which this `Symbol` belongs
     pub id: SymbolId,
     /// The child expressions
     pub children: Vec<E>,

@@ -39,7 +39,7 @@ pub struct ReachabilityResult<A: Analysis> {
     pub duration: Duration,
 }
 
-/// Check if two terms can reach a common form through rewriting.
+/// Check if two terms can reach a common form through equality saturation.
 ///
 /// Uses a custom scheduler factory to control the order of rule applications.
 ///
