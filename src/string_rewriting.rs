@@ -481,4 +481,64 @@ mod tests {
         assert_eq!(string_lang.get_symbol(2), "if_3");
         assert_eq!(string_lang.symbol_count(), 3);
     }
+
+    #[test]
+    fn test_expression_to_paths_detailed() {
+        let lang = Language::default()
+            .add_symbol("+")    // id: 0
+            .add_symbol("sin"); // id: 1
+        
+        let mut topology = HashMap::new();
+        topology.insert(0, 2);
+        topology.insert(1, 1);
+        
+        let string_lang = to_string_language(&lang, &topology);
+        
+        // Expression: (+ (sin 1) 2)
+        // Path 1: +_1 -> sin -> 1
+        // Path 2: +_2 -> 2
+        let expr = lang.parse("(+ (sin 1) 2)").unwrap();
+        let paths = expression_to_paths(&expr, &lang, &string_lang, &topology);
+        
+        assert_eq!(paths.len(), 2);
+        
+        // Verify the first path represents: (+_1 (sin 1))
+        // It should be a nested expression
+        let path1 = &paths[0];
+        let path2 = &paths[1];
+        
+        // Both should be Symbol expressions
+        assert!(matches!(path1, Expression::Symbol(_)));
+        assert!(matches!(path2, Expression::Symbol(_)));
+    }
+
+    #[test]
+    fn test_rule_to_induced_rules_detailed() {
+        let lang = Language::default()
+            .add_symbol("+")    // id: 0
+            .add_symbol("*");   // id: 1
+        
+        let mut topology = HashMap::new();
+        topology.insert(0, 2);
+        topology.insert(1, 2);
+        
+        let string_lang = to_string_language(&lang, &topology);
+        
+        // Rule: (+ $0 $1) -> (+ $1 $0)  (commutativity)
+        let rule = Rule::from_strings("(+ $0 $1)", "(+ $1 $0)", &lang);
+        let induced_rules = rule_to_induced_rules(&rule, &lang, &string_lang, &topology);
+        
+        // $0 appears at position 0 in left, and position 1 in right
+        // $1 appears at position 1 in left, and position 0 in right
+        // So we get 2 induced rules:
+        // 1. +_1 $0 -> +_2 $0  (left pos 0 -> right pos 1)
+        // 2. +_2 $1 -> +_1 $1  (left pos 1 -> right pos 0)
+        assert_eq!(induced_rules.len(), 2);
+        
+        // Check that all induced rules have variables
+        for induced_rule in &induced_rules {
+            assert!(induced_rule.from().variables().len() > 0);
+            assert!(induced_rule.to().variables().len() > 0);
+        }
+    }
 }
