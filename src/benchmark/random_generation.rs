@@ -4,12 +4,32 @@
 //! useful for benchmarking term rewriting systems.
 
 use rand::Rng;
+use std::fmt;
 
 use crate::language::{
     Language,
     expression::{Literal, VarFreeExpression},
     symbol::Symbol,
 };
+
+/// Error type for random expression generation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GenerationError {
+    /// Cannot generate expression of requested size with the given configuration
+    ImpossibleSize { requested: usize, reason: String },
+}
+
+impl fmt::Display for GenerationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GenerationError::ImpossibleSize { requested, reason } => {
+                write!(f, "Cannot generate expression of size {}: {}", requested, reason)
+            }
+        }
+    }
+}
+
+impl std::error::Error for GenerationError {}
 
 /// Configuration for random expression generation.
 #[derive(Clone, Debug)]
@@ -58,19 +78,12 @@ impl Default for LiteralGenerationConfig {
 }
 
 impl RandomGenerationConfig {
-    /// Creates a configuration from a language with default settings.
+    /// Creates a configuration from a language.
+    /// 
+    /// Note: You must set symbol_arities explicitly for your language.
+    /// By default, all symbols have no allowed arities.
     pub fn from_language(language: &Language) -> Self {
-        let symbol_arities = (0..language.symbol_count())
-            .map(|id| {
-                let symbol_name = language.get_symbol(id);
-                // Default arities based on common mathematical symbols
-                match symbol_name {
-                    "+" | "-" | "*" | "/" | "<<" | ">>" => vec![2],
-                    "sin" | "cos" | "tan" | "exp" | "log" | "sqrt" => vec![1],
-                    _ => vec![0, 1, 2], // Allow variable arity for unknown symbols
-                }
-            })
-            .collect();
+        let symbol_arities = vec![vec![]; language.symbol_count()];
         
         Self {
             symbol_arities,
@@ -207,17 +220,18 @@ fn generate_random_literal(rng: &mut impl Rng, config: &LiteralGenerationConfig)
 ///
 /// # Returns
 ///
-/// Returns a randomly generated expression with approximately the target size
+/// Returns a randomly generated expression with the target size, or an error
+/// if it's impossible to generate an expression of that size.
 ///
-/// # Note
+/// # Errors
 ///
-/// Due to the random nature of generation, the exact size might vary slightly
-/// from the target. The function tries to get as close as possible.
+/// Returns `GenerationError::ImpossibleSize` if the target size is 0 or if
+/// no expression of the target size can be generated with the given language.
 pub fn generate_random_expression_by_size(
     language: &Language,
     target_size: usize,
     rng: &mut impl Rng,
-) -> VarFreeExpression {
+) -> Result<VarFreeExpression, GenerationError> {
     let config = RandomGenerationConfig::from_language(language);
     generate_random_expression_by_size_with_config(language, target_size, rng, &config)
 }
@@ -233,15 +247,28 @@ pub fn generate_random_expression_by_size(
 ///
 /// # Returns
 ///
-/// Returns a randomly generated expression with approximately the target size
+/// Returns a randomly generated expression with the target size, or an error
+/// if it's impossible to generate an expression of that size.
+///
+/// # Errors
+///
+/// Returns `GenerationError::ImpossibleSize` if the target size is 0 or if
+/// no expression of the target size can be generated with the given configuration.
 pub fn generate_random_expression_by_size_with_config(
     language: &Language,
     target_size: usize,
     rng: &mut impl Rng,
     config: &RandomGenerationConfig,
-) -> VarFreeExpression {
+) -> Result<VarFreeExpression, GenerationError> {
     if target_size == 0 {
-        return generate_random_literal(rng, &config.literal_config);
+        return Err(GenerationError::ImpossibleSize {
+            requested: 0,
+            reason: "size must be at least 1".to_string(),
+        });
+    }
+    
+    if target_size == 1 {
+        return Ok(generate_random_literal(rng, &config.literal_config));
     }
     
     generate_random_expression_by_size_recursive(language, target_size, rng, config)
@@ -252,73 +279,68 @@ fn generate_random_expression_by_size_recursive(
     remaining_size: usize,
     rng: &mut impl Rng,
     config: &RandomGenerationConfig,
-) -> VarFreeExpression {
-    if remaining_size <= 1 || language.symbol_count() == 0 {
-        // Must generate a leaf node (literal)
-        return generate_random_literal(rng, &config.literal_config);
-    }
-    
-    // For size-based generation, only generate literals at leaves
-    // Generate a symbol
-    let symbol_id = rng.gen_range(0..language.symbol_count());
-    
-    // Get allowed arities for this symbol
-    let allowed_arities = &config.symbol_arities[symbol_id];
-    if allowed_arities.is_empty() {
-        // No children allowed, treat as leaf
-        return VarFreeExpression::Symbol(Symbol {
-            id: symbol_id,
-            children: vec![],
+) -> Result<VarFreeExpression, GenerationError> {
+    if remaining_size == 0 {
+        return Err(GenerationError::ImpossibleSize {
+            requested: 0,
+            reason: "remaining size cannot be 0".to_string(),
         });
     }
     
-    // Filter arities that can fit within remaining size
-    let viable_arities: Vec<usize> = allowed_arities
-        .iter()
-        .copied()
-        .filter(|&arity| arity > 0 && arity < remaining_size)
-        .collect();
-    
-    if viable_arities.is_empty() {
-        // Can't create symbol with children, generate literal instead
-        return generate_random_literal(rng, &config.literal_config);
+    if remaining_size == 1 || language.symbol_count() == 0 {
+        // Must generate a leaf node (literal)
+        return Ok(generate_random_literal(rng, &config.literal_config));
     }
     
-    let arity = viable_arities[rng.gen_range(0..viable_arities.len())];
+    // For size-based generation, try to find a symbol that can work
+    // Collect all viable (symbol_id, arity) pairs
+    let mut viable_choices: Vec<(usize, usize)> = Vec::new();
+    
+    for symbol_id in 0..language.symbol_count() {
+        let allowed_arities = &config.symbol_arities[symbol_id];
+        for &arity in allowed_arities {
+            if arity > 0 && arity < remaining_size {
+                viable_choices.push((symbol_id, arity));
+            }
+        }
+    }
+    
+    if viable_choices.is_empty() {
+        // Can't create any symbol with children
+        return Err(GenerationError::ImpossibleSize {
+            requested: remaining_size,
+            reason: format!("no viable symbol-arity combinations for remaining size {}", remaining_size),
+        });
+    }
+    
+    // Randomly select a viable choice
+    let (symbol_id, arity) = viable_choices[rng.gen_range(0..viable_choices.len())];
     
     // Distribute remaining size (minus 1 for current node) among children
     let size_for_children = remaining_size - 1;
-    let mut child_sizes = distribute_size(size_for_children, arity, rng);
+    let child_sizes = distribute_size(size_for_children, arity, rng);
     
-    let children: Vec<VarFreeExpression> = child_sizes
-        .iter_mut()
-        .map(|&mut child_size| {
+    let children: Result<Vec<VarFreeExpression>, GenerationError> = child_sizes
+        .iter()
+        .map(|&child_size| {
             generate_random_expression_by_size_recursive(
                 language,
-                child_size.max(1),
+                child_size,
                 rng,
                 config,
             )
         })
         .collect();
     
-    VarFreeExpression::Symbol(Symbol {
+    Ok(VarFreeExpression::Symbol(Symbol {
         id: symbol_id,
-        children,
-    })
+        children: children?,
+    }))
 }
 
 /// Distributes a total size among a number of children.
 /// Returns a vector of sizes for each child.
 fn distribute_size(total: usize, num_children: usize, rng: &mut impl Rng) -> Vec<usize> {
-    if num_children == 0 {
-        return vec![];
-    }
-    
-    if num_children == 1 {
-        return vec![total];
-    }
-    
     // Give each child at least 1 node
     let mut sizes = vec![1; num_children];
     let remaining = total.saturating_sub(num_children);
@@ -344,8 +366,8 @@ fn distribute_size(total: usize, num_children: usize, rng: &mut impl Rng) -> Vec
 #[cfg(test)]
 mod tests {
     use super::{
-        generate_random_expression, generate_random_expression_by_size,
-        generate_random_expression_with_config, LiteralGenerationConfig, RandomGenerationConfig,
+        generate_random_expression_by_size_with_config, generate_random_expression_with_config,
+        LiteralGenerationConfig, RandomGenerationConfig,
     };
     use crate::language::{Language, expression::VarFreeExpression, topology::expression_size};
 
@@ -371,13 +393,28 @@ mod tests {
         }
     }
 
+    fn default_math_config(lang: &Language) -> RandomGenerationConfig {
+        let mut config = RandomGenerationConfig::from_language(lang);
+        // Set up arities for simple_math symbols
+        config.symbol_arities[lang.get_id("+")] = vec![2];
+        config.symbol_arities[lang.get_id("-")] = vec![2];
+        config.symbol_arities[lang.get_id("*")] = vec![2];
+        config.symbol_arities[lang.get_id("/")] = vec![2];
+        config.symbol_arities[lang.get_id("sin")] = vec![1];
+        config.symbol_arities[lang.get_id("cos")] = vec![1];
+        config.symbol_arities[lang.get_id("<<")] = vec![2];
+        config.symbol_arities[lang.get_id(">>")] = vec![2];
+        config
+    }
+
     #[test]
     fn test_generate_random_expression() {
         let lang = Language::simple_math();
         let mut rng = rand::thread_rng();
+        let config = default_math_config(&lang);
 
         for depth in 1..10 {
-            let expr = generate_random_expression(&lang, depth, &mut rng);
+            let expr = generate_random_expression_with_config(&lang, depth, &mut rng, &config);
             println!("Generated expression (depth {depth}): {expr:?}");
             // Basic assertion: ensure it doesn't panic and is a valid expression
             assert!(!format!("{expr:?}").is_empty());
@@ -395,12 +432,13 @@ mod tests {
     fn test_generate_random_expression_by_size() {
         let lang = Language::simple_math();
         let mut rng = rand::thread_rng();
+        let config = default_math_config(&lang);
 
         // Maximum acceptable deviation from target size (as a fraction)
         const MAX_SIZE_DEVIATION_FRACTION: usize = 3; // 1/3 = 33%
 
         for target_size in 1..20 {
-            let expr = generate_random_expression_by_size(&lang, target_size, &mut rng);
+            let expr = generate_random_expression_by_size_with_config(&lang, target_size, &mut rng, &config).unwrap();
             let actual_size = count_nodes(&expr);
             
             println!(
@@ -422,13 +460,23 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_by_size_error_on_zero() {
+        let lang = Language::simple_math();
+        let mut rng = rand::thread_rng();
+        let config = default_math_config(&lang);
+
+        let result = generate_random_expression_by_size_with_config(&lang, 0, &mut rng, &config);
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn test_custom_arity_configuration() {
         let lang = Language::simple_math();
         let mut rng = rand::thread_rng();
         
         // Create a configuration where + only accepts 3 children
         let plus_id = lang.get_id("+");
-        let config = RandomGenerationConfig::from_language(&lang)
+        let config = default_math_config(&lang)
             .with_symbol_arities(plus_id, vec![3]);
         
         // Generate several expressions and check
@@ -476,7 +524,7 @@ mod tests {
             int_vs_uint_probability: 1.0, // Always use int
         };
         
-        let config = RandomGenerationConfig::from_language(&lang)
+        let config = default_math_config(&lang)
             .with_literal_config(literal_config)
             .with_literal_probability(0.8); // High probability of literals
         
@@ -515,10 +563,11 @@ mod tests {
     fn test_size_based_vs_depth_based() {
         let lang = Language::simple_math();
         let mut rng = rand::thread_rng();
+        let config = default_math_config(&lang);
         
         // Generate expressions with same parameter value using both methods
-        let depth_expr = generate_random_expression(&lang, 5, &mut rng);
-        let size_expr = generate_random_expression_by_size(&lang, 5, &mut rng);
+        let depth_expr = generate_random_expression_with_config(&lang, 5, &mut rng, &config);
+        let size_expr = generate_random_expression_by_size_with_config(&lang, 5, &mut rng, &config).unwrap();
         
         let depth_size = count_nodes(&depth_expr);
         let size_size = count_nodes(&size_expr);
@@ -538,9 +587,10 @@ mod tests {
         // Test that our count_nodes matches the topology module's expression_size
         let lang = Language::simple_math();
         let mut rng = rand::thread_rng();
+        let config = default_math_config(&lang);
         
         for size in 1..15 {
-            let expr = generate_random_expression_by_size(&lang, size, &mut rng);
+            let expr = generate_random_expression_by_size_with_config(&lang, size, &mut rng, &config).unwrap();
             let counted = count_nodes(&expr);
             let topology_size = expression_size(&expr.to_expression());
             

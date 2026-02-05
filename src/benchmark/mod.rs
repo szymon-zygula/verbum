@@ -23,5 +23,6 @@ pub use reachability::{
 
 pub use random_generation::{
     generate_random_expression, generate_random_expression_by_size,
-    generate_random_expression_with_config, LiteralGenerationConfig, RandomGenerationConfig,
+    generate_random_expression_with_config, GenerationError, LiteralGenerationConfig,
+    RandomGenerationConfig,
 };
