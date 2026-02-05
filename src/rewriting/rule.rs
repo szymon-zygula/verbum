@@ -35,6 +35,16 @@ impl Rule {
         Self { from, to }
     }
 
+    /// Creates a rule from expression patterns.
+    ///
+    /// # Arguments
+    ///
+    /// * `from` - The pattern to match (left-hand side)
+    /// * `to` - The replacement pattern (right-hand side)
+    pub fn from_expressions(from: Expression, to: Expression) -> Self {
+        Self { from, to }
+    }
+
     /// Returns the pattern to match (left-hand side).
     pub fn from(&self) -> &Expression {
         &self.from
