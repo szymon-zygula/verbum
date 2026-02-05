@@ -537,8 +537,8 @@ mod tests {
         
         // Check that all induced rules have variables
         for induced_rule in &induced_rules {
-            assert!(induced_rule.from().variables().len() > 0);
-            assert!(induced_rule.to().variables().len() > 0);
+            assert!(!induced_rule.from().variables().is_empty());
+            assert!(!induced_rule.to().variables().is_empty());
         }
     }
 }
