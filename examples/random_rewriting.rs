@@ -4,7 +4,7 @@
 //! destructive term rewriting on expressions.
 
 use verbum::language::Language;
-use verbum::rewriting::random::random_rewrite;
+use verbum::rewriting::random::rewrite;
 use verbum::rewriting::rule::Rule;
 
 fn main() {
@@ -30,20 +30,20 @@ fn main() {
     println!("Original expression: {}", expr);
     
     // Apply random rewrites
-    let rewritten = random_rewrite(expr.clone(), &rules, 5);
+    let rewritten = rewrite(expr.clone(), &rules, 5);
     println!("After 5 random rewrites: {}", rewritten);
     
     // Try another example with multiplication
     let expr2 = lang.parse_no_vars("(* 2 (+ 3 4))").unwrap();
     println!("\nOriginal expression: {}", expr2);
     
-    let rewritten2 = random_rewrite(expr2, &rules, 10);
+    let rewritten2 = rewrite(expr2, &rules, 10);
     println!("After 10 random rewrites: {}", rewritten2);
     
     // Example with nested operations
     let expr3 = lang.parse_no_vars("(+ 0 (+ 0 (+ 0 5)))").unwrap();
     println!("\nOriginal expression: {}", expr3);
     
-    let rewritten3 = random_rewrite(expr3, &rules, 3);
+    let rewritten3 = rewrite(expr3, &rules, 3);
     println!("After 3 random rewrites: {}", rewritten3);
 }
