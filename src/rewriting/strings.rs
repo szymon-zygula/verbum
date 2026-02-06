@@ -23,17 +23,17 @@ use std::collections::HashMap;
 /// # Arguments
 ///
 /// * `lang` - The original language to convert
-/// * `topology` - A mapping from symbol IDs to their typical arity (number of children)
+/// * `arities` - A mapping from symbol IDs to their typical arity (number of children)
 ///
 /// # Returns
 ///
 /// Returns a new `Language` representing the string language
-pub fn to_string_language(lang: &Language, topology: &HashMap<SymbolId, usize>) -> Language {
+pub fn to_string_language(lang: &Language, arities: &HashMap<SymbolId, usize>) -> Language {
     let mut string_lang = Language::default();
     
     for symbol_id in 0..lang.symbol_count() {
         let symbol_name = lang.get_symbol(symbol_id);
-        let arity = topology.get(&symbol_id).copied().unwrap_or(0);
+        let arity = arities.get(&symbol_id).copied().unwrap_or(0);
         
         match arity {
             0 | 1 => {
@@ -64,7 +64,7 @@ pub fn to_string_language(lang: &Language, topology: &HashMap<SymbolId, usize>) 
 /// * `expr` - The expression to extract paths from
 /// * `lang` - The original language
 /// * `string_lang` - The induced string language
-/// * `topology` - A mapping from symbol IDs to their arity
+/// * `arities` - A mapping from symbol IDs to their arity
 ///
 /// # Returns
 ///
@@ -73,10 +73,10 @@ pub fn expression_to_paths(
     expr: &Expression,
     lang: &Language,
     string_lang: &Language,
-    topology: &HashMap<SymbolId, usize>,
+    arities: &HashMap<SymbolId, usize>,
 ) -> Vec<Expression> {
     let mut paths = Vec::new();
-    expression_to_paths_impl(expr, lang, string_lang, topology, &mut Vec::new(), &mut paths);
+    expression_to_paths_impl(expr, lang, string_lang, arities, &mut Vec::new(), &mut paths);
     paths
 }
 
@@ -84,7 +84,7 @@ fn expression_to_paths_impl(
     expr: &Expression,
     lang: &Language,
     string_lang: &Language,
-    topology: &HashMap<SymbolId, usize>,
+    arities: &HashMap<SymbolId, usize>,
     current_path: &mut Vec<Expression>,
     paths: &mut Vec<Expression>,
 ) {
@@ -109,7 +109,7 @@ fn expression_to_paths_impl(
             }
         }
         Expression::Symbol(symbol) => {
-            let arity = topology.get(&symbol.id).copied().unwrap_or(symbol.children.len());
+            let arity = arities.get(&symbol.id).copied().unwrap_or(symbol.children.len());
             
             if symbol.children.is_empty() {
                 // 0-arity symbol is a leaf
@@ -135,7 +135,7 @@ fn expression_to_paths_impl(
                     );
                     
                     current_path.push(indexed_symbol);
-                    expression_to_paths_impl(child, lang, string_lang, topology, current_path, paths);
+                    expression_to_paths_impl(child, lang, string_lang, arities, current_path, paths);
                     current_path.pop();
                 }
             }
@@ -215,7 +215,7 @@ fn get_indexed_symbol(
 /// * `rule` - The original rewriting rule
 /// * `lang` - The original language
 /// * `string_lang` - The induced string language
-/// * `topology` - A mapping from symbol IDs to their arity
+/// * `arities` - A mapping from symbol IDs to their arity
 ///
 /// # Returns
 ///
@@ -224,7 +224,7 @@ pub fn rule_to_induced_rules(
     rule: &Rule,
     lang: &Language,
     string_lang: &Language,
-    topology: &HashMap<SymbolId, usize>,
+    arities: &HashMap<SymbolId, usize>,
 ) -> Vec<Rule> {
     let mut induced_rules = Vec::new();
     
@@ -244,7 +244,7 @@ pub fn rule_to_induced_rules(
                         left_path,
                         lang,
                         string_lang,
-                        topology,
+                        arities,
                         *var_id,
                     );
                     
@@ -253,7 +253,7 @@ pub fn rule_to_induced_rules(
                         right_path,
                         lang,
                         string_lang,
-                        topology,
+                        arities,
                         *var_id,
                     );
                     
@@ -274,7 +274,7 @@ fn path_to_expression(
     target_path: &OwnedPath,
     lang: &Language,
     string_lang: &Language,
-    topology: &HashMap<SymbolId, usize>,
+    arities: &HashMap<SymbolId, usize>,
     var_id: VariableId,
 ) -> Option<Expression> {
     let mut path_elements = Vec::new();
@@ -284,7 +284,7 @@ fn path_to_expression(
         &mut vec![],
         lang,
         string_lang,
-        topology,
+        arities,
         &mut path_elements,
     );
     
@@ -300,7 +300,7 @@ fn path_to_expression_impl(
     current_path: &mut Vec<usize>,
     lang: &Language,
     string_lang: &Language,
-    topology: &HashMap<SymbolId, usize>,
+    arities: &HashMap<SymbolId, usize>,
     path_elements: &mut Vec<Expression>,
 ) {
     // Check if we've reached the target
@@ -310,7 +310,7 @@ fn path_to_expression_impl(
     
     if let Expression::Symbol(symbol) = expr {
         let next_idx = target_path.0[current_path.len()];
-        let arity = topology.get(&symbol.id).copied().unwrap_or(symbol.children.len());
+        let arity = arities.get(&symbol.id).copied().unwrap_or(symbol.children.len());
         
         // Add the indexed symbol for this step
         let indexed_symbol = get_indexed_symbol(
@@ -331,7 +331,7 @@ fn path_to_expression_impl(
                 current_path,
                 lang,
                 string_lang,
-                topology,
+                arities,
                 path_elements,
             );
             current_path.pop();
@@ -350,11 +350,11 @@ mod tests {
             .add_symbol("+")    // id: 0
             .add_symbol("sin"); // id: 1
         
-        let mut topology = HashMap::new();
-        topology.insert(0, 2); // + has arity 2
-        topology.insert(1, 1); // sin has arity 1
+        let mut arities = HashMap::new();
+        arities.insert(0, 2); // + has arity 2
+        arities.insert(1, 1); // sin has arity 1
         
-        let string_lang = to_string_language(&lang, &topology);
+        let string_lang = to_string_language(&lang, &arities);
         
         // + should become +_1 and +_2
         assert_eq!(string_lang.get_symbol(0), "+_1");
@@ -369,11 +369,11 @@ mod tests {
             .add_symbol("x")    // id: 0, will be 0-arity
             .add_symbol("*");   // id: 1
         
-        let mut topology = HashMap::new();
-        topology.insert(0, 0); // x has arity 0
-        topology.insert(1, 2); // * has arity 2
+        let mut arities = HashMap::new();
+        arities.insert(0, 0); // x has arity 0
+        arities.insert(1, 2); // * has arity 2
         
-        let string_lang = to_string_language(&lang, &topology);
+        let string_lang = to_string_language(&lang, &arities);
         
         // x should stay the same
         assert_eq!(string_lang.get_symbol(0), "x");
@@ -388,15 +388,15 @@ mod tests {
             .add_symbol("+")
             .add_symbol("sin");
         
-        let mut topology = HashMap::new();
-        topology.insert(0, 2);
-        topology.insert(1, 1);
+        let mut arities = HashMap::new();
+        arities.insert(0, 2);
+        arities.insert(1, 1);
         
-        let string_lang = to_string_language(&lang, &topology);
+        let string_lang = to_string_language(&lang, &arities);
         
         // Expression: (+ (sin 1) 2)
         let expr = lang.parse("(+ (sin 1) 2)").unwrap();
-        let paths = expression_to_paths(&expr, &lang, &string_lang, &topology);
+        let paths = expression_to_paths(&expr, &lang, &string_lang, &arities);
         
         // Should have 2 paths: one to 1, one to 2
         assert_eq!(paths.len(), 2);
@@ -408,15 +408,15 @@ mod tests {
             .add_symbol("+")
             .add_symbol("*");
         
-        let mut topology = HashMap::new();
-        topology.insert(0, 2);
-        topology.insert(1, 2);
+        let mut arities = HashMap::new();
+        arities.insert(0, 2);
+        arities.insert(1, 2);
         
-        let string_lang = to_string_language(&lang, &topology);
+        let string_lang = to_string_language(&lang, &arities);
         
         // Expression: (+ $0 (* 2 3))
         let expr = lang.parse("(+ $0 (* 2 3))").unwrap();
-        let paths = expression_to_paths(&expr, &lang, &string_lang, &topology);
+        let paths = expression_to_paths(&expr, &lang, &string_lang, &arities);
         
         // Should have 3 paths: one to $0, one to 2, one to 3
         assert_eq!(paths.len(), 3);
@@ -428,15 +428,15 @@ mod tests {
             .add_symbol("+")
             .add_symbol("*");
         
-        let mut topology = HashMap::new();
-        topology.insert(0, 2); // + has arity 2
-        topology.insert(1, 2); // * has arity 2
+        let mut arities = HashMap::new();
+        arities.insert(0, 2); // + has arity 2
+        arities.insert(1, 2); // * has arity 2
         
-        let string_lang = to_string_language(&lang, &topology);
+        let string_lang = to_string_language(&lang, &arities);
         
         // Rule: (+ $0 $1) -> (* $0 $1)
         let rule = Rule::from_strings("(+ $0 $1)", "(* $0 $1)", &lang);
-        let induced_rules = rule_to_induced_rules(&rule, &lang, &string_lang, &topology);
+        let induced_rules = rule_to_induced_rules(&rule, &lang, &string_lang, &arities);
         
         // Should have 2 induced rules (one for each variable)
         // $0: +_1 $0 -> *_1 $0
@@ -450,16 +450,16 @@ mod tests {
             .add_symbol("+")
             .add_symbol("*");
         
-        let mut topology = HashMap::new();
-        topology.insert(0, 2); // + has arity 2
-        topology.insert(1, 2); // * has arity 2
+        let mut arities = HashMap::new();
+        arities.insert(0, 2); // + has arity 2
+        arities.insert(1, 2); // * has arity 2
         
-        let string_lang = to_string_language(&lang, &topology);
+        let string_lang = to_string_language(&lang, &arities);
         
         // Rule: (+ $0 $0) -> (* $0 $0)
         // Variable $0 appears twice on each side
         let rule = Rule::from_strings("(+ $0 $0)", "(* $0 $0)", &lang);
-        let induced_rules = rule_to_induced_rules(&rule, &lang, &string_lang, &topology);
+        let induced_rules = rule_to_induced_rules(&rule, &lang, &string_lang, &arities);
         
         // Should have 4 induced rules (2 left occurrences × 2 right occurrences)
         assert_eq!(induced_rules.len(), 4);
@@ -470,10 +470,10 @@ mod tests {
         let lang = Language::default()
             .add_symbol("if"); // id: 0, ternary operator
         
-        let mut topology = HashMap::new();
-        topology.insert(0, 3); // if has arity 3
+        let mut arities = HashMap::new();
+        arities.insert(0, 3); // if has arity 3
         
-        let string_lang = to_string_language(&lang, &topology);
+        let string_lang = to_string_language(&lang, &arities);
         
         // if should become if_1, if_2, and if_3
         assert_eq!(string_lang.get_symbol(0), "if_1");
@@ -488,17 +488,17 @@ mod tests {
             .add_symbol("+")    // id: 0
             .add_symbol("sin"); // id: 1
         
-        let mut topology = HashMap::new();
-        topology.insert(0, 2);
-        topology.insert(1, 1);
+        let mut arities = HashMap::new();
+        arities.insert(0, 2);
+        arities.insert(1, 1);
         
-        let string_lang = to_string_language(&lang, &topology);
+        let string_lang = to_string_language(&lang, &arities);
         
         // Expression: (+ (sin 1) 2)
         // Path 1: +_1 -> sin -> 1
         // Path 2: +_2 -> 2
         let expr = lang.parse("(+ (sin 1) 2)").unwrap();
-        let paths = expression_to_paths(&expr, &lang, &string_lang, &topology);
+        let paths = expression_to_paths(&expr, &lang, &string_lang, &arities);
         
         assert_eq!(paths.len(), 2);
         
@@ -518,15 +518,15 @@ mod tests {
             .add_symbol("+")    // id: 0
             .add_symbol("*");   // id: 1
         
-        let mut topology = HashMap::new();
-        topology.insert(0, 2);
-        topology.insert(1, 2);
+        let mut arities = HashMap::new();
+        arities.insert(0, 2);
+        arities.insert(1, 2);
         
-        let string_lang = to_string_language(&lang, &topology);
+        let string_lang = to_string_language(&lang, &arities);
         
         // Rule: (+ $0 $1) -> (+ $1 $0)  (commutativity)
         let rule = Rule::from_strings("(+ $0 $1)", "(+ $1 $0)", &lang);
-        let induced_rules = rule_to_induced_rules(&rule, &lang, &string_lang, &topology);
+        let induced_rules = rule_to_induced_rules(&rule, &lang, &string_lang, &arities);
         
         // $0 appears at position 0 in left, and position 1 in right
         // $1 appears at position 1 in left, and position 0 in right

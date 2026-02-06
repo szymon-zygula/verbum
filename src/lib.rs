@@ -8,6 +8,5 @@ pub mod language;
 pub mod macros;
 pub mod rewriting;
 pub mod seen;
-pub mod string_rewriting;
 pub mod union_find;
 pub mod utils;
