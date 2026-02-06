@@ -40,6 +40,8 @@ pub fn random_rewrite(
     rules: &[Rule],
     n: usize,
 ) -> VarFreeExpression {
+    let mut rng = rand::thread_rng();
+    
     for _ in 0..n {
         let positions = find_all_rewrite_positions(&expression, rules);
         
@@ -49,7 +51,6 @@ pub fn random_rewrite(
         }
         
         // Randomly select a position and apply the rewrite
-        let mut rng = rand::thread_rng();
         let idx = rng.gen_range(0..positions.len());
         let position = &positions[idx];
         
@@ -135,11 +136,12 @@ where
                 let child_index = path[0];
                 let remaining_path = &path[1..];
                 
-                symbol.children[child_index] = apply_at_path(
-                    symbol.children[child_index].clone(),
-                    remaining_path,
-                    f,
+                // Use std::mem::replace to avoid cloning
+                let child = std::mem::replace(
+                    &mut symbol.children[child_index],
+                    VarFreeExpression::Literal(crate::language::expression::Literal::Int(0)),
                 );
+                symbol.children[child_index] = apply_at_path(child, remaining_path, f);
                 
                 VarFreeExpression::Symbol(symbol)
             }
