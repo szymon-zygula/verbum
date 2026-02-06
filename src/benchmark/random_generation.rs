@@ -15,15 +15,29 @@ use crate::language::{
 /// Error type for random expression generation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GenerationError {
-    /// Cannot generate expression of requested size with the given configuration
-    ImpossibleSize { requested: usize, reason: String },
+    /// Requested size is zero
+    ZeroSize,
+    /// No viable symbol-arity combinations for the requested size
+    NoViableSymbolArities { remaining_size: usize },
+    /// Remaining size cannot be zero during generation
+    ZeroRemainingSize,
 }
 
 impl fmt::Display for GenerationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            GenerationError::ImpossibleSize { requested, reason } => {
-                write!(f, "Cannot generate expression of size {}: {}", requested, reason)
+            GenerationError::ZeroSize => {
+                write!(f, "Cannot generate expression of size 0")
+            }
+            GenerationError::NoViableSymbolArities { remaining_size } => {
+                write!(
+                    f,
+                    "No viable symbol-arity combinations for remaining size {}",
+                    remaining_size
+                )
+            }
+            GenerationError::ZeroRemainingSize => {
+                write!(f, "Remaining size cannot be 0 during generation")
             }
         }
     }
@@ -134,26 +148,6 @@ impl RandomGenerationConfig {
     }
 }
 
-/// Generates a random expression up to a maximum depth.
-///
-/// # Arguments
-///
-/// * `language` - The language defining available symbols
-/// * `max_depth` - The maximum depth of the expression tree (number of nested levels)
-/// * `rng` - The random number generator to use
-///
-/// # Returns
-///
-/// Returns a randomly generated expression
-pub fn generate_random_expression(
-    language: &Language,
-    max_depth: usize,
-    rng: &mut impl Rng,
-) -> VarFreeExpression {
-    let config = RandomGenerationConfig::from_language(language);
-    generate_random_expression_with_config(language, max_depth, rng, &config)
-}
-
 /// Generates a random expression up to a maximum depth with custom configuration.
 ///
 /// # Arguments
@@ -165,69 +159,34 @@ pub fn generate_random_expression(
 ///
 /// # Returns
 ///
-/// Returns a randomly generated expression
+/// Returns a randomly generated variable-free expression
 pub fn generate_random_expression_with_config(
     language: &Language,
     max_depth: usize,
     rng: &mut impl Rng,
     config: &RandomGenerationConfig,
 ) -> VarFreeExpression {
-    generate_random_expression_recursive(language, max_depth, rng, 0, config)
+    // Create a config without variables
+    let mut no_var_config = config.clone();
+    no_var_config.variable_config = None;
+    
+    // Call the variable version and unwrap (safe since no variables)
+    let expr = generate_random_expression_with_variables(language, max_depth, rng, &no_var_config);
+    expr.without_variables().expect("Expression should not contain variables when variable_config is None")
 }
 
-fn generate_random_expression_recursive(
-    language: &Language,
-    max_depth: usize,
-    rng: &mut impl Rng,
-    current_depth: usize,
-    config: &RandomGenerationConfig,
-) -> VarFreeExpression {
-    if current_depth >= max_depth {
-        // Generate a literal if max_depth is reached
-        return generate_random_literal(rng, &config.literal_config);
-    }
-
-    // Decide whether to generate a literal or a symbol
-    if rng.gen_bool(config.literal_probability) || language.symbol_count() == 0 {
-        // Generate a literal based on configured probability, or if no symbols are defined
-        generate_random_literal(rng, &config.literal_config)
-    } else {
-        // Generate a symbol
-        let symbol_id = rng.gen_range(0..language.symbol_count());
-        
-        // Get allowed arities for this symbol
-        let allowed_arities = &config.symbol_arities[symbol_id];
-        let arity = if allowed_arities.is_empty() {
-            0
-        } else {
-            allowed_arities[rng.gen_range(0..allowed_arities.len())]
-        };
-
-        let children: Vec<VarFreeExpression> = (0..arity)
-            .map(|_| {
-                generate_random_expression_recursive(language, max_depth, rng, current_depth + 1, config)
-            })
-            .collect();
-
-        VarFreeExpression::Symbol(Symbol {
-            id: symbol_id,
-            children,
-        })
-    }
-}
-
-fn generate_random_literal(rng: &mut impl Rng, config: &LiteralGenerationConfig) -> VarFreeExpression {
+fn generate_random_literal(rng: &mut impl Rng, config: &LiteralGenerationConfig) -> Literal {
     // Check if we should use a common value
     if rng.gen_bool(config.common_value_probability) && !config.common_int_values.is_empty() {
         let value = config.common_int_values[rng.gen_range(0..config.common_int_values.len())];
-        return VarFreeExpression::Literal(Literal::Int(value));
+        return Literal::Int(value);
     }
     
     // Generate a random value
     if rng.gen_bool(config.int_vs_uint_probability) {
-        VarFreeExpression::Literal(Literal::Int(rng.gen_range(config.int_range.0..=config.int_range.1)))
+        Literal::Int(rng.gen_range(config.int_range.0..=config.int_range.1))
     } else {
-        VarFreeExpression::Literal(Literal::UInt(rng.gen_range(config.uint_range.0..=config.uint_range.1)))
+        Literal::UInt(rng.gen_range(config.uint_range.0..=config.uint_range.1))
     }
 }
 
@@ -303,40 +262,43 @@ fn generate_random_leaf(rng: &mut impl Rng, config: &RandomGenerationConfig) -> 
     }
     
     // Generate a literal
-    let literal = generate_random_literal(rng, &config.literal_config);
-    match literal {
-        VarFreeExpression::Literal(lit) => Expression::Literal(lit),
-        VarFreeExpression::Symbol(_) => unreachable!("generate_random_literal should only return literals"),
-    }
+    Expression::Literal(generate_random_literal(rng, &config.literal_config))
 }
 
-/// Generates a random expression with an exact total size (node count).
+/// Generates a random expression with an exact total size using custom configuration.
 ///
 /// # Arguments
 ///
 /// * `language` - The language defining available symbols
 /// * `target_size` - The desired total number of nodes in the expression tree
 /// * `rng` - The random number generator to use
+/// * `config` - Configuration for random generation
 ///
 /// # Returns
 ///
-/// Returns a randomly generated expression with the target size, or an error
+/// Returns a randomly generated variable-free expression with the target size, or an error
 /// if it's impossible to generate an expression of that size.
 ///
 /// # Errors
 ///
-/// Returns `GenerationError::ImpossibleSize` if the target size is 0 or if
-/// no expression of the target size can be generated with the given language.
-pub fn generate_random_expression_by_size(
+/// Returns `GenerationError` if the target size is 0 or if
+/// no expression of the target size can be generated with the given configuration.
+pub fn generate_random_expression_by_size_with_config(
     language: &Language,
     target_size: usize,
     rng: &mut impl Rng,
+    config: &RandomGenerationConfig,
 ) -> Result<VarFreeExpression, GenerationError> {
-    let config = RandomGenerationConfig::from_language(language);
-    generate_random_expression_by_size_with_config(language, target_size, rng, &config)
+    // Create a config without variables
+    let mut no_var_config = config.clone();
+    no_var_config.variable_config = None;
+    
+    // Call the variable version and unwrap (safe since no variables)
+    let expr = generate_random_expression_by_size_with_variables(language, target_size, rng, &no_var_config)?;
+    Ok(expr.without_variables().expect("Expression should not contain variables when variable_config is None"))
 }
 
-/// Generates a random expression with an exact total size using custom configuration.
+/// Generates a random expression with variables and an exact total size.
 ///
 /// # Arguments
 ///
@@ -352,44 +314,38 @@ pub fn generate_random_expression_by_size(
 ///
 /// # Errors
 ///
-/// Returns `GenerationError::ImpossibleSize` if the target size is 0 or if
+/// Returns `GenerationError` if the target size is 0 or if
 /// no expression of the target size can be generated with the given configuration.
-pub fn generate_random_expression_by_size_with_config(
+pub fn generate_random_expression_by_size_with_variables(
     language: &Language,
     target_size: usize,
     rng: &mut impl Rng,
     config: &RandomGenerationConfig,
-) -> Result<VarFreeExpression, GenerationError> {
+) -> Result<Expression, GenerationError> {
     if target_size == 0 {
-        return Err(GenerationError::ImpossibleSize {
-            requested: 0,
-            reason: "size must be at least 1".to_string(),
-        });
+        return Err(GenerationError::ZeroSize);
     }
     
     if target_size == 1 {
-        return Ok(generate_random_literal(rng, &config.literal_config));
+        return Ok(generate_random_leaf(rng, config));
     }
     
-    generate_random_expression_by_size_recursive(language, target_size, rng, config)
+    generate_random_expression_by_size_with_variables_recursive(language, target_size, rng, config)
 }
 
-fn generate_random_expression_by_size_recursive(
+fn generate_random_expression_by_size_with_variables_recursive(
     language: &Language,
     remaining_size: usize,
     rng: &mut impl Rng,
     config: &RandomGenerationConfig,
-) -> Result<VarFreeExpression, GenerationError> {
+) -> Result<Expression, GenerationError> {
     if remaining_size == 0 {
-        return Err(GenerationError::ImpossibleSize {
-            requested: 0,
-            reason: "remaining size cannot be 0".to_string(),
-        });
+        return Err(GenerationError::ZeroRemainingSize);
     }
     
     if remaining_size == 1 || language.symbol_count() == 0 {
-        // Must generate a leaf node (literal)
-        return Ok(generate_random_literal(rng, &config.literal_config));
+        // Must generate a leaf node (literal or variable)
+        return Ok(generate_random_leaf(rng, config));
     }
     
     // For size-based generation, try to find a symbol that can work
@@ -407,10 +363,7 @@ fn generate_random_expression_by_size_recursive(
     
     if viable_choices.is_empty() {
         // Can't create any symbol with children
-        return Err(GenerationError::ImpossibleSize {
-            requested: remaining_size,
-            reason: format!("no viable symbol-arity combinations for remaining size {}", remaining_size),
-        });
+        return Err(GenerationError::NoViableSymbolArities { remaining_size });
     }
     
     // Randomly select a viable choice
@@ -420,10 +373,10 @@ fn generate_random_expression_by_size_recursive(
     let size_for_children = remaining_size - 1;
     let child_sizes = distribute_size(size_for_children, arity, rng);
     
-    let children: Result<Vec<VarFreeExpression>, GenerationError> = child_sizes
+    let children: Result<Vec<Expression>, GenerationError> = child_sizes
         .iter()
         .map(|&child_size| {
-            generate_random_expression_by_size_recursive(
+            generate_random_expression_by_size_with_variables_recursive(
                 language,
                 child_size,
                 rng,
@@ -432,7 +385,7 @@ fn generate_random_expression_by_size_recursive(
         })
         .collect();
     
-    Ok(VarFreeExpression::Symbol(Symbol {
+    Ok(Expression::Symbol(Symbol {
         id: symbol_id,
         children: children?,
     }))
