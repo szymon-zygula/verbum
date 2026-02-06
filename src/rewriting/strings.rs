@@ -90,55 +90,88 @@ fn expression_to_paths_impl(
 ) {
     match expr {
         Expression::Literal(lit) => {
-            // We've reached a leaf, add the complete path
-            let mut path = current_path.clone();
-            path.push(Expression::Literal(lit.clone()));
-            
-            // Convert the path into a nested expression
-            if let Some(path_expr) = build_path_expression(&path) {
-                paths.push(path_expr);
-            }
+            handle_literal_path(lit, current_path, paths);
         }
         Expression::Variable(var_id) => {
-            // Variables are also leaves
-            let mut path = current_path.clone();
-            path.push(Expression::Variable(*var_id));
-            
-            if let Some(path_expr) = build_path_expression(&path) {
-                paths.push(path_expr);
-            }
+            handle_variable_path(*var_id, current_path, paths);
         }
         Expression::Symbol(symbol) => {
-            let arity = arities.get(&symbol.id).copied().unwrap_or(symbol.children.len());
+            handle_symbol_path(symbol, lang, string_lang, arities, current_path, paths);
+        }
+    }
+}
+
+/// Handles path building for literal expressions
+fn handle_literal_path(
+    lit: &crate::language::expression::Literal,
+    current_path: &mut Vec<Expression>,
+    paths: &mut Vec<Expression>,
+) {
+    // We've reached a leaf, add the complete path
+    let mut path = current_path.clone();
+    path.push(Expression::Literal(lit.clone()));
+    
+    // Convert the path into a nested expression
+    if let Some(path_expr) = build_path_expression(&path) {
+        paths.push(path_expr);
+    }
+}
+
+/// Handles path building for variable expressions
+fn handle_variable_path(
+    var_id: VariableId,
+    current_path: &mut Vec<Expression>,
+    paths: &mut Vec<Expression>,
+) {
+    // Variables are also leaves
+    let mut path = current_path.clone();
+    path.push(Expression::Variable(var_id));
+    
+    if let Some(path_expr) = build_path_expression(&path) {
+        paths.push(path_expr);
+    }
+}
+
+/// Handles path building for symbol expressions
+fn handle_symbol_path(
+    symbol: &Symbol<Expression>,
+    lang: &Language,
+    string_lang: &Language,
+    arities: &HashMap<SymbolId, usize>,
+    current_path: &mut Vec<Expression>,
+    paths: &mut Vec<Expression>,
+) {
+    let arity = arities.get(&symbol.id).copied().unwrap_or(symbol.children.len());
+    
+    if symbol.children.is_empty() {
+        // 0-arity symbol is a leaf
+        let mut path = current_path.clone();
+        path.push(Expression::Symbol(Symbol {
+            id: symbol.id,
+            children: vec![],
+        }));
+        
+        if let Some(path_expr) = build_path_expression(&path) {
+            paths.push(path_expr);
+        }
+    } else {
+        // Process each child
+        for (child_idx, child) in symbol.children.iter().enumerate() {
+            // Get the indexed symbol name for this child position
+            let indexed_symbol_id = to_string_symbol(
+                symbol.id,
+                child_idx,
+                lang,
+                string_lang,
+                arity,
+            );
             
-            if symbol.children.is_empty() {
-                // 0-arity symbol is a leaf
-                let mut path = current_path.clone();
-                path.push(Expression::Symbol(Symbol {
-                    id: symbol.id,
-                    children: vec![],
-                }));
-                
-                if let Some(path_expr) = build_path_expression(&path) {
-                    paths.push(path_expr);
-                }
-            } else {
-                // Process each child
-                for (child_idx, child) in symbol.children.iter().enumerate() {
-                    // Get the indexed symbol name for this child position
-                    let indexed_symbol = get_indexed_symbol(
-                        symbol.id,
-                        child_idx,
-                        lang,
-                        string_lang,
-                        arity,
-                    );
-                    
-                    current_path.push(indexed_symbol);
-                    expression_to_paths_impl(child, lang, string_lang, arities, current_path, paths);
-                    current_path.pop();
-                }
-            }
+            current_path.push(Expression::Symbol(Symbol {
+                id: indexed_symbol_id,
+                children: vec![],
+            }));
+            expression_to_paths_impl(child, lang, string_lang, arities, current_path, paths);
+            current_path.pop();
         }
     }
 }
@@ -158,33 +191,28 @@ fn build_path_expression(path: &[Expression]) -> Option<Expression> {
     // Build from the end backwards
     let mut result = path[path.len() - 1].clone();
     
-    for i in (0..path.len() - 1).rev() {
-        let symbol = path[i].clone();
+    for symbol in path.iter().rev().skip(1).cloned() {
+        let Expression::Symbol(mut sym) = symbol else {
+            // If it's not a symbol, we can't build a proper path
+            // This shouldn't happen in normal usage
+            return None;
+        };
         
-        match symbol {
-            Expression::Symbol(mut sym) => {
-                sym.children = vec![result];
-                result = Expression::Symbol(sym);
-            }
-            _ => {
-                // If it's not a symbol, we can't build a proper path
-                // This shouldn't happen in normal usage
-                return None;
-            }
-        }
+        sym.children = vec![result];
+        result = Expression::Symbol(sym);
     }
     
     Some(result)
 }
 
-/// Gets the indexed symbol expression for a given child position.
-fn get_indexed_symbol(
+/// Converts a symbol ID to its corresponding string language symbol ID
+fn to_string_symbol(
     symbol_id: SymbolId,
     child_idx: usize,
     lang: &Language,
     string_lang: &Language,
     arity: usize,
-) -> Expression {
+) -> SymbolId {
     let symbol_name = lang.get_symbol(symbol_id);
     
     let string_symbol_name = if arity <= 1 {
@@ -195,12 +223,7 @@ fn get_indexed_symbol(
         format!("{}_{}", symbol_name, child_idx + 1)
     };
     
-    let string_symbol_id = string_lang.get_id(&string_symbol_name);
-    
-    Expression::Symbol(Symbol {
-        id: string_symbol_id,
-        children: vec![],
-    })
+    string_lang.get_id(&string_symbol_name)
 }
 
 /// Converts a rewriting rule into induced string rewriting rules.
@@ -277,66 +300,40 @@ fn path_to_expression(
     arities: &HashMap<SymbolId, usize>,
     var_id: VariableId,
 ) -> Option<Expression> {
-    let mut path_elements = Vec::new();
-    path_to_expression_impl(
-        expr,
-        target_path,
-        &mut vec![],
-        lang,
-        string_lang,
-        arities,
-        &mut path_elements,
-    );
+    // Walk down the expression following the path
+    let mut current_expr = expr;
+    let mut path_elements: Vec<Expression> = Vec::new();
+    
+    for &child_idx in &target_path.0 {
+        let Expression::Symbol(symbol) = current_expr else {
+            // Path goes through a non-symbol, which shouldn't happen
+            return None;
+        };
+        
+        let arity = arities.get(&symbol.id).copied().unwrap_or(symbol.children.len());
+        
+        // Convert symbol to its string language version
+        let indexed_symbol_id = to_string_symbol(
+            symbol.id,
+            child_idx,
+            lang,
+            string_lang,
+            arity,
+        );
+        
+        path_elements.push(Expression::Symbol(Symbol {
+            id: indexed_symbol_id,
+            children: vec![],
+        }));
+        
+        // Move to the next level
+        current_expr = symbol.children.get(child_idx)?;
+    }
     
     // Add the variable at the end
     path_elements.push(Expression::Variable(var_id));
     
     build_path_expression(&path_elements)
-}
-
-fn path_to_expression_impl(
-    expr: &Expression,
-    target_path: &OwnedPath,
-    current_path: &mut Vec<usize>,
-    lang: &Language,
-    string_lang: &Language,
-    arities: &HashMap<SymbolId, usize>,
-    path_elements: &mut Vec<Expression>,
-) {
-    // Check if we've reached the target
-    if current_path.len() == target_path.0.len() {
-        return;
-    }
-    
-    if let Expression::Symbol(symbol) = expr {
-        let next_idx = target_path.0[current_path.len()];
-        let arity = arities.get(&symbol.id).copied().unwrap_or(symbol.children.len());
-        
-        // Add the indexed symbol for this step
-        let indexed_symbol = get_indexed_symbol(
-            symbol.id,
-            next_idx,
-            lang,
-            string_lang,
-            arity,
-        );
-        path_elements.push(indexed_symbol);
-        
-        // Continue to the next child
-        if next_idx < symbol.children.len() {
-            current_path.push(next_idx);
-            path_to_expression_impl(
-                &symbol.children[next_idx],
-                target_path,
-                current_path,
-                lang,
-                string_lang,
-                arities,
-                path_elements,
-            );
-            current_path.pop();
-        }
-    }
 }
 
 #[cfg(test)]
