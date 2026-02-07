@@ -353,9 +353,9 @@ fn path_to_expression(
 pub fn expression_to_abelian_vector(expr: &Expression, lang: &Language) -> DVector<i32> {
     let symbol_count = lang.symbol_count();
     let mut counts = vec![0i32; symbol_count];
-    
+
     count_symbols_impl(expr, &mut counts);
-    
+
     DVector::from_vec(counts)
 }
 
@@ -368,7 +368,7 @@ fn count_symbols_impl(expr: &Expression, counts: &mut [i32]) {
         Expression::Symbol(symbol) => {
             // Increment count for this symbol
             counts[symbol.id] += 1;
-            
+
             // Recursively count symbols in children
             for child in &symbol.children {
                 count_symbols_impl(child, counts);
@@ -397,22 +397,22 @@ fn count_symbols_impl(expr: &Expression, counts: &mut [i32]) {
 pub fn rules_to_abelian_matrix(rules: &[Rule], lang: &Language) -> DMatrix<i32> {
     let symbol_count = lang.symbol_count();
     let rule_count = rules.len();
-    
+
     // Create matrix with dimensions: symbols x rules
     // nalgebra DMatrix::from_vec expects column-major order:
     // element (row, col) is at index col * nrows + row
     let mut matrix_data = vec![0i32; symbol_count * rule_count];
-    
+
     for (rule_idx, rule) in rules.iter().enumerate() {
         let left_vec = expression_to_abelian_vector(rule.from(), lang);
         let right_vec = expression_to_abelian_vector(rule.to(), lang);
         let diff_vec = right_vec - left_vec;
-        
+
         for symbol_idx in 0..symbol_count {
             matrix_data[rule_idx * symbol_count + symbol_idx] = diff_vec[symbol_idx];
         }
     }
-    
+
     DMatrix::from_vec(symbol_count, rule_count, matrix_data)
 }
 

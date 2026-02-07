@@ -262,11 +262,11 @@ fn generate_random_expression_with_variables_recursive(
 fn generate_random_leaf(rng: &mut impl Rng, config: &RandomGenerationConfig) -> Expression {
     // Check if we should generate a variable
     if let Some(var_config) = &config.variable_config
-        && rng.gen_bool(var_config.variable_probability) {
-            let variable_id =
-                rng.gen_range(var_config.variable_range.0..=var_config.variable_range.1);
-            return Expression::Variable(variable_id);
-        }
+        && rng.gen_bool(var_config.variable_probability)
+    {
+        let variable_id = rng.gen_range(var_config.variable_range.0..=var_config.variable_range.1);
+        return Expression::Variable(variable_id);
+    }
 
     // Generate a literal
     Expression::Literal(generate_random_literal(rng, &config.literal_config))
