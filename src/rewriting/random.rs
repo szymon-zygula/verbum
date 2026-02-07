@@ -35,28 +35,24 @@ struct RewritePosition {
 ///
 /// Returns the rewritten expression after n random rewrites have been applied.
 /// If no rewrites are possible at any step, returns the expression as-is.
-pub fn rewrite(
-    mut expression: VarFreeExpression,
-    rules: &[Rule],
-    n: usize,
-) -> VarFreeExpression {
+pub fn rewrite(mut expression: VarFreeExpression, rules: &[Rule], n: usize) -> VarFreeExpression {
     let mut rng = rand::thread_rng();
-    
+
     for _ in 0..n {
         let positions = find_all_rewrite_positions(&expression, rules);
-        
+
         if positions.is_empty() {
             // No rewrites possible, return current expression
             return expression;
         }
-        
+
         // Randomly select a position and apply the rewrite
         let idx = rng.gen_range(0..positions.len());
         let position = &positions[idx];
-        
+
         expression = apply_rewrite_at_position(expression, rules, position);
     }
-    
+
     expression
 }
 
@@ -78,8 +74,7 @@ fn find_all_rewrite_positions(
                             path: path.clone(),
                             rule_index,
                         })
-                    })
-                    .collect::<Vec<_>>(),
+                    }),
             )
         })
         .flatten()
@@ -94,7 +89,7 @@ fn apply_rewrite_at_position(
 ) -> VarFreeExpression {
     apply_at_path(expression, &position.path, |subexpr| {
         let rule = &rules[position.rule_index];
-        
+
         // Try to match the rule at this position
         if let Some(matching) = rule.from().try_match(subexpr) {
             // Instantiate the right-hand side with the matched variables
@@ -107,11 +102,7 @@ fn apply_rewrite_at_position(
 }
 
 /// Applies a transformation function at a specific path in the expression tree.
-fn apply_at_path<F>(
-    mut expression: VarFreeExpression,
-    path: &OwnedPath,
-    f: F,
-) -> VarFreeExpression
+fn apply_at_path<F>(mut expression: VarFreeExpression, path: &OwnedPath, f: F) -> VarFreeExpression
 where
     F: FnOnce(&VarFreeExpression) -> VarFreeExpression,
 {
@@ -126,18 +117,15 @@ where
 }
 
 /// Helper function to recursively navigate and apply transformation.
-fn apply_at_path_recursive<F>(
-    expression: &mut VarFreeExpression,
-    path: &[usize],
-    f: F,
-) where
+fn apply_at_path_recursive<F>(expression: &mut VarFreeExpression, path: &[usize], f: F)
+where
     F: FnOnce(&VarFreeExpression) -> VarFreeExpression,
 {
     match expression {
         VarFreeExpression::Symbol(symbol) if !path.is_empty() => {
             let child_index = path[0];
             let remaining_path = &path[1..];
-            
+
             if remaining_path.is_empty() {
                 // Apply transformation at this child
                 symbol.children[child_index] = f(&symbol.children[child_index]);
@@ -172,7 +160,7 @@ fn instantiate_expression(
                 .iter()
                 .map(|child| instantiate_expression(child, matching))
                 .collect();
-            
+
             VarFreeExpression::Symbol(crate::language::symbol::Symbol {
                 id: symbol.id,
                 children,
@@ -191,7 +179,7 @@ mod tests {
         let lang = Language::simple_math();
         let expr = lang.parse_no_vars("42").unwrap();
         let rules = vec![Rule::from_strings("(+ 0 $0)", "$0", &lang)];
-        
+
         let result = rewrite(expr.clone(), &rules, 5);
         assert_eq!(result, expr);
     }
@@ -201,7 +189,7 @@ mod tests {
         let lang = Language::simple_math();
         let expr = lang.parse_no_vars("(+ 0 5)").unwrap();
         let rules = vec![Rule::from_strings("(+ 0 $0)", "$0", &lang)];
-        
+
         let result = rewrite(expr, &rules, 1);
         let expected = lang.parse_no_vars("5").unwrap();
         assert_eq!(result, expected);
@@ -212,7 +200,7 @@ mod tests {
         let lang = Language::simple_math();
         let expr = lang.parse_no_vars("(+ 0 (+ 0 5))").unwrap();
         let rules = vec![Rule::from_strings("(+ 0 $0)", "$0", &lang)];
-        
+
         // After 2 rewrites, should reduce to 5
         let result = rewrite(expr, &rules, 2);
         let expected = lang.parse_no_vars("5").unwrap();
@@ -227,13 +215,16 @@ mod tests {
             Rule::from_strings("(* $0 $1)", "(* $1 $0)", &lang),
             Rule::from_strings("(* 2 $0)", "(+ $0 $0)", &lang),
         ];
-        
+
         // Apply rewrites - result should be valid but may vary
         let result = rewrite(expr, &rules, 3);
-        
+
         // Just check that it produces a valid expression
         // (exact result depends on random choices)
-        assert!(matches!(result, VarFreeExpression::Symbol(_) | VarFreeExpression::Literal(_)));
+        assert!(matches!(
+            result,
+            VarFreeExpression::Symbol(_) | VarFreeExpression::Literal(_)
+        ));
     }
 
     #[test]
@@ -241,9 +232,9 @@ mod tests {
         let lang = Language::simple_math();
         let expr = lang.parse_no_vars("(+ 0 (+ 0 5))").unwrap();
         let rules = vec![Rule::from_strings("(+ 0 $0)", "$0", &lang)];
-        
+
         let positions = find_all_rewrite_positions(&expr, &rules);
-        
+
         // Should find 2 positions: at root and at nested (+)
         assert_eq!(positions.len(), 2);
     }
@@ -253,13 +244,13 @@ mod tests {
         let lang = Language::simple_math();
         let pattern = lang.parse("(* $0 $1)").unwrap();
         let expr = lang.parse_no_vars("(* 3 5)").unwrap();
-        
+
         let matching = pattern.try_match(&expr).unwrap();
         let result_pattern = lang.parse("(+ $1 $0)").unwrap();
-        
+
         let result = instantiate_expression(&result_pattern, &matching);
         let expected = lang.parse_no_vars("(+ 5 3)").unwrap();
-        
+
         assert_eq!(result, expected);
     }
 }
