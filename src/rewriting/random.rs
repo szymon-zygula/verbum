@@ -4,7 +4,7 @@
 //! expressions without using e-graphs. It's a destructive approach that directly
 //! modifies expressions by randomly selecting applicable rules and positions.
 
-use crate::language::expression::{AnyExpression, Expression, OwnedPath, VarFreeExpression};
+use crate::language::expression::{AnyExpression, OwnedPath, VarFreeExpression};
 use crate::rewriting::rule::Rule;
 use rand::Rng;
 
@@ -87,86 +87,18 @@ fn apply_rewrite_at_position(
     rules: &[Rule],
     position: &RewritePosition,
 ) -> VarFreeExpression {
-    apply_at_path(expression, &position.path, |subexpr| {
+    expression.apply_at_path(&position.path, |subexpr| {
         let rule = &rules[position.rule_index];
 
         // Try to match the rule at this position
         if let Some(matching) = rule.from().try_match(subexpr) {
             // Instantiate the right-hand side with the matched variables
-            instantiate_expression(rule.to(), &matching)
+            VarFreeExpression::instantiate_from_pattern(rule.to(), &matching)
         } else {
             // This shouldn't happen if find_all_rewrite_positions is correct
             subexpr.clone()
         }
     })
-}
-
-/// Applies a transformation function at a specific path in the expression tree.
-fn apply_at_path<F>(mut expression: VarFreeExpression, path: &OwnedPath, f: F) -> VarFreeExpression
-where
-    F: FnOnce(&VarFreeExpression) -> VarFreeExpression,
-{
-    if path.0.is_empty() {
-        // Apply transformation at root
-        f(&expression)
-    } else {
-        // Navigate to parent and replace the child
-        apply_at_path_recursive(&mut expression, &path.0, f);
-        expression
-    }
-}
-
-/// Helper function to recursively navigate and apply transformation.
-fn apply_at_path_recursive<F>(expression: &mut VarFreeExpression, path: &[usize], f: F)
-where
-    F: FnOnce(&VarFreeExpression) -> VarFreeExpression,
-{
-    match expression {
-        VarFreeExpression::Symbol(symbol) if !path.is_empty() => {
-            let child_index = path[0];
-            let remaining_path = &path[1..];
-
-            if remaining_path.is_empty() {
-                // Apply transformation at this child
-                symbol.children[child_index] = f(&symbol.children[child_index]);
-            } else {
-                // Continue recursion
-                apply_at_path_recursive(&mut symbol.children[child_index], remaining_path, f);
-            }
-        }
-        _ => {
-            // Shouldn't happen with a valid path
-        }
-    }
-}
-
-/// Instantiates an expression pattern with matched variables.
-fn instantiate_expression(
-    pattern: &Expression,
-    matching: &crate::rewriting::matching::Match,
-) -> VarFreeExpression {
-    match pattern {
-        Expression::Literal(lit) => VarFreeExpression::Literal(lit.clone()),
-        Expression::Variable(var_id) => {
-            // Look up the matched value for this variable
-            matching
-                .at(*var_id)
-                .expect("Variable should be in matching")
-                .clone()
-        }
-        Expression::Symbol(symbol) => {
-            let children = symbol
-                .children
-                .iter()
-                .map(|child| instantiate_expression(child, matching))
-                .collect();
-
-            VarFreeExpression::Symbol(crate::language::symbol::Symbol {
-                id: symbol.id,
-                children,
-            })
-        }
-    }
 }
 
 #[cfg(test)]
@@ -248,7 +180,7 @@ mod tests {
         let matching = pattern.try_match(&expr).unwrap();
         let result_pattern = lang.parse("(+ $1 $0)").unwrap();
 
-        let result = instantiate_expression(&result_pattern, &matching);
+        let result = VarFreeExpression::instantiate_from_pattern(&result_pattern, &matching);
         let expected = lang.parse_no_vars("(+ 5 3)").unwrap();
 
         assert_eq!(result, expected);
