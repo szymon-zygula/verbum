@@ -30,11 +30,11 @@ use std::collections::HashMap;
 /// Returns a new `Language` representing the string language
 pub fn to_string_language(lang: &Language, arities: &HashMap<SymbolId, usize>) -> Language {
     let mut string_lang = Language::default();
-    
+
     for symbol_id in 0..lang.symbol_count() {
         let symbol_name = lang.get_symbol(symbol_id);
         let arity = arities.get(&symbol_id).copied().unwrap_or(0);
-        
+
         match arity {
             0 | 1 => {
                 // Keep 0-arity and 1-arity symbols as-is
@@ -49,7 +49,7 @@ pub fn to_string_language(lang: &Language, arities: &HashMap<SymbolId, usize>) -
             }
         }
     }
-    
+
     string_lang
 }
 
@@ -76,7 +76,14 @@ pub fn expression_to_paths(
     arities: &HashMap<SymbolId, usize>,
 ) -> Vec<Expression> {
     let mut paths = Vec::new();
-    expression_to_paths_impl(expr, lang, string_lang, arities, &mut Vec::new(), &mut paths);
+    expression_to_paths_impl(
+        expr,
+        lang,
+        string_lang,
+        arities,
+        &mut Vec::new(),
+        &mut paths,
+    );
     paths
 }
 
@@ -110,7 +117,7 @@ fn handle_literal_path(
     // We've reached a leaf, add the complete path
     let mut path = current_path.clone();
     path.push(Expression::Literal(lit.clone()));
-    
+
     // Convert the path into a nested expression
     if let Some(path_expr) = build_path_expression(&path) {
         paths.push(path_expr);
@@ -126,7 +133,7 @@ fn handle_variable_path(
     // Variables are also leaves
     let mut path = current_path.clone();
     path.push(Expression::Variable(var_id));
-    
+
     if let Some(path_expr) = build_path_expression(&path) {
         paths.push(path_expr);
     }
@@ -141,8 +148,11 @@ fn handle_symbol_path(
     current_path: &mut Vec<Expression>,
     paths: &mut Vec<Expression>,
 ) {
-    let arity = arities.get(&symbol.id).copied().unwrap_or(symbol.children.len());
-    
+    let arity = arities
+        .get(&symbol.id)
+        .copied()
+        .unwrap_or(symbol.children.len());
+
     if symbol.children.is_empty() {
         // 0-arity symbol is a leaf
         let mut path = current_path.clone();
@@ -150,7 +160,7 @@ fn handle_symbol_path(
             id: symbol.id,
             children: vec![],
         }));
-        
+
         if let Some(path_expr) = build_path_expression(&path) {
             paths.push(path_expr);
         }
@@ -158,14 +168,9 @@ fn handle_symbol_path(
         // Process each child
         for (child_idx, child) in symbol.children.iter().enumerate() {
             // Get the indexed symbol name for this child position
-            let indexed_symbol_id = to_string_symbol(
-                symbol.id,
-                child_idx,
-                lang,
-                string_lang,
-                arity,
-            );
-            
+            let indexed_symbol_id =
+                to_string_symbol(symbol.id, child_idx, lang, string_lang, arity);
+
             current_path.push(Expression::Symbol(Symbol {
                 id: indexed_symbol_id,
                 children: vec![],
@@ -183,25 +188,25 @@ fn build_path_expression(path: &[Expression]) -> Option<Expression> {
     if path.is_empty() {
         return None;
     }
-    
+
     if path.len() == 1 {
         return Some(path[0].clone());
     }
-    
+
     // Build from the end backwards
     let mut result = path[path.len() - 1].clone();
-    
+
     for symbol in path.iter().rev().skip(1).cloned() {
         let Expression::Symbol(mut sym) = symbol else {
             // If it's not a symbol, we can't build a proper path
             // This shouldn't happen in normal usage
             return None;
         };
-        
+
         sym.children = vec![result];
         result = Expression::Symbol(sym);
     }
-    
+
     Some(result)
 }
 
@@ -214,7 +219,7 @@ fn to_string_symbol(
     arity: usize,
 ) -> SymbolId {
     let symbol_name = lang.get_symbol(symbol_id);
-    
+
     let string_symbol_name = if arity <= 1 {
         // 0-arity or 1-arity symbols stay the same
         symbol_name.to_string()
@@ -222,7 +227,7 @@ fn to_string_symbol(
         // n-arity symbols become indexed
         format!("{}_{}", symbol_name, child_idx + 1)
     };
-    
+
     string_lang.get_id(&string_symbol_name)
 }
 
@@ -250,11 +255,11 @@ pub fn rule_to_induced_rules(
     arities: &HashMap<SymbolId, usize>,
 ) -> Vec<Rule> {
     let mut induced_rules = Vec::new();
-    
+
     // Find all variable occurrences in left and right sides
     let left_vars = rule.from().find_all_variables();
     let right_vars = rule.to().find_all_variables();
-    
+
     // For each variable that appears in both sides
     for (var_id, left_paths) in &left_vars {
         if let Some(right_paths) = right_vars.get(var_id) {
@@ -270,7 +275,7 @@ pub fn rule_to_induced_rules(
                         arities,
                         *var_id,
                     );
-                    
+
                     let right_path_expr = path_to_expression(
                         rule.to(),
                         right_path,
@@ -279,7 +284,7 @@ pub fn rule_to_induced_rules(
                         arities,
                         *var_id,
                     );
-                    
+
                     if let (Some(left_expr), Some(right_expr)) = (left_path_expr, right_path_expr) {
                         induced_rules.push(Rule::from_expressions(left_expr, right_expr));
                     }
@@ -287,7 +292,7 @@ pub fn rule_to_induced_rules(
             }
         }
     }
-    
+
     induced_rules
 }
 
@@ -303,36 +308,33 @@ fn path_to_expression(
     // Walk down the expression following the path
     let mut current_expr = expr;
     let mut path_elements: Vec<Expression> = Vec::new();
-    
+
     for &child_idx in &target_path.0 {
         let Expression::Symbol(symbol) = current_expr else {
             // Path goes through a non-symbol, which shouldn't happen
             return None;
         };
-        
-        let arity = arities.get(&symbol.id).copied().unwrap_or(symbol.children.len());
-        
+
+        let arity = arities
+            .get(&symbol.id)
+            .copied()
+            .unwrap_or(symbol.children.len());
+
         // Convert symbol to its string language version
-        let indexed_symbol_id = to_string_symbol(
-            symbol.id,
-            child_idx,
-            lang,
-            string_lang,
-            arity,
-        );
-        
+        let indexed_symbol_id = to_string_symbol(symbol.id, child_idx, lang, string_lang, arity);
+
         path_elements.push(Expression::Symbol(Symbol {
             id: indexed_symbol_id,
             children: vec![],
         }));
-        
+
         // Move to the next level
         current_expr = symbol.children.get(child_idx)?;
     }
-    
+
     // Add the variable at the end
     path_elements.push(Expression::Variable(var_id));
-    
+
     build_path_expression(&path_elements)
 }
 
@@ -344,15 +346,15 @@ mod tests {
     #[test]
     fn test_to_string_language_simple() {
         let lang = Language::default()
-            .add_symbol("+")    // id: 0
+            .add_symbol("+") // id: 0
             .add_symbol("sin"); // id: 1
-        
+
         let mut arities = HashMap::new();
         arities.insert(0, 2); // + has arity 2
         arities.insert(1, 1); // sin has arity 1
-        
+
         let string_lang = to_string_language(&lang, &arities);
-        
+
         // + should become +_1 and +_2
         assert_eq!(string_lang.get_symbol(0), "+_1");
         assert_eq!(string_lang.get_symbol(1), "+_2");
@@ -363,15 +365,15 @@ mod tests {
     #[test]
     fn test_to_string_language_zero_arity() {
         let lang = Language::default()
-            .add_symbol("x")    // id: 0, will be 0-arity
-            .add_symbol("*");   // id: 1
-        
+            .add_symbol("x") // id: 0, will be 0-arity
+            .add_symbol("*"); // id: 1
+
         let mut arities = HashMap::new();
         arities.insert(0, 0); // x has arity 0
         arities.insert(1, 2); // * has arity 2
-        
+
         let string_lang = to_string_language(&lang, &arities);
-        
+
         // x should stay the same
         assert_eq!(string_lang.get_symbol(0), "x");
         // * should become *_1 and *_2
@@ -381,60 +383,54 @@ mod tests {
 
     #[test]
     fn test_expression_to_paths_simple() {
-        let lang = Language::default()
-            .add_symbol("+")
-            .add_symbol("sin");
-        
+        let lang = Language::default().add_symbol("+").add_symbol("sin");
+
         let mut arities = HashMap::new();
         arities.insert(0, 2);
         arities.insert(1, 1);
-        
+
         let string_lang = to_string_language(&lang, &arities);
-        
+
         // Expression: (+ (sin 1) 2)
         let expr = lang.parse("(+ (sin 1) 2)").unwrap();
         let paths = expression_to_paths(&expr, &lang, &string_lang, &arities);
-        
+
         // Should have 2 paths: one to 1, one to 2
         assert_eq!(paths.len(), 2);
     }
 
     #[test]
     fn test_expression_to_paths_with_variable() {
-        let lang = Language::default()
-            .add_symbol("+")
-            .add_symbol("*");
-        
+        let lang = Language::default().add_symbol("+").add_symbol("*");
+
         let mut arities = HashMap::new();
         arities.insert(0, 2);
         arities.insert(1, 2);
-        
+
         let string_lang = to_string_language(&lang, &arities);
-        
+
         // Expression: (+ $0 (* 2 3))
         let expr = lang.parse("(+ $0 (* 2 3))").unwrap();
         let paths = expression_to_paths(&expr, &lang, &string_lang, &arities);
-        
+
         // Should have 3 paths: one to $0, one to 2, one to 3
         assert_eq!(paths.len(), 3);
     }
 
     #[test]
     fn test_rule_to_induced_rules_simple() {
-        let lang = Language::default()
-            .add_symbol("+")
-            .add_symbol("*");
-        
+        let lang = Language::default().add_symbol("+").add_symbol("*");
+
         let mut arities = HashMap::new();
         arities.insert(0, 2); // + has arity 2
         arities.insert(1, 2); // * has arity 2
-        
+
         let string_lang = to_string_language(&lang, &arities);
-        
+
         // Rule: (+ $0 $1) -> (* $0 $1)
         let rule = Rule::from_strings("(+ $0 $1)", "(* $0 $1)", &lang);
         let induced_rules = rule_to_induced_rules(&rule, &lang, &string_lang, &arities);
-        
+
         // Should have 2 induced rules (one for each variable)
         // $0: +_1 $0 -> *_1 $0
         // $1: +_2 $1 -> *_2 $1
@@ -443,35 +439,32 @@ mod tests {
 
     #[test]
     fn test_rule_to_induced_rules_repeated_variable() {
-        let lang = Language::default()
-            .add_symbol("+")
-            .add_symbol("*");
-        
+        let lang = Language::default().add_symbol("+").add_symbol("*");
+
         let mut arities = HashMap::new();
         arities.insert(0, 2); // + has arity 2
         arities.insert(1, 2); // * has arity 2
-        
+
         let string_lang = to_string_language(&lang, &arities);
-        
+
         // Rule: (+ $0 $0) -> (* $0 $0)
         // Variable $0 appears twice on each side
         let rule = Rule::from_strings("(+ $0 $0)", "(* $0 $0)", &lang);
         let induced_rules = rule_to_induced_rules(&rule, &lang, &string_lang, &arities);
-        
+
         // Should have 4 induced rules (2 left occurrences × 2 right occurrences)
         assert_eq!(induced_rules.len(), 4);
     }
 
     #[test]
     fn test_to_string_language_ternary() {
-        let lang = Language::default()
-            .add_symbol("if"); // id: 0, ternary operator
-        
+        let lang = Language::default().add_symbol("if"); // id: 0, ternary operator
+
         let mut arities = HashMap::new();
         arities.insert(0, 3); // if has arity 3
-        
+
         let string_lang = to_string_language(&lang, &arities);
-        
+
         // if should become if_1, if_2, and if_3
         assert_eq!(string_lang.get_symbol(0), "if_1");
         assert_eq!(string_lang.get_symbol(1), "if_2");
@@ -482,28 +475,28 @@ mod tests {
     #[test]
     fn test_expression_to_paths_detailed() {
         let lang = Language::default()
-            .add_symbol("+")    // id: 0
+            .add_symbol("+") // id: 0
             .add_symbol("sin"); // id: 1
-        
+
         let mut arities = HashMap::new();
         arities.insert(0, 2);
         arities.insert(1, 1);
-        
+
         let string_lang = to_string_language(&lang, &arities);
-        
+
         // Expression: (+ (sin 1) 2)
         // Path 1: +_1 -> sin -> 1
         // Path 2: +_2 -> 2
         let expr = lang.parse("(+ (sin 1) 2)").unwrap();
         let paths = expression_to_paths(&expr, &lang, &string_lang, &arities);
-        
+
         assert_eq!(paths.len(), 2);
-        
+
         // Verify the first path represents: (+_1 (sin 1))
         // It should be a nested expression
         let path1 = &paths[0];
         let path2 = &paths[1];
-        
+
         // Both should be Symbol expressions
         assert!(matches!(path1, Expression::Symbol(_)));
         assert!(matches!(path2, Expression::Symbol(_)));
@@ -512,26 +505,26 @@ mod tests {
     #[test]
     fn test_rule_to_induced_rules_detailed() {
         let lang = Language::default()
-            .add_symbol("+")    // id: 0
-            .add_symbol("*");   // id: 1
-        
+            .add_symbol("+") // id: 0
+            .add_symbol("*"); // id: 1
+
         let mut arities = HashMap::new();
         arities.insert(0, 2);
         arities.insert(1, 2);
-        
+
         let string_lang = to_string_language(&lang, &arities);
-        
+
         // Rule: (+ $0 $1) -> (+ $1 $0)  (commutativity)
         let rule = Rule::from_strings("(+ $0 $1)", "(+ $1 $0)", &lang);
         let induced_rules = rule_to_induced_rules(&rule, &lang, &string_lang, &arities);
-        
+
         // $0 appears at position 0 in left, and position 1 in right
         // $1 appears at position 1 in left, and position 0 in right
         // So we get 2 induced rules:
         // 1. +_1 $0 -> +_2 $0  (left pos 0 -> right pos 1)
         // 2. +_2 $1 -> +_1 $1  (left pos 1 -> right pos 0)
         assert_eq!(induced_rules.len(), 2);
-        
+
         // Check that all induced rules have variables
         for induced_rule in &induced_rules {
             assert!(!induced_rule.from().variables().is_empty());

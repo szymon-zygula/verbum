@@ -1,8 +1,8 @@
 // Example demonstrating the random expression generation features
 
 use verbum::benchmark::{
-    generate_random_expression_by_size_with_config, generate_random_expression_with_config,
     LiteralGenerationConfig, RandomGenerationConfig,
+    generate_random_expression_by_size_with_config, generate_random_expression_with_config,
 };
 use verbum::language::Language;
 

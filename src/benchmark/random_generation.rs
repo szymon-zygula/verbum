@@ -8,7 +8,7 @@ use std::fmt;
 
 use crate::language::{
     Language,
-    expression::{Expression, Literal, VariableId, VarFreeExpression},
+    expression::{Expression, Literal, VarFreeExpression, VariableId},
     symbol::Symbol,
 };
 
@@ -51,13 +51,13 @@ pub struct RandomGenerationConfig {
     /// Maps symbol IDs to their allowed arities.
     /// If a symbol is not in this map, a default arity will be used.
     pub symbol_arities: Vec<Vec<usize>>,
-    
+
     /// Configuration for generating random literals.
     pub literal_config: LiteralGenerationConfig,
-    
+
     /// Probability of generating a literal at each non-leaf node (0.0 to 1.0).
     pub literal_probability: f64,
-    
+
     /// Configuration for generating random variables.
     pub variable_config: Option<VariableGenerationConfig>,
 }
@@ -67,7 +67,7 @@ pub struct RandomGenerationConfig {
 pub struct VariableGenerationConfig {
     /// Range of variable IDs that can be generated (min, max inclusive).
     pub variable_range: (VariableId, VariableId),
-    
+
     /// Probability of generating a variable vs a literal at leaf nodes (0.0 to 1.0).
     /// 0.0 = always literal, 1.0 = always variable.
     pub variable_probability: f64,
@@ -78,16 +78,16 @@ pub struct VariableGenerationConfig {
 pub struct LiteralGenerationConfig {
     /// Common integer values that should be generated with higher probability.
     pub common_int_values: Vec<i64>,
-    
+
     /// Probability of selecting a common value (0.0 to 1.0).
     pub common_value_probability: f64,
-    
+
     /// Range for random integers when not using common values.
     pub int_range: (i64, i64),
-    
+
     /// Range for random unsigned integers when not using common values.
     pub uint_range: (u64, u64),
-    
+
     /// Probability of generating signed integers vs unsigned (0.0 to 1.0).
     /// 0.0 = always unsigned, 1.0 = always signed.
     pub int_vs_uint_probability: f64,
@@ -107,12 +107,12 @@ impl Default for LiteralGenerationConfig {
 
 impl RandomGenerationConfig {
     /// Creates a configuration from a language.
-    /// 
+    ///
     /// Note: You must set symbol_arities explicitly for your language.
     /// By default, all symbols have no allowed arities.
     pub fn from_language(language: &Language) -> Self {
         let symbol_arities = vec![vec![]; language.symbol_count()];
-        
+
         Self {
             symbol_arities,
             literal_config: LiteralGenerationConfig::default(),
@@ -120,7 +120,7 @@ impl RandomGenerationConfig {
             variable_config: None,
         }
     }
-    
+
     /// Sets the allowed arities for a specific symbol.
     pub fn with_symbol_arities(mut self, symbol_id: usize, arities: Vec<usize>) -> Self {
         if symbol_id < self.symbol_arities.len() {
@@ -128,19 +128,19 @@ impl RandomGenerationConfig {
         }
         self
     }
-    
+
     /// Sets the literal generation configuration.
     pub fn with_literal_config(mut self, literal_config: LiteralGenerationConfig) -> Self {
         self.literal_config = literal_config;
         self
     }
-    
+
     /// Sets the probability of generating literals at non-leaf nodes.
     pub fn with_literal_probability(mut self, probability: f64) -> Self {
         self.literal_probability = probability.clamp(0.0, 1.0);
         self
     }
-    
+
     /// Sets the variable generation configuration.
     pub fn with_variable_config(mut self, variable_config: VariableGenerationConfig) -> Self {
         self.variable_config = Some(variable_config);
@@ -169,10 +169,11 @@ pub fn generate_random_expression_with_config(
     // Create a config without variables
     let mut no_var_config = config.clone();
     no_var_config.variable_config = None;
-    
+
     // Call the variable version and unwrap (safe since no variables)
     let expr = generate_random_expression_with_variables(language, max_depth, rng, &no_var_config);
-    expr.without_variables().expect("Expression should not contain variables when variable_config is None")
+    expr.without_variables()
+        .expect("Expression should not contain variables when variable_config is None")
 }
 
 fn generate_random_literal(rng: &mut impl Rng, config: &LiteralGenerationConfig) -> Literal {
@@ -181,7 +182,7 @@ fn generate_random_literal(rng: &mut impl Rng, config: &LiteralGenerationConfig)
         let value = config.common_int_values[rng.gen_range(0..config.common_int_values.len())];
         return Literal::Int(value);
     }
-    
+
     // Generate a random value
     if rng.gen_bool(config.int_vs_uint_probability) {
         Literal::Int(rng.gen_range(config.int_range.0..=config.int_range.1))
@@ -230,7 +231,7 @@ fn generate_random_expression_with_variables_recursive(
     } else {
         // Generate a symbol
         let symbol_id = rng.gen_range(0..language.symbol_count());
-        
+
         // Get allowed arities for this symbol
         let allowed_arities = &config.symbol_arities[symbol_id];
         let arity = if allowed_arities.is_empty() {
@@ -241,7 +242,13 @@ fn generate_random_expression_with_variables_recursive(
 
         let children: Vec<Expression> = (0..arity)
             .map(|_| {
-                generate_random_expression_with_variables_recursive(language, max_depth, rng, current_depth + 1, config)
+                generate_random_expression_with_variables_recursive(
+                    language,
+                    max_depth,
+                    rng,
+                    current_depth + 1,
+                    config,
+                )
             })
             .collect();
 
@@ -256,11 +263,12 @@ fn generate_random_leaf(rng: &mut impl Rng, config: &RandomGenerationConfig) -> 
     // Check if we should generate a variable
     if let Some(var_config) = &config.variable_config {
         if rng.gen_bool(var_config.variable_probability) {
-            let variable_id = rng.gen_range(var_config.variable_range.0..=var_config.variable_range.1);
+            let variable_id =
+                rng.gen_range(var_config.variable_range.0..=var_config.variable_range.1);
             return Expression::Variable(variable_id);
         }
     }
-    
+
     // Generate a literal
     Expression::Literal(generate_random_literal(rng, &config.literal_config))
 }
@@ -292,10 +300,17 @@ pub fn generate_random_expression_by_size_with_config(
     // Create a config without variables
     let mut no_var_config = config.clone();
     no_var_config.variable_config = None;
-    
+
     // Call the variable version and unwrap (safe since no variables)
-    let expr = generate_random_expression_by_size_with_variables(language, target_size, rng, &no_var_config)?;
-    Ok(expr.without_variables().expect("Expression should not contain variables when variable_config is None"))
+    let expr = generate_random_expression_by_size_with_variables(
+        language,
+        target_size,
+        rng,
+        &no_var_config,
+    )?;
+    Ok(expr
+        .without_variables()
+        .expect("Expression should not contain variables when variable_config is None"))
 }
 
 /// Generates a random expression with variables and an exact total size.
@@ -325,11 +340,11 @@ pub fn generate_random_expression_by_size_with_variables(
     if target_size == 0 {
         return Err(GenerationError::ZeroSize);
     }
-    
+
     if target_size == 1 {
         return Ok(generate_random_leaf(rng, config));
     }
-    
+
     generate_random_expression_by_size_with_variables_recursive(language, target_size, rng, config)
 }
 
@@ -342,16 +357,16 @@ fn generate_random_expression_by_size_with_variables_recursive(
     if remaining_size == 0 {
         return Err(GenerationError::ZeroRemainingSize);
     }
-    
+
     if remaining_size == 1 || language.symbol_count() == 0 {
         // Must generate a leaf node (literal or variable)
         return Ok(generate_random_leaf(rng, config));
     }
-    
+
     // For size-based generation, try to find a symbol that can work
     // Collect all viable (symbol_id, arity) pairs
     let mut viable_choices: Vec<(usize, usize)> = Vec::new();
-    
+
     for symbol_id in 0..language.symbol_count() {
         let allowed_arities = &config.symbol_arities[symbol_id];
         for &arity in allowed_arities {
@@ -360,31 +375,28 @@ fn generate_random_expression_by_size_with_variables_recursive(
             }
         }
     }
-    
+
     if viable_choices.is_empty() {
         // Can't create any symbol with children
         return Err(GenerationError::NoViableSymbolArities { remaining_size });
     }
-    
+
     // Randomly select a viable choice
     let (symbol_id, arity) = viable_choices[rng.gen_range(0..viable_choices.len())];
-    
+
     // Distribute remaining size (minus 1 for current node) among children
     let size_for_children = remaining_size - 1;
     let child_sizes = distribute_size(size_for_children, arity, rng);
-    
+
     let children: Result<Vec<Expression>, GenerationError> = child_sizes
         .iter()
         .map(|&child_size| {
             generate_random_expression_by_size_with_variables_recursive(
-                language,
-                child_size,
-                rng,
-                config,
+                language, child_size, rng, config,
             )
         })
         .collect();
-    
+
     Ok(Expression::Symbol(Symbol {
         id: symbol_id,
         children: children?,
@@ -397,7 +409,7 @@ fn distribute_size(total: usize, num_children: usize, rng: &mut impl Rng) -> Vec
     // Give each child at least 1 node
     let mut sizes = vec![1; num_children];
     let remaining = total.saturating_sub(num_children);
-    
+
     // Randomly distribute the remaining size more efficiently
     // Generate random split points
     if remaining > 0 {
@@ -407,22 +419,26 @@ fn distribute_size(total: usize, num_children: usize, rng: &mut impl Rng) -> Vec
         split_points.push(0);
         split_points.push(remaining);
         split_points.sort_unstable();
-        
+
         for i in 0..num_children {
             sizes[i] += split_points[i + 1] - split_points[i];
         }
     }
-    
+
     sizes
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        generate_random_expression_by_size_with_config, generate_random_expression_with_config,
         LiteralGenerationConfig, RandomGenerationConfig,
+        generate_random_expression_by_size_with_config, generate_random_expression_with_config,
     };
-    use crate::language::{Language, expression::{Expression, VarFreeExpression}, topology::expression_size};
+    use crate::language::{
+        Language,
+        expression::{Expression, VarFreeExpression},
+        topology::expression_size,
+    };
 
     fn count_nodes(expr: &VarFreeExpression) -> usize {
         match expr {
@@ -471,7 +487,7 @@ mod tests {
             println!("Generated expression (depth {depth}): {expr:?}");
             // Basic assertion: ensure it doesn't panic and is a valid expression
             assert!(!format!("{expr:?}").is_empty());
-            
+
             // Verify depth constraint
             let actual_depth = max_depth(&expr);
             assert!(
@@ -491,16 +507,26 @@ mod tests {
         const MAX_SIZE_DEVIATION_FRACTION: usize = 3; // 1/3 = 33%
 
         for target_size in 1..20 {
-            let expr = generate_random_expression_by_size_with_config(&lang, target_size, &mut rng, &config).unwrap();
+            let expr = generate_random_expression_by_size_with_config(
+                &lang,
+                target_size,
+                &mut rng,
+                &config,
+            )
+            .unwrap();
             let actual_size = count_nodes(&expr);
-            
+
             println!(
                 "Generated expression (target size {target_size}, actual size {actual_size}): {expr:?}"
             );
-            
+
             // The actual size should be reasonably close to the target
             // Allow some deviation due to randomness and arity constraints
-            let tolerance = if target_size < 5 { 1 } else { target_size / MAX_SIZE_DEVIATION_FRACTION };
+            let tolerance = if target_size < 5 {
+                1
+            } else {
+                target_size / MAX_SIZE_DEVIATION_FRACTION
+            };
             assert!(
                 actual_size <= target_size + tolerance,
                 "Expression size {actual_size} significantly exceeds target size {target_size}"
@@ -526,17 +552,16 @@ mod tests {
     fn test_custom_arity_configuration() {
         let lang = Language::simple_math();
         let mut rng = rand::thread_rng();
-        
+
         // Create a configuration where + only accepts 3 children
         let plus_id = lang.get_id("+");
-        let config = default_math_config(&lang)
-            .with_symbol_arities(plus_id, vec![3]);
-        
+        let config = default_math_config(&lang).with_symbol_arities(plus_id, vec![3]);
+
         // Generate several expressions and check
         for _ in 0..10 {
             let expr = generate_random_expression_with_config(&lang, 5, &mut rng, &config);
             println!("Generated with custom arity: {expr:?}");
-            
+
             // Verify that any + symbols have exactly 3 children
             verify_symbol_arity(&expr, plus_id, &[3]);
         }
@@ -567,7 +592,7 @@ mod tests {
     fn test_common_literal_generation() {
         let lang = Language::simple_math();
         let mut rng = rand::thread_rng();
-        
+
         // Create a configuration with common values
         let literal_config = LiteralGenerationConfig {
             common_int_values: vec![0, 1],
@@ -576,22 +601,22 @@ mod tests {
             uint_range: (0, 1000),
             int_vs_uint_probability: 1.0, // Always use int
         };
-        
+
         let config = default_math_config(&lang)
             .with_literal_config(literal_config)
             .with_literal_probability(0.8); // High probability of literals
-        
+
         // Generate expressions and count common values
         let mut common_count = 0;
         let total_expressions = 100;
-        
+
         for _ in 0..total_expressions {
             let expr = generate_random_expression_with_config(&lang, 2, &mut rng, &config);
             if contains_common_literal(&expr, &[0, 1]) {
                 common_count += 1;
             }
         }
-        
+
         // With 90% probability and high literal generation, we should see many common values
         assert!(
             common_count > total_expressions / 2,
@@ -617,17 +642,18 @@ mod tests {
         let lang = Language::simple_math();
         let mut rng = rand::thread_rng();
         let config = default_math_config(&lang);
-        
+
         // Generate expressions with same parameter value using both methods
         let depth_expr = generate_random_expression_with_config(&lang, 5, &mut rng, &config);
-        let size_expr = generate_random_expression_by_size_with_config(&lang, 5, &mut rng, &config).unwrap();
-        
+        let size_expr =
+            generate_random_expression_by_size_with_config(&lang, 5, &mut rng, &config).unwrap();
+
         let depth_size = count_nodes(&depth_expr);
         let size_size = count_nodes(&size_expr);
-        
+
         println!("Depth-based (depth=5) actual size: {depth_size}");
         println!("Size-based (size=5) actual size: {size_size}");
-        
+
         // Size-based should be closer to 5 than depth-based
         assert!(
             (size_size as i32 - 5).abs() <= (depth_size as i32 - 5).abs() + 3,
@@ -641,12 +667,14 @@ mod tests {
         let lang = Language::simple_math();
         let mut rng = rand::thread_rng();
         let config = default_math_config(&lang);
-        
+
         for size in 1..15 {
-            let expr = generate_random_expression_by_size_with_config(&lang, size, &mut rng, &config).unwrap();
+            let expr =
+                generate_random_expression_by_size_with_config(&lang, size, &mut rng, &config)
+                    .unwrap();
             let counted = count_nodes(&expr);
             let topology_size = expression_size(&expr.to_expression());
-            
+
             assert_eq!(
                 counted, topology_size as usize,
                 "Size counting mismatch for expression: {expr:?}"
@@ -656,35 +684,34 @@ mod tests {
 
     #[test]
     fn test_generate_expression_with_variables() {
-        use super::{generate_random_expression_with_variables, VariableGenerationConfig};
-        
+        use super::{VariableGenerationConfig, generate_random_expression_with_variables};
+
         let lang = Language::simple_math();
         let mut rng = rand::thread_rng();
-        
+
         let variable_config = VariableGenerationConfig {
             variable_range: (0, 3),
             variable_probability: 0.5,
         };
-        
-        let config = default_math_config(&lang)
-            .with_variable_config(variable_config);
-        
+
+        let config = default_math_config(&lang).with_variable_config(variable_config);
+
         let mut variable_count = 0;
         let total_generations = 50;
-        
+
         for _ in 0..total_generations {
             let expr = generate_random_expression_with_variables(&lang, 4, &mut rng, &config);
             println!("Generated expression with variables: {expr:?}");
-            
+
             // Check if expression contains variables
             if contains_variables(&expr) {
                 variable_count += 1;
             }
-            
+
             // Verify all variables are in the allowed range
             verify_variable_range(&expr, 0, 3);
         }
-        
+
         // With 50% probability, we should see some expressions with variables
         assert!(
             variable_count > 5,
@@ -723,11 +750,11 @@ mod tests {
     #[test]
     fn test_no_variables_when_config_not_set() {
         use super::generate_random_expression_with_variables;
-        
+
         let lang = Language::simple_math();
         let mut rng = rand::thread_rng();
         let config = default_math_config(&lang); // No variable config
-        
+
         for _ in 0..20 {
             let expr = generate_random_expression_with_variables(&lang, 3, &mut rng, &config);
             assert!(

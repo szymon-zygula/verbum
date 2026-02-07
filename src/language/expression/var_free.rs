@@ -88,7 +88,11 @@ impl VarFreeExpression {
                     symbol.children[child_index] = f(&symbol.children[child_index]);
                 } else {
                     // Continue to the child
-                    Self::apply_at_path_helper(&mut symbol.children[child_index], remaining_path, f);
+                    Self::apply_at_path_helper(
+                        &mut symbol.children[child_index],
+                        remaining_path,
+                        f,
+                    );
                 }
             }
             _ => {

@@ -4,10 +4,10 @@ use verbum::{
     language, macros,
     rewriting::{
         egraph::{
+            EGraph,
             class::simple_math_local_cost::SimpleMathLocalCost,
             matching::bottom_up::BottomUpMatcher,
-            saturation::{Saturator, SaturationConfig, SimpleSaturator},
-            EGraph,
+            saturation::{SaturationConfig, Saturator, SimpleSaturator},
         },
         rule::Rule,
     },

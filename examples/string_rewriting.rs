@@ -4,11 +4,13 @@
 /// 1. Convert a language to its string language representation
 /// 2. Convert expressions to root-to-leaf paths
 /// 3. Convert rewriting rules to induced string rewriting rules
-
 use std::collections::HashMap;
 use verbum::{
     language::{Language, expression::AnyExpression},
-    rewriting::{rule::Rule, strings::{to_string_language, expression_to_paths, rule_to_induced_rules}},
+    rewriting::{
+        rule::Rule,
+        strings::{expression_to_paths, rule_to_induced_rules, to_string_language},
+    },
 };
 
 /// Helper function to print symbol information
@@ -23,10 +25,10 @@ fn print_symbol_info(lang: &Language, arities: &HashMap<usize, usize>) {
 fn main() {
     // Create a simple mathematical language
     let lang = Language::default()
-        .add_symbol("+")    // id: 0, binary operator
-        .add_symbol("*")    // id: 1, binary operator
-        .add_symbol("sin")  // id: 2, unary operator
-        .add_symbol("x");   // id: 3, constant (0-arity)
+        .add_symbol("+") // id: 0, binary operator
+        .add_symbol("*") // id: 1, binary operator
+        .add_symbol("sin") // id: 2, unary operator
+        .add_symbol("x"); // id: 3, constant (0-arity)
 
     // Define the arities (arity of each symbol)
     let mut arities = HashMap::new();
@@ -51,7 +53,7 @@ fn main() {
     let expr = lang.parse("(+ (sin 1) (* 2 3))").unwrap();
     println!("Original expression: (+ (sin 1) (* 2 3))");
     println!("This has 3 leaves: 1, 2, and 3");
-    
+
     let paths = expression_to_paths(&expr, &lang, &string_lang, &arities);
     println!("\nPaths from root to leaves: {} paths", paths.len());
     for (i, path) in paths.iter().enumerate() {
@@ -62,7 +64,7 @@ fn main() {
     // Create a commutativity rule: (+ $0 $1) -> (+ $1 $0)
     let rule = Rule::from_strings("(+ $0 $1)", "(+ $1 $0)", &lang);
     println!("Original rule: (+ $0 $1) -> (+ $1 $0)");
-    
+
     let induced_rules = rule_to_induced_rules(&rule, &lang, &string_lang, &arities);
     println!("\nInduced rules: {} rules", induced_rules.len());
     for (i, induced_rule) in induced_rules.iter().enumerate() {
@@ -79,7 +81,7 @@ fn main() {
     let rule2 = Rule::from_strings("(+ $0 $0)", "(* 2 $0)", &lang);
     println!("Original rule: (+ $0 $0) -> (* 2 $0)");
     println!("Variable $0 appears twice on the left, once on the right");
-    
+
     let induced_rules2 = rule_to_induced_rules(&rule2, &lang, &string_lang, &arities);
     println!("\nInduced rules: {} rules", induced_rules2.len());
     for (i, induced_rule) in induced_rules2.iter().enumerate() {
