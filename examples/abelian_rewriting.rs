@@ -10,8 +10,8 @@ use verbum::{
     rewriting::{
         rule::Rule,
         strings::{
-            expression_to_abelian_vector, expression_to_paths, rules_to_abelian_matrix,
-            to_string_language,
+            expression_to_abelian_vector, expression_to_paths, rule_to_induced_rules,
+            rules_to_abelian_matrix, to_string_language,
         },
     },
 };
@@ -136,7 +136,52 @@ fn main() {
     }
     println!();
 
-    // Example 4: Show how matrix multiplication works
+    // Example 4: Abelianized TRS matrix for stringified rewriting system
+    println!("=== Abelianized TRS Matrix for Stringified Rewriting System ===");
+    
+    // Use commutativity rule for demonstration
+    let original_rules = vec![
+        Rule::from_strings("(+ $0 $1)", "(+ $1 $0)", &lang), // Commutativity of +
+    ];
+    
+    println!("Original rule: (+ $0 $1) -> (+ $1 $0)");
+    println!();
+    
+    // Convert to induced string rewriting rules
+    let mut all_induced_rules = Vec::new();
+    for rule in &original_rules {
+        let induced = rule_to_induced_rules(rule, &lang, &string_lang, &arities);
+        all_induced_rules.extend(induced);
+    }
+    
+    println!("Induced string rewriting rules ({} rules):", all_induced_rules.len());
+    for (i, induced_rule) in all_induced_rules.iter().enumerate() {
+        println!(
+            "  Rule {}: {} -> {}",
+            i + 1,
+            induced_rule.from().with_language(&string_lang),
+            induced_rule.to().with_language(&string_lang)
+        );
+    }
+    println!();
+    
+    // Create abelianized TRS matrix for the stringified rules
+    let string_matrix = rules_to_abelian_matrix(&all_induced_rules, &string_lang);
+    println!("Abelianized TRS matrix for stringified rewriting system:");
+    println!("(rows = string language symbols, columns = induced rules)");
+    println!();
+    println!("{}", string_matrix);
+    println!();
+    
+    println!("Interpretation:");
+    println!("  The induced rules swap paths but preserve symbol counts.");
+    println!("  For commutativity (+ $0 $1) -> (+ $1 $0):");
+    println!("    - Rule 1: (+_1 $0) -> (+_2 $0) changes +_1 to +_2");
+    println!("    - Rule 2: (+_2 $1) -> (+_1 $1) changes +_2 to +_1");
+    println!("  Each column shows the net change in string language symbols.");
+    println!();
+
+    // Example 5: Show how matrix multiplication works
     println!("=== Matrix Application Example ===");
     
     let simple_rules = vec![
