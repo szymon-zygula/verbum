@@ -404,14 +404,10 @@ pub fn rules_to_abelian_matrix(rules: &[Rule], lang: &Language) -> DMatrix<i32> 
     let mut matrix_data = vec![0i32; symbol_count * rule_count];
     
     for (rule_idx, rule) in rules.iter().enumerate() {
-        // Get abelian vectors for left and right sides
         let left_vec = expression_to_abelian_vector(rule.from(), lang);
         let right_vec = expression_to_abelian_vector(rule.to(), lang);
-        
-        // Compute difference: right - left
         let diff_vec = right_vec - left_vec;
         
-        // Fill column for this rule (column-major order)
         for symbol_idx in 0..symbol_count {
             matrix_data[rule_idx * symbol_count + symbol_idx] = diff_vec[symbol_idx];
         }
