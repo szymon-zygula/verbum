@@ -102,7 +102,8 @@ fn main() {
     println!("  Column 0 (+ commutativity): All zeros - no symbols added or removed");
     println!("  Column 1 (* commutativity): All zeros - no symbols added or removed");
     println!("  Column 2 (+ identity): -1 in row 0 - removes one + symbol");
-    println!("  Column 3 (sin/cos swap): All zeros - swaps sin and cos but net count unchanged");
+    println!("  Column 3 (sin/cos swap): All zeros - both sides have 1 sin and 1 cos");
+    println!("  Note: Abelianization only counts symbols, not their positions or nesting");
     println!();
 
     // Example 3: Combining with string language

@@ -399,7 +399,8 @@ pub fn rules_to_abelian_matrix(rules: &[Rule], lang: &Language) -> DMatrix<i32> 
     let rule_count = rules.len();
     
     // Create matrix with dimensions: symbols x rules
-    // nalgebra DMatrix::from_vec expects column-major order
+    // nalgebra DMatrix::from_vec expects column-major order:
+    // element (row, col) is at index col * nrows + row
     let mut matrix_data = vec![0i32; symbol_count * rule_count];
     
     for (rule_idx, rule) in rules.iter().enumerate() {
@@ -752,5 +753,27 @@ mod tests {
 
         assert_eq!(matrix[(0, 0)], 0); // no change in +
         assert_eq!(matrix[(1, 0)], 0); // no change in *
+    }
+
+    #[test]
+    fn test_matrix_indexing() {
+        // Verify that our matrix indexing is correct
+        let lang = Language::default()
+            .add_symbol("+") // id: 0
+            .add_symbol("*"); // id: 1
+
+        // Rule: (+ $0 $1) -> (* $0 $1)
+        // Symbol 0 (+): left=1, right=0, diff=-1
+        // Symbol 1 (*): left=0, right=1, diff=+1
+        let rule = Rule::from_strings("(+ $0 $1)", "(* $0 $1)", &lang);
+        let matrix = super::rules_to_abelian_matrix(&[rule], &lang);
+
+        // Check dimensions
+        assert_eq!(matrix.nrows(), 2); // 2 symbols
+        assert_eq!(matrix.ncols(), 1); // 1 rule
+
+        // Verify values
+        assert_eq!(matrix[(0, 0)], -1, "Symbol 0 (+) should have -1");
+        assert_eq!(matrix[(1, 0)], 1, "Symbol 1 (*) should have +1");
     }
 }
