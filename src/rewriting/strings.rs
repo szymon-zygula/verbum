@@ -97,10 +97,10 @@ fn expression_to_paths_impl(
 ) {
     match expr {
         Expression::Literal(lit) => {
-            handle_literal_path(lit, current_path, paths);
+            handle_literal_path(lit, current_path.clone(), paths);
         }
         Expression::Variable(var_id) => {
-            handle_variable_path(*var_id, current_path, paths);
+            handle_variable_path(*var_id, current_path.clone(), paths);
         }
         Expression::Symbol(symbol) => {
             handle_symbol_path(symbol, lang, string_lang, arities, current_path, paths);
@@ -111,15 +111,14 @@ fn expression_to_paths_impl(
 /// Handles path building for literal expressions
 fn handle_literal_path(
     lit: &crate::language::expression::Literal,
-    current_path: &mut Vec<Expression>,
+    mut current_path: Vec<Expression>,
     paths: &mut Vec<Expression>,
 ) {
     // We've reached a leaf, add the complete path
-    let mut path = current_path.clone();
-    path.push(Expression::Literal(lit.clone()));
+    current_path.push(Expression::Literal(lit.clone()));
 
     // Convert the path into a nested expression
-    if let Some(path_expr) = build_path_expression(&path) {
+    if let Some(path_expr) = build_path_expression(&current_path) {
         paths.push(path_expr);
     }
 }
@@ -127,14 +126,13 @@ fn handle_literal_path(
 /// Handles path building for variable expressions
 fn handle_variable_path(
     var_id: VariableId,
-    current_path: &mut Vec<Expression>,
+    mut current_path: Vec<Expression>,
     paths: &mut Vec<Expression>,
 ) {
     // Variables are also leaves
-    let mut path = current_path.clone();
-    path.push(Expression::Variable(var_id));
+    current_path.push(Expression::Variable(var_id));
 
-    if let Some(path_expr) = build_path_expression(&path) {
+    if let Some(path_expr) = build_path_expression(&current_path) {
         paths.push(path_expr);
     }
 }
