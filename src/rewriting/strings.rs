@@ -10,6 +10,7 @@ use crate::language::{
     symbol::{Symbol, SymbolId},
 };
 use crate::rewriting::rule::Rule;
+use nalgebra::{DMatrix, DVector};
 use std::collections::HashMap;
 
 /// Converts a language to its induced string language.
@@ -336,6 +337,85 @@ fn path_to_expression(
     build_path_expression(&path_elements)
 }
 
+/// Converts an expression to its abelianized vector.
+///
+/// The abelianized vector has dimension equal to the number of symbols in the language.
+/// Each coordinate represents the count of how many times that symbol appears in the expression.
+///
+/// # Arguments
+///
+/// * `expr` - The expression to abelianize
+/// * `lang` - The language containing the symbols
+///
+/// # Returns
+///
+/// Returns a `DVector` where the i-th entry is the count of symbol i in the expression
+pub fn expression_to_abelian_vector(expr: &Expression, lang: &Language) -> DVector<i32> {
+    let symbol_count = lang.symbol_count();
+    let mut counts = vec![0i32; symbol_count];
+    
+    count_symbols_impl(expr, &mut counts);
+    
+    DVector::from_vec(counts)
+}
+
+/// Helper function to recursively count symbols in an expression
+fn count_symbols_impl(expr: &Expression, counts: &mut [i32]) {
+    match expr {
+        Expression::Literal(_) | Expression::Variable(_) => {
+            // Literals and variables don't contribute to symbol counts
+        }
+        Expression::Symbol(symbol) => {
+            // Increment count for this symbol
+            counts[symbol.id] += 1;
+            
+            // Recursively count symbols in children
+            for child in &symbol.children {
+                count_symbols_impl(child, counts);
+            }
+        }
+    }
+}
+
+/// Creates an abelianized TRS matrix from a set of rewrite rules.
+///
+/// The matrix A has:
+/// - Number of rows = number of symbols in the language
+/// - Number of columns = number of rules
+/// - A[i,j] = r[i,j] - l[i,j]
+///   where l[i,j] and r[i,j] are the counts of symbol i in the left and right
+///   sides of rule j, respectively
+///
+/// # Arguments
+///
+/// * `rules` - The rewrite rules to convert to a matrix
+/// * `lang` - The language containing the symbols
+///
+/// # Returns
+///
+/// Returns a `DMatrix` representing the abelianized TRS
+pub fn rules_to_abelian_matrix(rules: &[Rule], lang: &Language) -> DMatrix<i32> {
+    let symbol_count = lang.symbol_count();
+    let rule_count = rules.len();
+    
+    // Create matrix with dimensions: symbols x rules
+    // nalgebra DMatrix::from_vec expects column-major order:
+    // element (row, col) is at index col * nrows + row
+    let mut matrix_data = vec![0i32; symbol_count * rule_count];
+    
+    for (rule_idx, rule) in rules.iter().enumerate() {
+        let left_vec = expression_to_abelian_vector(rule.from(), lang);
+        let right_vec = expression_to_abelian_vector(rule.to(), lang);
+        let diff_vec = right_vec - left_vec;
+        
+        for symbol_idx in 0..symbol_count {
+            matrix_data[rule_idx * symbol_count + symbol_idx] = diff_vec[symbol_idx];
+        }
+    }
+    
+    DMatrix::from_vec(symbol_count, rule_count, matrix_data)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -528,5 +608,168 @@ mod tests {
             assert!(!induced_rule.from().variables().is_empty());
             assert!(!induced_rule.to().variables().is_empty());
         }
+    }
+
+    #[test]
+    fn test_expression_to_abelian_vector_simple() {
+        let lang = Language::default()
+            .add_symbol("+") // id: 0
+            .add_symbol("*") // id: 1
+            .add_symbol("sin"); // id: 2
+
+        // Expression: (+ 1 2) - only has one + symbol
+        let expr = lang.parse("(+ 1 2)").unwrap();
+        let vec = super::expression_to_abelian_vector(&expr, &lang);
+
+        assert_eq!(vec.len(), 3);
+        assert_eq!(vec[0], 1); // one +
+        assert_eq!(vec[1], 0); // no *
+        assert_eq!(vec[2], 0); // no sin
+    }
+
+    #[test]
+    fn test_expression_to_abelian_vector_nested() {
+        let lang = Language::default()
+            .add_symbol("+") // id: 0
+            .add_symbol("*") // id: 1
+            .add_symbol("sin"); // id: 2
+
+        // Expression: (+ (sin 1) (* 2 3))
+        // Has: 1 +, 1 *, 1 sin
+        let expr = lang.parse("(+ (sin 1) (* 2 3))").unwrap();
+        let vec = super::expression_to_abelian_vector(&expr, &lang);
+
+        assert_eq!(vec.len(), 3);
+        assert_eq!(vec[0], 1); // one +
+        assert_eq!(vec[1], 1); // one *
+        assert_eq!(vec[2], 1); // one sin
+    }
+
+    #[test]
+    fn test_expression_to_abelian_vector_repeated() {
+        let lang = Language::default()
+            .add_symbol("+") // id: 0
+            .add_symbol("*"); // id: 1
+
+        // Expression: (+ (* 1 2) (+ 3 (* 4 5)))
+        // Has: 2 +, 2 *
+        let expr = lang.parse("(+ (* 1 2) (+ 3 (* 4 5)))").unwrap();
+        let vec = super::expression_to_abelian_vector(&expr, &lang);
+
+        assert_eq!(vec.len(), 2);
+        assert_eq!(vec[0], 2); // two +
+        assert_eq!(vec[1], 2); // two *
+    }
+
+    #[test]
+    fn test_expression_to_abelian_vector_with_variables() {
+        let lang = Language::default()
+            .add_symbol("+") // id: 0
+            .add_symbol("*"); // id: 1
+
+        // Expression: (+ $0 (* $1 $2))
+        // Has: 1 +, 1 *
+        // Variables don't count as symbols
+        let expr = lang.parse("(+ $0 (* $1 $2))").unwrap();
+        let vec = super::expression_to_abelian_vector(&expr, &lang);
+
+        assert_eq!(vec.len(), 2);
+        assert_eq!(vec[0], 1); // one +
+        assert_eq!(vec[1], 1); // one *
+    }
+
+    #[test]
+    fn test_rules_to_abelian_matrix_single_rule() {
+        let lang = Language::default()
+            .add_symbol("+") // id: 0
+            .add_symbol("*"); // id: 1
+
+        // Rule: (+ $0 $1) -> (* $0 $1)
+        // Left: 1 +, 0 *
+        // Right: 0 +, 1 *
+        // Difference: -1 +, +1 *
+        let rule = Rule::from_strings("(+ $0 $1)", "(* $0 $1)", &lang);
+        let matrix = super::rules_to_abelian_matrix(&[rule], &lang);
+
+        assert_eq!(matrix.nrows(), 2); // 2 symbols
+        assert_eq!(matrix.ncols(), 1); // 1 rule
+
+        assert_eq!(matrix[(0, 0)], -1); // + count difference
+        assert_eq!(matrix[(1, 0)], 1); // * count difference
+    }
+
+    #[test]
+    fn test_rules_to_abelian_matrix_multiple_rules() {
+        let lang = Language::default()
+            .add_symbol("+") // id: 0
+            .add_symbol("*") // id: 1
+            .add_symbol("sin"); // id: 2
+
+        // Rule 1: (+ $0 $1) -> (* $0 $1)
+        // Difference: -1 +, +1 *, 0 sin
+        let rule1 = Rule::from_strings("(+ $0 $1)", "(* $0 $1)", &lang);
+
+        // Rule 2: (sin $0) -> (+ $0 (* 1 $0))
+        // Left: 0 +, 0 *, 1 sin
+        // Right: 1 +, 1 *, 0 sin
+        // Difference: +1 +, +1 *, -1 sin
+        let rule2 = Rule::from_strings("(sin $0)", "(+ $0 (* 1 $0))", &lang);
+
+        let matrix = super::rules_to_abelian_matrix(&[rule1, rule2], &lang);
+
+        assert_eq!(matrix.nrows(), 3); // 3 symbols
+        assert_eq!(matrix.ncols(), 2); // 2 rules
+
+        // Rule 1 column (index 0)
+        assert_eq!(matrix[(0, 0)], -1); // + count difference
+        assert_eq!(matrix[(1, 0)], 1); // * count difference
+        assert_eq!(matrix[(2, 0)], 0); // sin count difference
+
+        // Rule 2 column (index 1)
+        assert_eq!(matrix[(0, 1)], 1); // + count difference
+        assert_eq!(matrix[(1, 1)], 1); // * count difference
+        assert_eq!(matrix[(2, 1)], -1); // sin count difference
+    }
+
+    #[test]
+    fn test_rules_to_abelian_matrix_identity_rule() {
+        let lang = Language::default()
+            .add_symbol("+") // id: 0
+            .add_symbol("*"); // id: 1
+
+        // Identity-like rule: (+ $0 $1) -> (+ $1 $0)
+        // Left: 1 +, 0 *
+        // Right: 1 +, 0 *
+        // Difference: 0 +, 0 *
+        let rule = Rule::from_strings("(+ $0 $1)", "(+ $1 $0)", &lang);
+        let matrix = super::rules_to_abelian_matrix(&[rule], &lang);
+
+        assert_eq!(matrix.nrows(), 2);
+        assert_eq!(matrix.ncols(), 1);
+
+        assert_eq!(matrix[(0, 0)], 0); // no change in +
+        assert_eq!(matrix[(1, 0)], 0); // no change in *
+    }
+
+    #[test]
+    fn test_matrix_indexing() {
+        // Verify that our matrix indexing is correct
+        let lang = Language::default()
+            .add_symbol("+") // id: 0
+            .add_symbol("*"); // id: 1
+
+        // Rule: (+ $0 $1) -> (* $0 $1)
+        // Symbol 0 (+): left=1, right=0, diff=-1
+        // Symbol 1 (*): left=0, right=1, diff=+1
+        let rule = Rule::from_strings("(+ $0 $1)", "(* $0 $1)", &lang);
+        let matrix = super::rules_to_abelian_matrix(&[rule], &lang);
+
+        // Check dimensions
+        assert_eq!(matrix.nrows(), 2); // 2 symbols
+        assert_eq!(matrix.ncols(), 1); // 1 rule
+
+        // Verify values
+        assert_eq!(matrix[(0, 0)], -1, "Symbol 0 (+) should have -1");
+        assert_eq!(matrix[(1, 0)], 1, "Symbol 1 (*) should have +1");
     }
 }
