@@ -139,17 +139,28 @@ fn main() {
     // Example 4: Abelianized TRS matrix for stringified rewriting system
     println!("=== Abelianized TRS Matrix for Stringified Rewriting System ===");
     
-    // Use commutativity rule for demonstration
-    let original_rules = vec![
+    // Use all the rules from the original TRS
+    let original_rules_for_stringified = vec![
         Rule::from_strings("(+ $0 $1)", "(+ $1 $0)", &lang), // Commutativity of +
+        Rule::from_strings("(* $0 $1)", "(* $1 $0)", &lang), // Commutativity of *
+        Rule::from_strings("(+ $0 0)", "$0", &lang),          // Identity for +
+        Rule::from_strings("(sin (cos $0))", "(cos (sin $0))", &lang), // Swap sin/cos
     ];
     
-    println!("Original rule: (+ $0 $1) -> (+ $1 $0)");
+    println!("Original rules:");
+    for (i, rule) in original_rules_for_stringified.iter().enumerate() {
+        println!(
+            "  Rule {}: {} -> {}",
+            i + 1,
+            rule.from().with_language(&lang),
+            rule.to().with_language(&lang)
+        );
+    }
     println!();
     
     // Convert to induced string rewriting rules
     let mut all_induced_rules = Vec::new();
-    for rule in &original_rules {
+    for rule in &original_rules_for_stringified {
         let induced = rule_to_induced_rules(rule, &lang, &string_lang, &arities);
         all_induced_rules.extend(induced);
     }
@@ -174,11 +185,11 @@ fn main() {
     println!();
     
     println!("Interpretation:");
-    println!("  The induced rules swap paths but preserve symbol counts.");
-    println!("  For commutativity (+ $0 $1) -> (+ $1 $0):");
-    println!("    - Rule 1: (+_1 $0) -> (+_2 $0) changes +_1 to +_2");
-    println!("    - Rule 2: (+_2 $1) -> (+_1 $1) changes +_2 to +_1");
-    println!("  Each column shows the net change in string language symbols.");
+    println!("  Each column represents an induced rule showing net symbol changes.");
+    println!("  Rules 1-2: From (+ $0 $1) -> (+ $1 $0) - swap +_1 and +_2");
+    println!("  Rules 3-4: From (* $0 $1) -> (* $1 $0) - swap *_1 and *_2");
+    println!("  Rule 5: From (+ $0 0) -> $0 - removes +_1 (first arg position)");
+    println!("  Rule 6: From (sin (cos $0)) -> (cos (sin $0)) - no net symbol change");
     println!();
 
     // Example 5: Show how matrix multiplication works
