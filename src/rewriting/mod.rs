@@ -4,6 +4,7 @@
 
 pub mod egraph;
 pub mod matching;
+pub mod random;
 pub mod reachability;
 pub mod rule;
 pub mod strings;
