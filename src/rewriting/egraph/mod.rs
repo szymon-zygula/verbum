@@ -242,12 +242,7 @@ impl<A: Analysis> EGraph<A> {
     ///
     /// This method processes all classes marked for rebuild since the last rebuild call.
     /// It should be called before pattern matching to ensure the e-graph is in a consistent state.
-    /// This is more efficient than rebuilding after each merge, as it batches rebuilds together.
     pub fn rebuild(&mut self) {
-        if self.pending_rebuilds.is_empty() && !self.hashcons_dirty {
-            return;
-        }
-
         // Rebuild all pending classes.
         // We need to loop because rebuilding a class can trigger cascading rebuilds:
         // When a class is rebuilt, its nodes' children are canonicalized. This may cause
@@ -436,7 +431,8 @@ impl<A: Analysis> DynEGraph for EGraph<A> {
         let class_1 = self.classes.remove(&class_1_id).unwrap();
         self.classes.get_mut(&class_2_id).unwrap().merge(class_1);
 
-        // Defer rebuilding - just mark the class and its parents as needing rebuild
+        // Mark the merged class for rebuild (deferred rebuilding)
+        // According to the egg paper, we rebuild the merged class, which will check its parents for duplicates
         self.pending_rebuilds.insert(class_2_id);
         self.hashcons_dirty = true;
 
