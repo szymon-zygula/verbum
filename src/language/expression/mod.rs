@@ -210,6 +210,62 @@ impl Expression {
             }
         }
     }
+
+    /// Applies a transformation function at a specific path in the expression tree.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the subexpression to transform
+    /// * `f` - The transformation function to apply
+    ///
+    /// # Returns
+    ///
+    /// Returns a new expression with the transformation applied at the specified path.
+    pub fn apply_at_path<F>(mut self, path: &OwnedPath, f: F) -> Self
+    where
+        F: FnOnce(&Self) -> Self,
+    {
+        if path.0.is_empty() {
+            // Apply transformation at root
+            f(&self)
+        } else {
+            // Navigate to parent and replace the child
+            Self::apply_at_path_helper(&mut self, &path.0, f);
+            self
+        }
+    }
+
+    /// Helper to apply transformation at a path.
+    fn apply_at_path_helper<F>(expression: &mut Self, path: &[usize], f: F)
+    where
+        F: FnOnce(&Self) -> Self,
+    {
+        if path.is_empty() {
+            return;
+        }
+
+        match expression {
+            Expression::Symbol(symbol) => {
+                let child_index = path[0];
+                let remaining_path = &path[1..];
+
+                if remaining_path.is_empty() {
+                    // Apply transformation at this child
+                    symbol.children[child_index] = f(&symbol.children[child_index]);
+                } else {
+                    // Continue to the child
+                    Self::apply_at_path_helper(
+                        &mut symbol.children[child_index],
+                        remaining_path,
+                        f,
+                    );
+                }
+            }
+            _ => {
+                // Shouldn't happen with a valid path
+            }
+        }
+    }
 }
 
 impl AnyExpression for Expression {
