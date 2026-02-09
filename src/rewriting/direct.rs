@@ -245,6 +245,91 @@ pub fn rewrite_var_free(
         .unwrap_or(expression)
 }
 
+/// Represents a position in an expression tree where a rewrite can be applied.
+///
+/// Used for finding all positions where rules can be applied, which is useful
+/// for both random and exhaustive rewriting strategies.
+#[derive(Debug, Clone)]
+pub struct RewritePosition {
+    /// Path to the subexpression
+    pub path: crate::language::expression::OwnedPath,
+    /// Index of the applicable rule
+    pub rule_index: usize,
+}
+
+/// Finds all positions in a variable-free expression where any rule can be applied.
+///
+/// This function scans the entire expression tree and identifies all locations
+/// where at least one rule matches. This is useful for implementing various
+/// rewriting strategies (random, exhaustive, etc.).
+///
+/// # Arguments
+///
+/// * `expression` - The variable-free expression to analyze
+/// * `rules` - The rewrite rules to check
+///
+/// # Returns
+///
+/// Returns a vector of all positions where rules can be applied.
+pub fn find_all_rewrite_positions(
+    expression: &VarFreeExpression,
+    rules: &[Rule],
+) -> Vec<RewritePosition> {
+    use crate::language::expression::AnyExpression;
+    
+    expression
+        .iter_paths()
+        .flat_map(|path| {
+            let subexpr = expression.subexpression(path.as_path())?;
+            Some(
+                rules
+                    .iter()
+                    .enumerate()
+                    .filter_map(move |(rule_index, rule)| {
+                        rule.from().try_match(subexpr).map(|_| RewritePosition {
+                            path: path.clone(),
+                            rule_index,
+                        })
+                    }),
+            )
+        })
+        .flatten()
+        .collect()
+}
+
+/// Applies a rewrite at a specific position in a variable-free expression.
+///
+/// Given a position identified by `find_all_rewrite_positions`, this function
+/// applies the corresponding rule at that location in the expression tree.
+///
+/// # Arguments
+///
+/// * `expression` - The expression to rewrite
+/// * `rules` - The rewrite rules (must include the rule at `position.rule_index`)
+/// * `position` - The position where to apply the rewrite
+///
+/// # Returns
+///
+/// Returns the expression with the rewrite applied at the specified position.
+pub fn apply_rewrite_at_position(
+    expression: VarFreeExpression,
+    rules: &[Rule],
+    position: &RewritePosition,
+) -> VarFreeExpression {
+    expression.apply_at_path(&position.path, |subexpr| {
+        let rule = &rules[position.rule_index];
+
+        // Try to match the rule at this position
+        if let Some(matching) = rule.from().try_match(subexpr) {
+            // Instantiate the right-hand side with the matched variables
+            VarFreeExpression::instantiate_from_pattern(rule.to(), &matching)
+        } else {
+            // This shouldn't happen if find_all_rewrite_positions is correct
+            subexpr.clone()
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
