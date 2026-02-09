@@ -5,7 +5,6 @@
 pub mod direct;
 pub mod egraph;
 pub mod matching;
-#[deprecated(since = "0.1.0", note = "Use `direct::var_free` instead")]
 pub mod random;
 pub mod reachability;
 pub mod rule;
