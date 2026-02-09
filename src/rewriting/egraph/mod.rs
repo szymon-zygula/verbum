@@ -81,8 +81,9 @@ impl<A: Analysis> EGraph<A> {
     /// Adds a node to the egraph, returning `Old(id)` if the node exists, or `New(id)` if the node
     /// has been added by this call
     fn add_node(&mut self, mut node: Node) -> Seen<NodeId> {
-        // Rebuild before adding to ensure hashcons is up-to-date
-        self.rebuild();
+        // Ensure hashcons is current for accurate lookups
+        // This is lightweight compared to full rebuild
+        self.ensure_hashcons_current();
 
         // Ensure canonical children before any lookup or insertion
         node.make_canonical(self);
@@ -218,6 +219,15 @@ impl<A: Analysis> EGraph<A> {
             // after rebuilding hashcons always refer to the id of the largest node_id referring
             // to a given node.
             self.node_hashcons.insert(canonical, node_id);
+        }
+    }
+
+    /// Ensures the hashcons is up-to-date without rebuilding classes.
+    /// This is a lightweight operation compared to full rebuild.
+    fn ensure_hashcons_current(&mut self) {
+        if self.hashcons_dirty {
+            self.rebuild_hashcons();
+            self.hashcons_dirty = false;
         }
     }
 
@@ -474,7 +484,7 @@ impl<A: Analysis> DynEGraph for EGraph<A> {
     }
 
     fn rebuild(&mut self) {
-        self.rebuild()
+        EGraph::rebuild(self)
     }
 }
 
@@ -819,6 +829,7 @@ mod tests {
             ],
         };
         let _ = egraph.add_mixed_expression(MixedExpression::Symbol(sym));
+        egraph.rebuild(); // Rebuild to ensure all children are canonical
         assert_children_canonical(&egraph);
     }
 
