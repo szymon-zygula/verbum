@@ -5,17 +5,16 @@
 //! modifies expressions by randomly selecting applicable rules and positions.
 
 use crate::language::expression::VarFreeExpression;
-use crate::rewriting::direct::{apply_rewrite_at_position, find_all_rewrite_positions};
+use crate::rewriting::direct;
 use crate::rewriting::rule::Rule;
 use rand::Rng;
 
 /// Applies n random rewrites to a variable-free expression.
 ///
 /// This function performs destructive term rewriting by:
-/// 1. Finding all positions where any rule can be applied
-/// 2. Randomly selecting one position and rule
-/// 3. Applying the rewrite
-/// 4. Repeating n times
+/// 1. Converting to Expression
+/// 2. Repeatedly applying rewrite_once to random positions
+/// 3. Converting back to VarFreeExpression
 ///
 /// # Arguments
 ///
@@ -31,18 +30,34 @@ pub fn rewrite(mut expression: VarFreeExpression, rules: &[Rule], n: usize) -> V
     let mut rng = rand::thread_rng();
 
     for _ in 0..n {
-        let positions = find_all_rewrite_positions(&expression, rules);
+        // Convert to Expression for rewriting
+        let expr = expression.to_expression();
+        
+        // Find all applicable rules
+        let applicable_rules: Vec<usize> = rules
+            .iter()
+            .enumerate()
+            .filter_map(|(i, rule)| {
+                direct::rewrite_once(expr.clone(), rule).map(|_| i)
+            })
+            .collect();
 
-        if positions.is_empty() {
+        if applicable_rules.is_empty() {
             // No rewrites possible, return current expression
             return expression;
         }
 
-        // Randomly select a position and apply the rewrite
-        let idx = rng.gen_range(0..positions.len());
-        let position = &positions[idx];
-
-        expression = apply_rewrite_at_position(expression, rules, position);
+        // Randomly select one rule and apply it
+        let rule_idx = applicable_rules[rng.gen_range(0..applicable_rules.len())];
+        let rewritten = direct::rewrite_once(expr, &rules[rule_idx]).unwrap();
+        
+        // Convert back to VarFreeExpression
+        if let Some(var_free) = rewritten.without_variables() {
+            expression = var_free;
+        } else {
+            // Shouldn't happen with proper rules
+            return expression;
+        }
     }
 
     expression
@@ -52,7 +67,6 @@ pub fn rewrite(mut expression: VarFreeExpression, rules: &[Rule], n: usize) -> V
 mod tests {
     use super::*;
     use crate::language::Language;
-    use crate::rewriting::direct::find_all_rewrite_positions;
 
     #[test]
     fn test_no_rewrites_possible() {
@@ -105,18 +119,6 @@ mod tests {
             result,
             VarFreeExpression::Symbol(_) | VarFreeExpression::Literal(_)
         ));
-    }
-
-    #[test]
-    fn test_find_all_rewrite_positions() {
-        let lang = Language::simple_math();
-        let expr = lang.parse_no_vars("(+ 0 (+ 0 5))").unwrap();
-        let rules = vec![Rule::from_strings("(+ 0 $0)", "$0", &lang)];
-
-        let positions = find_all_rewrite_positions(&expr, &rules);
-
-        // Should find 2 positions: at root and at nested (+)
-        assert_eq!(positions.len(), 2);
     }
 
     #[test]

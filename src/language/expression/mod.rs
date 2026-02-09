@@ -29,7 +29,7 @@ pub type VariableId = usize;
 ///
 /// Represents expressions that may contain variables (e.g., `$0`, `$1`),
 /// literals, or symbols with children. Used in pattern matching and rule definitions.
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub enum Expression {
     /// A literal value
     Literal(Literal),
@@ -227,44 +227,20 @@ impl Expression {
     {
         if path.0.is_empty() {
             // Apply transformation at root
-            f(&self)
-        } else {
-            // Navigate to parent and replace the child
-            Self::apply_at_path_helper(&mut self, &path.0, f);
-            self
-        }
-    }
-
-    /// Helper to apply transformation at a path.
-    fn apply_at_path_helper<F>(expression: &mut Self, path: &[usize], f: F)
-    where
-        F: FnOnce(&Self) -> Self,
-    {
-        if path.is_empty() {
-            return;
+            return f(&self);
         }
 
-        match expression {
-            Expression::Symbol(symbol) => {
-                let child_index = path[0];
-                let remaining_path = &path[1..];
-
-                if remaining_path.is_empty() {
-                    // Apply transformation at this child
-                    symbol.children[child_index] = f(&symbol.children[child_index]);
-                } else {
-                    // Continue to the child
-                    Self::apply_at_path_helper(
-                        &mut symbol.children[child_index],
-                        remaining_path,
-                        f,
-                    );
-                }
-            }
-            _ => {
-                // Shouldn't happen with a valid path
-            }
+        // Navigate to parent and replace the child
+        if let Expression::Symbol(ref mut symbol) = self {
+            let child_index = path.0[0];
+            let remaining_path = OwnedPath(path.0[1..].to_vec());
+            
+            symbol.children[child_index] = symbol.children[child_index]
+                .clone()
+                .apply_at_path(&remaining_path, f);
         }
+        
+        self
     }
 }
 
