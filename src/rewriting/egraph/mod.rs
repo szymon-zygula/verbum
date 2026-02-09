@@ -834,4 +834,117 @@ mod tests {
         egraph.rebuild(); // Rebuild to ensure canonical children
         assert_children_canonical(&egraph);
     }
+
+    #[test]
+    fn deferred_rebuilding_basic() {
+        // Test that merging defers rebuilding until rebuild() is called
+        let lang = Language::simple_math();
+        let mut egraph = EGraph::<()>::default();
+
+        let expr_1: VarFreeExpression = lang.parse_no_vars("(+ 1 5)").unwrap();
+        let expr_2: VarFreeExpression = lang.parse_no_vars("(+ 1 2)").unwrap();
+
+        let expr_1_id = egraph.add_expression(expr_1);
+        let expr_2_id = egraph.add_expression(expr_2);
+
+        let class_5 = egraph.node(expr_1_id).as_symbol().children[1];
+        let class_2 = egraph.node(expr_2_id).as_symbol().children[1];
+
+        // Before merge: should have 5 nodes
+        assert_eq!(egraph.actual_node_count(), 5);
+
+        // Merge without rebuild - deferred rebuilding means we don't deduplicate yet
+        egraph.merge_classes(class_5, class_2);
+
+        // After rebuild, duplicate nodes should be removed
+        egraph.rebuild();
+        assert_eq!(egraph.actual_node_count(), 4);
+        assert_eq!(egraph.class_count(), 3);
+    }
+
+    #[test]
+    fn deferred_rebuilding_multiple_merges() {
+        // Test that multiple merges can be batched before rebuilding
+        let lang = Language::simple_math();
+        let mut egraph = EGraph::<()>::default();
+
+        let expr_1: VarFreeExpression = lang.parse_no_vars("(+ 1 2)").unwrap();
+        let expr_2: VarFreeExpression = lang.parse_no_vars("(+ 3 4)").unwrap();
+
+        let expr_1_id = egraph.add_expression(expr_1);
+        let expr_2_id = egraph.add_expression(expr_2);
+
+        let class_1 = egraph.node(expr_1_id).as_symbol().children[0];
+        let class_2 = egraph.node(expr_1_id).as_symbol().children[1];
+        let class_3 = egraph.node(expr_2_id).as_symbol().children[0];
+        let class_4 = egraph.node(expr_2_id).as_symbol().children[1];
+
+        // Initial state
+        assert_eq!(egraph.class_count(), 6);
+
+        // Perform multiple merges without rebuild
+        egraph.merge_classes(class_1, class_3);
+        egraph.merge_classes(class_2, class_4);
+
+        // After rebuild, all merges should be processed
+        egraph.rebuild();
+        assert_eq!(egraph.class_count(), 3); // +, merged(1,3), merged(2,4)
+    }
+
+    #[test]
+    fn deferred_rebuilding_cascading() {
+        // Test cascading rebuilds work correctly with deferred rebuilding
+        let lang = Language::simple_math();
+        let expr = lang
+            .parse_no_vars("(* (+ 5 (sin (* 1 7))) (+ 5 (sin (* 1 8))))")
+            .unwrap();
+
+        let mut egraph = EGraph::<()>::from_expression(expr);
+
+        let id_7 = egraph.node_id(&Node::Literal(Literal::Int(7))).unwrap();
+        let id_8 = egraph.node_id(&Node::Literal(Literal::Int(8))).unwrap();
+
+        let id_7_class = egraph.containing_class(id_7);
+        let id_8_class = egraph.containing_class(id_8);
+
+        // Initial state
+        assert_eq!(egraph.class_count(), 11);
+        assert_eq!(egraph.actual_node_count(), 11);
+
+        // Merge without rebuild
+        egraph.merge_classes(id_7_class, id_8_class);
+
+        // After rebuild, cascading merges should be complete
+        egraph.rebuild();
+        assert_eq!(egraph.class_count(), 7);
+        assert_eq!(egraph.actual_node_count(), 8);
+    }
+
+    #[test]
+    fn deferred_rebuilding_with_saturation() {
+        // Test that deferred rebuilding works correctly during saturation
+        use crate::rewriting::egraph::matching::top_down::TopDownMatcher;
+        use crate::rewriting::rule::Rule;
+        use crate::rewriting::egraph::saturation::{SaturationConfig, Saturator};
+        use crate::rewriting::egraph::saturation::simple_saturator::SimpleSaturator;
+
+        let lang = Language::simple_math();
+        let mut egraph = EGraph::<()>::from_expression(
+            lang.parse_no_vars("(+ (+ 1 1) (+ 1 1))").unwrap()
+        );
+
+        let rules = vec![
+            Rule::from_strings("(+ $0 $0)", "(* $0 2)", &lang),
+        ];
+
+        let saturator = SimpleSaturator::new(Box::new(TopDownMatcher));
+        let reason = saturator.saturate(&mut egraph, &rules, &SaturationConfig::default());
+
+        // After saturation, e-graph should be consistent
+        use crate::rewriting::egraph::saturation::SaturationStopReason;
+        assert_eq!(reason, SaturationStopReason::Saturated);
+        
+        // Verify the e-graph is in a consistent state
+        assert_children_canonical(&egraph);
+    }
 }
