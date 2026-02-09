@@ -22,6 +22,9 @@ impl RoundRobinScheduler {
 
 impl<A: Analysis> Scheduler<A> for RoundRobinScheduler {
     fn apply_next(&mut self, egraph: &mut EGraph<A>, matcher: &dyn Matcher) -> usize {
+        // Rebuild before matching to ensure consistency
+        egraph.rebuild();
+
         let n = self.rules.len();
 
         for offset in 0..n {

@@ -31,6 +31,9 @@ impl<LC: LocalCost> CostDirectedScheduler<LC> {
 
 impl<LC: LocalCost> Scheduler<LC> for CostDirectedScheduler<LC> {
     fn apply_next(&mut self, egraph: &mut EGraph<LC>, matcher: &dyn Matcher) -> usize {
+        // Rebuild before matching to ensure consistency
+        egraph.rebuild();
+
         for rule in self.rules.iter() {
             let applied = rule.apply(egraph, matcher);
             if applied > 0 {

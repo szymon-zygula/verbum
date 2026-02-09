@@ -56,6 +56,10 @@ pub struct EGraph<A: Analysis> {
     classes: HashMap<ClassId, Class<A>>,
     // Hashcons for canonical nodes
     node_hashcons: HashMap<Node, NodeId>,
+    // Classes that need rebuilding (deferred rebuilding)
+    pending_rebuilds: HashSet<ClassId>,
+    // Whether the hashcons needs to be rebuilt
+    hashcons_dirty: bool,
 }
 
 impl<A: Analysis> EGraph<A> {
@@ -77,6 +81,9 @@ impl<A: Analysis> EGraph<A> {
     /// Adds a node to the egraph, returning `Old(id)` if the node exists, or `New(id)` if the node
     /// has been added by this call
     fn add_node(&mut self, mut node: Node) -> Seen<NodeId> {
+        // Rebuild before adding to ensure hashcons is up-to-date
+        self.rebuild();
+
         // Ensure canonical children before any lookup or insertion
         node.make_canonical(self);
         if let Some(&old_id) = self.node_id(&node).as_ref() {
@@ -213,6 +220,37 @@ impl<A: Analysis> EGraph<A> {
             self.node_hashcons.insert(canonical, node_id);
         }
     }
+
+    /// Rebuilds all pending classes (deferred rebuilding).
+    ///
+    /// This method processes all classes marked for rebuild since the last rebuild call.
+    /// It should be called before pattern matching to ensure the e-graph is in a consistent state.
+    /// This is more efficient than rebuilding after each merge, as it batches rebuilds together.
+    pub fn rebuild(&mut self) {
+        if self.pending_rebuilds.is_empty() && !self.hashcons_dirty {
+            return;
+        }
+
+        // Rebuild all pending classes
+        // We need to loop because rebuilding a class can mark other classes as needing rebuild
+        while !self.pending_rebuilds.is_empty() {
+            let to_rebuild: Vec<ClassId> = self.pending_rebuilds.iter().copied().collect();
+            self.pending_rebuilds.clear();
+
+            for class_id in to_rebuild {
+                // Only rebuild if the class still exists (hasn't been merged away)
+                if self.classes.contains_key(&class_id) {
+                    self.rebuild_class(class_id);
+                }
+            }
+        }
+
+        // Rebuild hashcons if dirty
+        if self.hashcons_dirty {
+            self.rebuild_hashcons();
+            self.hashcons_dirty = false;
+        }
+    }
 }
 
 pub trait DynEGraph {
@@ -265,6 +303,12 @@ pub trait DynEGraph {
     fn dyn_class(&self, class_id: ClassId) -> &dyn DynClass;
 
     fn dyn_class_mut(&mut self, class_id: ClassId) -> &mut dyn DynClass;
+
+    /// Rebuilds all pending classes (deferred rebuilding).
+    ///
+    /// This method processes all classes marked for rebuild since the last rebuild call.
+    /// It should be called before pattern matching to ensure the e-graph is in a consistent state.
+    fn rebuild(&mut self);
 }
 
 impl<A: Analysis> DynEGraph for EGraph<A> {
@@ -372,10 +416,9 @@ impl<A: Analysis> DynEGraph for EGraph<A> {
         let class_1 = self.classes.remove(&class_1_id).unwrap();
         self.classes.get_mut(&class_2_id).unwrap().merge(class_1);
 
-        self.rebuild_class(class_2_id);
-
-        // After rebuilds, hashcons entries may be stale; rebuild it
-        self.rebuild_hashcons();
+        // Defer rebuilding - just mark the class and its parents as needing rebuild
+        self.pending_rebuilds.insert(class_2_id);
+        self.hashcons_dirty = true;
 
         Seen::New(class_2_id)
     }
@@ -428,6 +471,10 @@ impl<A: Analysis> DynEGraph for EGraph<A> {
     fn dyn_class_mut(&mut self, class_id: ClassId) -> &mut dyn DynClass {
         let class_id = self.canonical_class(class_id);
         self.classes.get_mut(&class_id).unwrap()
+    }
+
+    fn rebuild(&mut self) {
+        self.rebuild()
     }
 }
 
@@ -596,6 +643,7 @@ mod tests {
         let class_2 = egraph.node(expr_2_id).as_symbol().children[1];
 
         egraph.merge_classes(class_5, class_2);
+        egraph.rebuild(); // Rebuild to ensure consistency
 
         assert_eq!(egraph.total_node_count(), 5);
         assert_eq!(egraph.class_count(), 3);
@@ -623,6 +671,7 @@ mod tests {
         assert_eq!(egraph.class_count(), 11);
 
         egraph.merge_classes(id_7_class, id_8_class);
+        egraph.rebuild(); // Rebuild to ensure consistency
 
         assert_eq!(egraph.total_node_count(), 11);
         assert_eq!(egraph.actual_node_count(), 8);
@@ -747,6 +796,7 @@ mod tests {
         let class_7 = egraph.containing_class(id_7);
         let class_8 = egraph.containing_class(id_8);
         egraph.merge_classes(class_7, class_8);
+        egraph.rebuild(); // Rebuild to ensure canonical children
         assert_children_canonical(&egraph);
     }
 
@@ -781,6 +831,7 @@ mod tests {
             EGraph::<()>::from_expression(lang.parse_no_vars("(* 3 (+ 0 3))").unwrap());
         let rule = Rule::from_strings("(+ 0 $0)", "$0", &lang);
         rule.apply(&mut egraph, &TopDownMatcher);
+        egraph.rebuild(); // Rebuild to ensure canonical children
         assert_children_canonical(&egraph);
     }
 }
