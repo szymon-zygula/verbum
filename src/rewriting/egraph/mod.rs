@@ -56,9 +56,13 @@ pub struct EGraph<A: Analysis> {
     classes: HashMap<ClassId, Class<A>>,
     // Hashcons for canonical nodes
     node_hashcons: HashMap<Node, NodeId>,
-    // Classes that need rebuilding (deferred rebuilding)
+    // Classes that need rebuilding (deferred rebuilding).
+    // Populated during `merge_classes` when classes are merged.
+    // Cleared during `rebuild()` when pending rebuilds are processed.
     pending_rebuilds: HashSet<ClassId>,
-    // Whether the hashcons needs to be rebuilt
+    // Whether the hashcons needs to be rebuilt.
+    // Set to true when `merge_classes` is called (makes hashcons stale).
+    // Cleared when `rebuild_hashcons()` or `ensure_hashcons_current()` is called.
     hashcons_dirty: bool,
 }
 
@@ -81,8 +85,11 @@ impl<A: Analysis> EGraph<A> {
     /// Adds a node to the egraph, returning `Old(id)` if the node exists, or `New(id)` if the node
     /// has been added by this call
     fn add_node(&mut self, mut node: Node) -> Seen<NodeId> {
-        // Ensure hashcons is current for accurate lookups
-        // This is lightweight compared to full rebuild
+        // Ensure hashcons is current for accurate lookups.
+        // This is necessary because after merges, the hashcons may contain stale entries
+        // (nodes with non-canonical children). We need an up-to-date hashcons to correctly
+        // determine if a node already exists, preventing duplicate node creation.
+        // This is lightweight compared to full rebuild as it only rebuilds the hashcons.
         self.ensure_hashcons_current();
 
         // Ensure canonical children before any lookup or insertion
@@ -241,8 +248,11 @@ impl<A: Analysis> EGraph<A> {
             return;
         }
 
-        // Rebuild all pending classes
-        // We need to loop because rebuilding a class can mark other classes as needing rebuild
+        // Rebuild all pending classes.
+        // We need to loop because rebuilding a class can trigger cascading rebuilds:
+        // When a class is rebuilt, its nodes' children are canonicalized. This may cause
+        // parent classes (classes with nodes pointing to the rebuilt class) to be marked
+        // as needing rebuild, as they may now have duplicate nodes that need merging.
         while !self.pending_rebuilds.is_empty() {
             let to_rebuild: Vec<ClassId> = self.pending_rebuilds.iter().copied().collect();
             self.pending_rebuilds.clear();
