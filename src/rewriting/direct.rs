@@ -32,11 +32,9 @@ pub fn rewrite_once(expression: Expression, rule: &Rule) -> Option<Expression> {
     let rules = vec![rule.clone()];
     let positions = find_all_rewrite_positions_expr(&expression, &rules);
     
-    if let Some(first_pos) = positions.first() {
-        Some(apply_rewrite_at_position_expr(expression, &rules, first_pos))
-    } else {
-        None
-    }
+    positions.first().map(|first_pos| {
+        apply_rewrite_at_position_expr(expression, &rules, first_pos)
+    })
 }
 
 /// Applies rewrite rules exhaustively to an expression until no more rules can be applied.
@@ -91,7 +89,10 @@ pub fn rewrite(mut expression: Expression, rules: &[Rule], max_iterations: usize
 
 /// Applies a single rewrite rule at the first matching position in a variable-free expression.
 ///
-/// Converts to Expression, applies the rewrite, and converts back.
+/// Finds the first position where the rule can be applied (in depth-first order)
+/// and applies the rewrite at that position.
+///
+/// Variables in the expression are treated as symbolic constants during matching.
 ///
 /// # Arguments
 ///
@@ -100,8 +101,7 @@ pub fn rewrite(mut expression: Expression, rules: &[Rule], max_iterations: usize
 ///
 /// # Returns
 ///
-/// Returns `Some(rewritten_expression)` if the rule was applied and the result
-/// is still variable-free, `None` otherwise.
+/// Returns `Some(rewritten_expression)` if the rule was applied, `None` if no match was found.
 pub fn rewrite_once_var_free(
     expression: VarFreeExpression,
     rule: &Rule,
@@ -113,14 +113,18 @@ pub fn rewrite_once_var_free(
 
 /// Applies rewrite rules to a variable-free expression.
 ///
-/// Converts the variable-free expression to a regular expression, applies rewriting,
-/// and converts back.
+/// Repeatedly applies rules until a fixed point is reached or the maximum number of
+/// iterations is reached. Rules are tried in order, and for each rule, the first
+/// matching position is rewritten. Stops if a previously seen expression is encountered
+/// to prevent looping.
+///
+/// Variables in the expression are treated as symbolic constants during matching.
 ///
 /// # Arguments
 ///
 /// * `expression` - The variable-free expression to rewrite
 /// * `rules` - The rewrite rules to apply
-/// * `max_iterations` - Maximum number of rewrite steps
+/// * `max_iterations` - Maximum number of rewrite steps to prevent infinite loops
 ///
 /// # Returns
 ///
@@ -413,14 +417,14 @@ mod tests {
     }
     
     #[test]
-    fn test_commutative_rule_does_not_oscillate() {
+    fn test_commutative_rule_does_not_loop() {
         let lang = Language::simple_math();
 
         // Expression: (+ $5 2)
         let expr = lang.parse("(+ $5 2)").unwrap();
         let rules = vec![Rule::from_strings("(+ $0 $1)", "(+ $1 $0)", &lang)];
 
-        // Should apply once and then stop (not oscillate)
+        // Should apply once and then stop (not loop)
         let result = rewrite(expr.clone(), &rules, 10);
         let expected = lang.parse("(+ 2 $5)").unwrap();
 
