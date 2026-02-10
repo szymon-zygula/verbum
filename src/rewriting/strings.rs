@@ -6,12 +6,12 @@
 
 use crate::language::{
     Language,
+    arities::Arities,
     expression::{Expression, OwnedPath, VariableId},
     symbol::{Symbol, SymbolId},
 };
 use crate::rewriting::rule::Rule;
 use nalgebra::{DMatrix, DVector};
-use std::collections::HashMap;
 
 /// Converts a language to its induced string language.
 ///
@@ -29,12 +29,12 @@ use std::collections::HashMap;
 /// # Returns
 ///
 /// Returns a new `Language` representing the string language
-pub fn to_string_language(lang: &Language, arities: &HashMap<SymbolId, usize>) -> Language {
+pub fn to_string_language(lang: &Language, arities: &Arities) -> Language {
     let mut string_lang = Language::default();
 
     for symbol_id in 0..lang.symbol_count() {
         let symbol_name = lang.get_symbol(symbol_id);
-        let arity = arities.get(&symbol_id).copied().unwrap_or(0);
+        let arity = arities.get_first(symbol_id).unwrap_or(0);
 
         match arity {
             0 | 1 => {
@@ -74,7 +74,7 @@ pub fn expression_to_paths(
     expr: &Expression,
     lang: &Language,
     string_lang: &Language,
-    arities: &HashMap<SymbolId, usize>,
+    arities: &Arities,
 ) -> Vec<Expression> {
     let mut paths = Vec::new();
     expression_to_paths_impl(
@@ -92,7 +92,7 @@ fn expression_to_paths_impl(
     expr: &Expression,
     lang: &Language,
     string_lang: &Language,
-    arities: &HashMap<SymbolId, usize>,
+    arities: &Arities,
     current_path: &mut Vec<Expression>,
     paths: &mut Vec<Expression>,
 ) {
@@ -143,13 +143,12 @@ fn handle_symbol_path(
     symbol: &Symbol<Expression>,
     lang: &Language,
     string_lang: &Language,
-    arities: &HashMap<SymbolId, usize>,
+    arities: &Arities,
     current_path: &mut Vec<Expression>,
     paths: &mut Vec<Expression>,
 ) {
     let arity = arities
-        .get(&symbol.id)
-        .copied()
+        .get_first(symbol.id)
         .unwrap_or(symbol.children.len());
 
     if symbol.children.is_empty() {
@@ -251,7 +250,7 @@ pub fn rule_to_induced_rules(
     rule: &Rule,
     lang: &Language,
     string_lang: &Language,
-    arities: &HashMap<SymbolId, usize>,
+    arities: &Arities,
 ) -> Vec<Rule> {
     let mut induced_rules = Vec::new();
 
@@ -301,7 +300,7 @@ fn path_to_expression(
     target_path: &OwnedPath,
     lang: &Language,
     string_lang: &Language,
-    arities: &HashMap<SymbolId, usize>,
+    arities: &Arities,
     var_id: VariableId,
 ) -> Option<Expression> {
     // Walk down the expression following the path
@@ -315,8 +314,7 @@ fn path_to_expression(
         };
 
         let arity = arities
-            .get(&symbol.id)
-            .copied()
+            .get_first(symbol.id)
             .unwrap_or(symbol.children.len());
 
         // Convert symbol to its string language version
@@ -420,6 +418,7 @@ pub fn rules_to_abelian_matrix(rules: &[Rule], lang: &Language) -> DMatrix<i32> 
 mod tests {
     use super::*;
     use crate::language::Language;
+    use std::collections::HashMap;
 
     #[test]
     fn test_to_string_language_simple() {
@@ -427,9 +426,10 @@ mod tests {
             .add_symbol("+") // id: 0
             .add_symbol("sin"); // id: 1
 
-        let mut arities = HashMap::new();
-        arities.insert(0, 2); // + has arity 2
-        arities.insert(1, 1); // sin has arity 1
+        let mut arities_map = HashMap::new();
+        arities_map.insert(0, 2); // + has arity 2
+        arities_map.insert(1, 1); // sin has arity 1
+        let arities = Arities::from(arities_map);
 
         let string_lang = to_string_language(&lang, &arities);
 
@@ -446,9 +446,10 @@ mod tests {
             .add_symbol("x") // id: 0, will be 0-arity
             .add_symbol("*"); // id: 1
 
-        let mut arities = HashMap::new();
-        arities.insert(0, 0); // x has arity 0
-        arities.insert(1, 2); // * has arity 2
+        let mut arities_map = HashMap::new();
+        arities_map.insert(0, 0); // x has arity 0
+        arities_map.insert(1, 2); // * has arity 2
+        let arities = Arities::from(arities_map);
 
         let string_lang = to_string_language(&lang, &arities);
 
@@ -463,9 +464,10 @@ mod tests {
     fn test_expression_to_paths_simple() {
         let lang = Language::default().add_symbol("+").add_symbol("sin");
 
-        let mut arities = HashMap::new();
-        arities.insert(0, 2);
-        arities.insert(1, 1);
+        let mut arities_map = HashMap::new();
+        arities_map.insert(0, 2);
+        arities_map.insert(1, 1);
+        let arities = Arities::from(arities_map);
 
         let string_lang = to_string_language(&lang, &arities);
 
@@ -481,9 +483,10 @@ mod tests {
     fn test_expression_to_paths_with_variable() {
         let lang = Language::default().add_symbol("+").add_symbol("*");
 
-        let mut arities = HashMap::new();
-        arities.insert(0, 2);
-        arities.insert(1, 2);
+        let mut arities_map = HashMap::new();
+        arities_map.insert(0, 2);
+        arities_map.insert(1, 2);
+        let arities = Arities::from(arities_map);
 
         let string_lang = to_string_language(&lang, &arities);
 
@@ -499,9 +502,10 @@ mod tests {
     fn test_rule_to_induced_rules_simple() {
         let lang = Language::default().add_symbol("+").add_symbol("*");
 
-        let mut arities = HashMap::new();
-        arities.insert(0, 2); // + has arity 2
-        arities.insert(1, 2); // * has arity 2
+        let mut arities_map = HashMap::new();
+        arities_map.insert(0, 2); // + has arity 2
+        arities_map.insert(1, 2); // * has arity 2
+        let arities = Arities::from(arities_map);
 
         let string_lang = to_string_language(&lang, &arities);
 
@@ -519,9 +523,10 @@ mod tests {
     fn test_rule_to_induced_rules_repeated_variable() {
         let lang = Language::default().add_symbol("+").add_symbol("*");
 
-        let mut arities = HashMap::new();
-        arities.insert(0, 2); // + has arity 2
-        arities.insert(1, 2); // * has arity 2
+        let mut arities_map = HashMap::new();
+        arities_map.insert(0, 2); // + has arity 2
+        arities_map.insert(1, 2); // * has arity 2
+        let arities = Arities::from(arities_map);
 
         let string_lang = to_string_language(&lang, &arities);
 
@@ -538,8 +543,9 @@ mod tests {
     fn test_to_string_language_ternary() {
         let lang = Language::default().add_symbol("if"); // id: 0, ternary operator
 
-        let mut arities = HashMap::new();
-        arities.insert(0, 3); // if has arity 3
+        let mut arities_map = HashMap::new();
+        arities_map.insert(0, 3); // if has arity 3
+        let arities = Arities::from(arities_map);
 
         let string_lang = to_string_language(&lang, &arities);
 
@@ -556,9 +562,10 @@ mod tests {
             .add_symbol("+") // id: 0
             .add_symbol("sin"); // id: 1
 
-        let mut arities = HashMap::new();
-        arities.insert(0, 2);
-        arities.insert(1, 1);
+        let mut arities_map = HashMap::new();
+        arities_map.insert(0, 2);
+        arities_map.insert(1, 1);
+        let arities = Arities::from(arities_map);
 
         let string_lang = to_string_language(&lang, &arities);
 
@@ -586,9 +593,10 @@ mod tests {
             .add_symbol("+") // id: 0
             .add_symbol("*"); // id: 1
 
-        let mut arities = HashMap::new();
-        arities.insert(0, 2);
-        arities.insert(1, 2);
+        let mut arities_map = HashMap::new();
+        arities_map.insert(0, 2);
+        arities_map.insert(1, 2);
+        let arities = Arities::from(arities_map);
 
         let string_lang = to_string_language(&lang, &arities);
 
