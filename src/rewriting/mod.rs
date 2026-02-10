@@ -2,6 +2,7 @@
 //!
 //! This module contains the core components of the term rewriting system.
 
+pub mod direct;
 pub mod egraph;
 pub mod matching;
 pub mod random;

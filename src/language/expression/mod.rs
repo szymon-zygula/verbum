@@ -29,7 +29,7 @@ pub type VariableId = usize;
 ///
 /// Represents expressions that may contain variables (e.g., `$0`, `$1`),
 /// literals, or symbols with children. Used in pattern matching and rule definitions.
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub enum Expression {
     /// A literal value
     Literal(Literal),
@@ -209,6 +209,38 @@ impl Expression {
                 }
             }
         }
+    }
+
+    /// Applies a transformation function to a specified subexpression.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the subexpression to transform
+    /// * `f` - The transformation function to apply
+    ///
+    /// # Returns
+    ///
+    /// Returns a new expression with the transformation applied at the specified path.
+    pub fn apply_at_path<F>(mut self, path: &OwnedPath, f: F) -> Self
+    where
+        F: FnOnce(&Self) -> Self,
+    {
+        if path.0.is_empty() {
+            // Apply transformation at root
+            return f(&self);
+        }
+
+        // Navigate to parent and replace the child
+        if let Expression::Symbol(ref mut symbol) = self {
+            let child_index = path.0[0];
+            let remaining_path = OwnedPath(path.0[1..].to_vec());
+
+            symbol.children[child_index] = symbol.children[child_index]
+                .clone()
+                .apply_at_path(&remaining_path, f);
+        }
+
+        self
     }
 }
 

@@ -1,7 +1,8 @@
 //! Pattern matching for expressions.
 //!
-//! This module provides pattern matching capabilities for variable-free expressions,
-//! allowing patterns with variables to be matched against concrete expressions.
+//! This module provides pattern matching capabilities for both variable-free
+//! expressions and expressions with variables, allowing patterns with variables
+//! to be matched against concrete expressions.
 
 use std::collections::HashMap;
 
@@ -12,13 +13,22 @@ use crate::language::{
     symbol::Symbol,
 };
 
-/// A pattern match result.
+/// A pattern match result for variable-free expressions.
 ///
-/// Represents a successful match of a pattern against an expression,
+/// Represents a successful match of a pattern against a variable-free expression,
 /// storing the substitutions for all variables in the pattern.
 #[derive(Clone, Debug, Default)]
 pub struct Match<'e> {
     substitutions: HashMap<VariableId, &'e VarFreeExpression>,
+}
+
+/// A pattern match result for expressions with variables.
+///
+/// Represents a successful match of a pattern against an expression that may contain variables,
+/// storing the substitutions for all pattern variables.
+#[derive(Clone, Debug, Default)]
+pub struct ExpressionMatch {
+    substitutions: HashMap<VariableId, Expression>,
 }
 
 impl<'e> Match<'e> {
@@ -65,6 +75,33 @@ impl<'e> Match<'e> {
     }
 }
 
+impl ExpressionMatch {
+    /// Gets the expression substituted for a pattern variable.
+    pub fn at(&self, variable: VariableId) -> Option<&Expression> {
+        self.substitutions.get(&variable)
+    }
+
+    /// Sets the expression for a pattern variable.
+    fn set(&mut self, variable: VariableId, expression: Expression) {
+        self.substitutions.insert(variable, expression);
+    }
+
+    /// Tries to merge two matches, returning `None` if they conflict.
+    pub fn try_merge(&self, other: &Self) -> Option<Self> {
+        let mut new_match = self.clone();
+        for (key, value) in &other.substitutions {
+            if let Some(existing) = new_match.substitutions.get(key) {
+                if existing != value {
+                    return None;
+                }
+            } else {
+                new_match.substitutions.insert(*key, value.clone());
+            }
+        }
+        Some(new_match)
+    }
+}
+
 impl Expression {
     /// `self` is treated as a pattern which may match `expression`
     pub fn try_match<'e>(&self, expression: &'e VarFreeExpression) -> Option<Match<'e>> {
@@ -99,6 +136,100 @@ impl Expression {
                 (lit_1 == lit_2).then_some(Match::<'e>::default())
             }
             _ => None,
+        }
+    }
+
+    /// Tries to match a pattern against an expression with variables.
+    ///
+    /// Pattern variables (in the pattern) can match any subexpression, including
+    /// expression variables. Expression variables are treated as atomic terms.
+    ///
+    /// # Arguments
+    ///
+    /// * `pattern` - The pattern to match (may contain pattern variables)
+    /// * `expression` - The expression to match against (may contain expression variables)
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(match)` if the pattern matches, `None` otherwise.
+    pub fn try_match_expression(
+        pattern: &Expression,
+        expression: &Expression,
+    ) -> Option<ExpressionMatch> {
+        match (pattern, expression) {
+            // Pattern variable matches anything
+            (Expression::Variable(pattern_var), expr) => {
+                let mut m = ExpressionMatch::default();
+                m.set(*pattern_var, expr.clone());
+                Some(m)
+            }
+            // Symbols must have same ID and matching children
+            (
+                Expression::Symbol(Symbol {
+                    id: id1,
+                    children: children1,
+                }),
+                Expression::Symbol(Symbol {
+                    id: id2,
+                    children: children2,
+                }),
+            ) => {
+                if id1 != id2 || children1.len() != children2.len() {
+                    return None;
+                }
+
+                let mut combined_match = ExpressionMatch::default();
+                for (child1, child2) in children1.iter().zip(children2.iter()) {
+                    let child_match = Expression::try_match_expression(child1, child2)?;
+                    combined_match = combined_match.try_merge(&child_match)?;
+                }
+                Some(combined_match)
+            }
+            // Literals must be equal
+            (Expression::Literal(lit1), Expression::Literal(lit2)) => {
+                if lit1 == lit2 {
+                    Some(ExpressionMatch::default())
+                } else {
+                    None
+                }
+            }
+            // Other combinations don't match
+            _ => None,
+        }
+    }
+
+    /// Instantiates a pattern with matched expression variables to produce an expression.
+    ///
+    /// # Arguments
+    ///
+    /// * `pattern` - The pattern to instantiate (may contain pattern variables)
+    /// * `matching` - The match result containing substitutions
+    ///
+    /// # Returns
+    ///
+    /// Returns an expression with all pattern variables replaced by their matched values.
+    pub fn instantiate_expression(pattern: &Expression, matching: &ExpressionMatch) -> Expression {
+        match pattern {
+            Expression::Literal(lit) => Expression::Literal(lit.clone()),
+            Expression::Variable(var_id) => {
+                // Look up the matched value for this pattern variable
+                matching
+                    .at(*var_id)
+                    .cloned()
+                    .unwrap_or(Expression::Variable(*var_id))
+            }
+            Expression::Symbol(symbol) => {
+                let children = symbol
+                    .children
+                    .iter()
+                    .map(|child| Expression::instantiate_expression(child, matching))
+                    .collect();
+
+                Expression::Symbol(Symbol {
+                    id: symbol.id,
+                    children,
+                })
+            }
         }
     }
 }
