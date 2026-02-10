@@ -6,7 +6,7 @@
 /// 3. Use these features with the string language representation
 use std::collections::HashMap;
 use verbum::{
-    language::{Language, expression::AnyExpression},
+    language::{Language, arities::Arities, expression::AnyExpression},
     rewriting::{
         rule::Rule,
         strings::{
@@ -109,11 +109,12 @@ fn main() {
     // Example 3: Combining with string language
     println!("=== Abelian Vectors for String Language Paths ===");
 
-    let mut arities = HashMap::new();
-    arities.insert(0, 2); // + has arity 2
-    arities.insert(1, 2); // * has arity 2
-    arities.insert(2, 1); // sin has arity 1
-    arities.insert(3, 1); // cos has arity 1
+    let mut arities_map = HashMap::new();
+    arities_map.insert(0, 2); // + has arity 2
+    arities_map.insert(1, 2); // * has arity 2
+    arities_map.insert(2, 1); // sin has arity 1
+    arities_map.insert(3, 1); // cos has arity 1
+    let arities = Arities::from(arities_map);
 
     let string_lang = to_string_language(&lang, &arities);
 

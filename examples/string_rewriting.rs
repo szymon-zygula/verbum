@@ -6,7 +6,7 @@
 /// 3. Convert rewriting rules to induced string rewriting rules
 use std::collections::HashMap;
 use verbum::{
-    language::{Language, expression::AnyExpression},
+    language::{Language, arities::Arities, expression::AnyExpression},
     rewriting::{
         rule::Rule,
         strings::{expression_to_paths, rule_to_induced_rules, to_string_language},
@@ -14,10 +14,10 @@ use verbum::{
 };
 
 /// Helper function to print symbol information
-fn print_symbol_info(lang: &Language, arities: &HashMap<usize, usize>) {
+fn print_symbol_info(lang: &Language, arities: &Arities) {
     for id in 0..lang.symbol_count() {
         let name = lang.get_symbol(id);
-        let arity = arities.get(&id).copied().unwrap_or(0);
+        let arity = arities.get_first(id).unwrap_or(0);
         println!("  {} (id: {}, arity: {})", name, id, arity);
     }
 }
@@ -31,11 +31,12 @@ fn main() {
         .add_symbol("x"); // id: 3, constant (0-arity)
 
     // Define the arities (arity of each symbol)
-    let mut arities = HashMap::new();
-    arities.insert(0, 2); // + has arity 2
-    arities.insert(1, 2); // * has arity 2
-    arities.insert(2, 1); // sin has arity 1
-    arities.insert(3, 0); // x has arity 0
+    let mut arities_map = HashMap::new();
+    arities_map.insert(0, 2); // + has arity 2
+    arities_map.insert(1, 2); // * has arity 2
+    arities_map.insert(2, 1); // sin has arity 1
+    arities_map.insert(3, 0); // x has arity 0
+    let arities = Arities::from(arities_map);
 
     println!("=== String Language Conversion ===");
     println!("Original language symbols:");
