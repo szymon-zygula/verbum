@@ -11,7 +11,6 @@
 
 use clap::Parser;
 use rand::seq::SliceRandom;
-use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::error::Error;
@@ -21,8 +20,7 @@ use verbum::benchmark::{
 };
 use verbum::language::arities::Arities;
 use verbum::language::expression::{AnyExpression, Expression, VariableId};
-use verbum::rewriting::direct::{apply_rewrite_at_position_expr, find_all_rewrite_positions_expr};
-use verbum::rewriting::rule::Rule;
+use verbum::rewriting::random::rewrite_expression;
 use verbum::rewriting::strings::{
     expression_to_abelian_vector, expression_to_paths, rules_to_abelian_matrix, to_string_language,
 };
@@ -41,11 +39,7 @@ struct Args {
     #[arg(short = 'v', long)]
     variables: usize,
 
-    /// Path to JSON file with arities
-    #[arg(short = 'r', long)]
-    arities: PathBuf,
-
-    /// Path to directory containing TRS JSON files (language.json and trs.json)
+    /// Path to directory containing TRS JSON files (language.json, trs.json, and arities.json)
     #[arg(short = 't', long)]
     trs: PathBuf,
 
@@ -95,9 +89,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let lang = trs.language();
     let rules = trs.rules();
 
-    // Step 2: Load arities
-    println!("Loading arities from {:?}...", args.arities);
-    let arities: Arities = load_json(&args.arities)?;
+    // Step 2: Load arities from the same directory
+    let arities_path = args.trs.join("arities.json");
+    println!("Loading arities from {:?}...", arities_path);
+    let arities: Arities = load_json(&arities_path)?;
 
     // Step 3: Generate random expression E with size n and up to v variables
     println!("Generating random expression of size {} with up to {} variables...", args.size, args.variables);
@@ -132,7 +127,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Step 4: Apply a random rewrites to E creating E'
     println!("Applying {} random rewrites...", args.applications);
-    let expr_e_prime = apply_random_rewrites_to_expression(expr_e.clone(), rules, args.applications, &mut rng);
+    let expr_e_prime = rewrite_expression(expr_e.clone(), rules, args.applications, &mut rng);
     
     println!("Rewritten expression E': {}", expr_e_prime.with_language(lang));
 
@@ -241,49 +236,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("  Matrix dimensions: {}x{}", output.a.len(), if output.a.is_empty() { 0 } else { output.a[0].len() });
     
     Ok(())
-}
-
-/// Applies n random rewrites to an expression (works with expressions containing variables).
-///
-/// This function performs random term rewriting by:
-/// 1. Finding all positions where any rule can be applied
-/// 2. Randomly selecting one position and rule
-/// 3. Applying the rewrite
-/// 4. Repeating n times
-///
-/// # Arguments
-///
-/// * `expression` - The expression to rewrite
-/// * `rules` - The rewrite rules to apply
-/// * `n` - The number of rewrites to perform
-/// * `rng` - Random number generator
-///
-/// # Returns
-///
-/// Returns the rewritten expression after n random rewrites have been applied.
-/// If no rewrites are possible at any step, returns the expression as-is.
-fn apply_random_rewrites_to_expression(
-    mut expression: Expression,
-    rules: &[Rule],
-    n: usize,
-    rng: &mut impl Rng,
-) -> Expression {
-    for _ in 0..n {
-        let positions = find_all_rewrite_positions_expr(&expression, rules);
-
-        if positions.is_empty() {
-            // No rewrites possible, return current expression
-            return expression;
-        }
-
-        // Randomly select a position and apply the rewrite
-        let idx = rng.gen_range(0..positions.len());
-        let position = &positions[idx];
-
-        expression = apply_rewrite_at_position_expr(expression, rules, position);
-    }
-
-    expression
 }
 
 /// Checks if a path expression ends with the given variable

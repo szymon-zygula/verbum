@@ -10,7 +10,6 @@ The `path_expression_gen` binary generates random expressions and extracts abeli
 cargo run --bin path_expression_gen -- \
   -n <SIZE> \
   -v <VARIABLES> \
-  -r <ARITIES_JSON> \
   -t <TRS_DIR> \
   -a <APPLICATIONS> \
   -o <OUTPUT_JSON>
@@ -20,8 +19,7 @@ cargo run --bin path_expression_gen -- \
 
 - `-n, --size <SIZE>`: Expression size (number of nodes in the expression tree)
 - `-v, --variables <VARIABLES>`: Variable count (maximum variable ID will be v-1)
-- `-r, --arities <ARITIES>`: Path to JSON file with arities
-- `-t, --trs <TRS>`: Path to directory containing TRS JSON files (language.json and trs.json)
+- `-t, --trs <TRS>`: Path to directory containing TRS JSON files (language.json, trs.json, and arities.json)
 - `-a, --applications <APPLICATIONS>`: Number of random rewrite applications
 - `-o, --output <OUTPUT>`: Output JSON file path
 
@@ -31,7 +29,6 @@ cargo run --bin path_expression_gen -- \
 cargo run --bin path_expression_gen -- \
   -n 15 \
   -v 3 \
-  -r jsons/simple-math/arities.json \
   -t jsons/simple-math \
   -a 2 \
   -o output.json
@@ -41,8 +38,8 @@ cargo run --bin path_expression_gen -- \
 
 The binary performs the following steps:
 
-1. Loads the term rewriting system (TRS) and language from JSON
-2. Loads arities from JSON
+1. Loads the term rewriting system (TRS) and language from the TRS directory
+2. Loads arities from the same directory (arities.json)
 3. Generates a random expression E of specified size with up to v variables
 4. Applies a random rewrite applications to E, creating E'
 5. Creates an abelianized stringified matrix A for the TRS
@@ -64,6 +61,13 @@ The output JSON contains:
 
 ## Input File Formats
 
+### TRS Directory
+
+The TRS directory should contain:
+- `language.json`: Language definition with symbols
+- `trs.json`: Rewrite rules
+- `arities.json`: Arities for each symbol
+
 ### Arities JSON
 
 ```json
@@ -78,10 +82,4 @@ The output JSON contains:
 
 Each key is a symbol ID, and the value is an array of allowed arities.
 
-### TRS Directory
-
-The TRS directory should contain:
-- `language.json`: Language definition with symbols
-- `trs.json`: Rewrite rules
-
-See `jsons/simple-math/` for examples.
+See `jsons/simple-math/` for a complete example.
