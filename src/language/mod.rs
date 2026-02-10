@@ -16,6 +16,7 @@
 use serde::{Deserialize, Serialize};
 use symbol::SymbolId;
 
+pub mod arities;
 pub mod expression;
 pub mod parsing;
 pub mod symbol;
