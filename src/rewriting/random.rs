@@ -1,13 +1,58 @@
 //! Random rewriter for destructive term rewriting.
 //!
-//! This module provides functionality for applying random rewrites to variable-free
-//! expressions without using e-graphs. It's a destructive approach that directly
-//! modifies expressions by randomly selecting applicable rules and positions.
+//! This module provides functionality for applying random rewrites to expressions
+//! without using e-graphs. It's a destructive approach that directly modifies
+//! expressions by randomly selecting applicable rules and positions.
 
-use crate::language::expression::VarFreeExpression;
-use crate::rewriting::direct::{apply_rewrite_at_position, find_all_rewrite_positions};
+use crate::language::expression::{Expression, VarFreeExpression};
+use crate::rewriting::direct::{apply_rewrite_at_position_expr, find_all_rewrite_positions_expr};
 use crate::rewriting::rule::Rule;
 use rand::Rng;
+
+/// Applies n random rewrites to an expression (works with expressions containing variables).
+///
+/// This function performs random term rewriting by:
+/// 1. Finding all positions where any rule can be applied
+/// 2. Randomly selecting one position and rule
+/// 3. Applying the rewrite
+/// 4. Repeating n times
+///
+/// Variables in the expression are treated as symbolic constants during matching.
+///
+/// # Arguments
+///
+/// * `expression` - The expression to rewrite
+/// * `rules` - The rewrite rules to apply
+/// * `n` - The number of rewrites to perform
+/// * `rng` - Random number generator
+///
+/// # Returns
+///
+/// Returns the rewritten expression after n random rewrites have been applied.
+/// If no rewrites are possible at any step, returns the expression as-is.
+pub fn rewrite_expression(
+    mut expression: Expression,
+    rules: &[Rule],
+    n: usize,
+    rng: &mut impl Rng,
+) -> Expression {
+    for _ in 0..n {
+        let positions = find_all_rewrite_positions_expr(&expression, rules);
+
+        if positions.is_empty() {
+            // No rewrites possible, return current expression
+            return expression;
+        }
+
+        // Randomly select a position and apply the rewrite
+        let idx = rng.gen_range(0..positions.len());
+        let position = &positions[idx];
+
+        expression = apply_rewrite_at_position_expr(expression, rules, position);
+    }
+
+    expression
+}
 
 /// Applies n random rewrites to a variable-free expression.
 ///
@@ -27,25 +72,11 @@ use rand::Rng;
 ///
 /// Returns the rewritten expression after n random rewrites have been applied.
 /// If no rewrites are possible at any step, returns the expression as-is.
-pub fn rewrite(mut expression: VarFreeExpression, rules: &[Rule], n: usize) -> VarFreeExpression {
+pub fn rewrite(expression: VarFreeExpression, rules: &[Rule], n: usize) -> VarFreeExpression {
     let mut rng = rand::thread_rng();
-
-    for _ in 0..n {
-        let positions = find_all_rewrite_positions(&expression, rules);
-
-        if positions.is_empty() {
-            // No rewrites possible, return current expression
-            return expression;
-        }
-
-        // Randomly select a position and apply the rewrite
-        let idx = rng.gen_range(0..positions.len());
-        let position = &positions[idx];
-
-        expression = apply_rewrite_at_position(expression, rules, position);
-    }
-
-    expression
+    let expr = expression.to_expression();
+    let rewritten = rewrite_expression(expr, rules, n, &mut rng);
+    rewritten.without_variables().unwrap_or(expression)
 }
 
 #[cfg(test)]
