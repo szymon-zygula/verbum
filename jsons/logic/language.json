@@ -1,0 +1,10 @@
+{
+  "symbols": [
+    "and",
+    "or",
+    "not",
+    "xor",
+    "imp",
+    "iff"
+  ]
+}
