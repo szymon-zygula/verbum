@@ -23,7 +23,7 @@ use super::symbol::SymbolId;
 /// arities.set(1, vec![1]); // Symbol 1 (e.g., "sin") has arity 1
 /// arities.set(2, vec![0, 2]); // Symbol 2 can have arity 0 or 2
 ///
-/// assert_eq!(arities.get(0), Some(&vec![2]));
+/// assert_eq!(arities.get(0), Some(&[2][..]));
 /// ```
 #[derive(Default, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Arities {
@@ -57,9 +57,10 @@ impl Arities {
     ///
     /// # Returns
     ///
-    /// Returns `Some(&Vec<usize>)` if the symbol has defined arities, `None` otherwise
-    pub fn get(&self, symbol_id: SymbolId) -> Option<&Vec<usize>> {
-        self.map.get(&symbol_id)
+    /// Returns `Some(&[usize])` if the symbol has defined arities, `None` otherwise
+    #[must_use]
+    pub fn get(&self, symbol_id: SymbolId) -> Option<&[usize]> {
+        self.map.get(&symbol_id).map(|v| v.as_slice())
     }
 
     /// Gets the first (or only) arity for a symbol.
@@ -73,6 +74,7 @@ impl Arities {
     /// # Returns
     ///
     /// Returns `Some(usize)` if the symbol has at least one arity defined, `None` otherwise
+    #[must_use]
     pub fn get_first(&self, symbol_id: SymbolId) -> Option<usize> {
         self.map.get(&symbol_id).and_then(|v| v.first().copied())
     }
@@ -87,6 +89,7 @@ impl Arities {
     /// # Returns
     ///
     /// Returns `true` if the symbol allows the given arity, `false` otherwise
+    #[must_use]
     pub fn has_arity(&self, symbol_id: SymbolId, arity: usize) -> bool {
         self.map
             .get(&symbol_id)
@@ -136,8 +139,8 @@ mod tests {
         arities.set(0, vec![2]);
         arities.set(1, vec![1]);
 
-        assert_eq!(arities.get(0), Some(&vec![2]));
-        assert_eq!(arities.get(1), Some(&vec![1]));
+        assert_eq!(arities.get(0), Some(&[2][..]));
+        assert_eq!(arities.get(1), Some(&[1][..]));
         assert_eq!(arities.get(2), None);
     }
 
@@ -146,7 +149,7 @@ mod tests {
         let mut arities = Arities::new();
         arities.set(0, vec![0, 2, 3]);
 
-        assert_eq!(arities.get(0), Some(&vec![0, 2, 3]));
+        assert_eq!(arities.get(0), Some(&[0, 2, 3][..]));
         assert!(arities.has_arity(0, 0));
         assert!(arities.has_arity(0, 2));
         assert!(arities.has_arity(0, 3));
@@ -201,8 +204,8 @@ mod tests {
         map.insert(1, vec![1, 2]);
 
         let arities = Arities::from(map.clone());
-        assert_eq!(arities.get(0), Some(&vec![2]));
-        assert_eq!(arities.get(1), Some(&vec![1, 2]));
+        assert_eq!(arities.get(0), Some(&[2][..]));
+        assert_eq!(arities.get(1), Some(&[1, 2][..]));
     }
 
     #[test]
@@ -212,8 +215,8 @@ mod tests {
         map.insert(1, 1);
 
         let arities = Arities::from(map);
-        assert_eq!(arities.get(0), Some(&vec![2]));
-        assert_eq!(arities.get(1), Some(&vec![1]));
+        assert_eq!(arities.get(0), Some(&[2][..]));
+        assert_eq!(arities.get(1), Some(&[1][..]));
     }
 
     #[test]
