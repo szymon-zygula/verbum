@@ -95,11 +95,13 @@ impl Arities {
     }
 
     /// Returns the number of symbols with defined arities.
+    #[must_use]
     pub fn len(&self) -> usize {
         self.map.len()
     }
 
     /// Checks if the arities mapping is empty.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.map.is_empty()
     }
