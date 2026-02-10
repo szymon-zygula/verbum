@@ -222,7 +222,12 @@ mod tests {
         arities.set(5, vec![0, 1, 2]);
 
         let json = serde_json::to_string_pretty(&arities).unwrap();
-        println!("Serialized JSON:\n{}", json);
+        
+        // Verify the JSON contains expected structure
+        assert!(json.contains("\"map\""));
+        assert!(json.contains("\"0\""));
+        assert!(json.contains("\"1\""));
+        assert!(json.contains("\"5\""));
 
         let parsed: Arities = serde_json::from_str(&json).unwrap();
         assert_eq!(arities, parsed);
