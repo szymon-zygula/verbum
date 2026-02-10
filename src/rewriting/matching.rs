@@ -216,7 +216,7 @@ impl Expression {
                 matching
                     .at(*var_id)
                     .cloned()
-                    .unwrap_or_else(|| Expression::Variable(*var_id))
+                    .unwrap_or(Expression::Variable(*var_id))
             }
             Expression::Symbol(symbol) => {
                 let children = symbol

@@ -322,7 +322,7 @@ mod tests {
         let lang = Language::simple_math();
 
         let pattern = lang.parse("(+ $1 $0)").unwrap();
-        let mut matching = ExpressionMatch::default();
+        let matching = ExpressionMatch::default();
         matching.at(0); // Just to satisfy the method access
 
         // Build matching manually since set is private
