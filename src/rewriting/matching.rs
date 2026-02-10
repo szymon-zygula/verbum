@@ -152,7 +152,10 @@ impl Expression {
     /// # Returns
     ///
     /// Returns `Some(match)` if the pattern matches, `None` otherwise.
-    pub fn try_match_expression(pattern: &Expression, expression: &Expression) -> Option<ExpressionMatch> {
+    pub fn try_match_expression(
+        pattern: &Expression,
+        expression: &Expression,
+    ) -> Option<ExpressionMatch> {
         match (pattern, expression) {
             // Pattern variable matches anything
             (Expression::Variable(pattern_var), expr) => {

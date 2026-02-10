@@ -31,10 +31,10 @@ pub use crate::rewriting::matching::ExpressionMatch;
 pub fn rewrite_once(expression: Expression, rule: &Rule) -> Option<Expression> {
     let rules = vec![rule.clone()];
     let positions = find_all_rewrite_positions_expr(&expression, &rules);
-    
-    positions.first().map(|first_pos| {
-        apply_rewrite_at_position_expr(expression, &rules, first_pos)
-    })
+
+    positions
+        .first()
+        .map(|first_pos| apply_rewrite_at_position_expr(expression, &rules, first_pos))
 }
 
 /// Applies rewrite rules exhaustively to an expression until no more rules can be applied.
@@ -59,10 +59,10 @@ pub fn rewrite(mut expression: Expression, rules: &[Rule], max_iterations: usize
     use std::collections::HashSet;
     let mut seen = HashSet::new();
     seen.insert(expression.clone());
-    
+
     for _ in 0..max_iterations {
         let mut changed = false;
-        
+
         for rule in rules {
             if let Some(new_expr) = rewrite_once(expression.clone(), rule) {
                 // Check if we've seen this expression before (looping detection)
@@ -70,20 +70,20 @@ pub fn rewrite(mut expression: Expression, rules: &[Rule], max_iterations: usize
                     // Already seen this state, stop to prevent looping
                     return expression;
                 }
-                
+
                 expression = new_expr;
                 seen.insert(expression.clone());
                 changed = true;
-                break;  // Apply only first matching rule per iteration
+                break; // Apply only first matching rule per iteration
             }
         }
-        
+
         // Stop if no rule could be applied in this iteration
         if !changed {
             break;
         }
     }
-    
+
     expression
 }
 
@@ -136,9 +136,7 @@ pub fn rewrite_var_free(
 ) -> VarFreeExpression {
     let expr = expression.to_expression();
     let rewritten = rewrite(expr, rules, max_iterations);
-    rewritten
-        .without_variables()
-        .unwrap_or(expression)
+    rewritten.without_variables().unwrap_or(expression)
 }
 
 /// Represents a position in an expression tree where a rewrite can be applied.
@@ -171,7 +169,7 @@ pub fn find_all_rewrite_positions_expr(
     rules: &[Rule],
 ) -> Vec<RewritePosition> {
     use crate::language::expression::AnyExpression;
-    
+
     expression
         .iter_paths()
         .flat_map(|path| {
@@ -181,11 +179,12 @@ pub fn find_all_rewrite_positions_expr(
                     .iter()
                     .enumerate()
                     .filter_map(move |(rule_index, rule)| {
-                        Expression::try_match_expression(rule.from(), subexpr)
-                            .map(|_| RewritePosition {
+                        Expression::try_match_expression(rule.from(), subexpr).map(|_| {
+                            RewritePosition {
                                 path: path.clone(),
                                 rule_index,
-                            })
+                            }
+                        })
                     }),
             )
         })
@@ -266,9 +265,7 @@ pub fn apply_rewrite_at_position(
 ) -> VarFreeExpression {
     let expr = expression.to_expression();
     let rewritten = apply_rewrite_at_position_expr(expr, rules, position);
-    rewritten
-        .without_variables()
-        .unwrap_or(expression)
+    rewritten.without_variables().unwrap_or(expression)
 }
 
 #[cfg(test)]
@@ -326,14 +323,14 @@ mod tests {
 
         let pattern = lang.parse("(+ $1 $0)").unwrap();
         let mut matching = ExpressionMatch::default();
-        matching.at(0);  // Just to satisfy the method access
-        
+        matching.at(0); // Just to satisfy the method access
+
         // Build matching manually since set is private
         let expr0 = lang.parse("$5").unwrap();
         let expr1 = lang.parse("2").unwrap();
         let pattern0 = lang.parse("$0").unwrap();
         let pattern1 = lang.parse("$1").unwrap();
-        
+
         let m0 = Expression::try_match_expression(&pattern0, &expr0).unwrap();
         let m1 = Expression::try_match_expression(&pattern1, &expr1).unwrap();
         let matching = m0.try_merge(&m1).unwrap();
@@ -415,7 +412,7 @@ mod tests {
 
         assert_eq!(result, expected);
     }
-    
+
     #[test]
     fn test_commutative_rule_does_not_loop() {
         let lang = Language::simple_math();

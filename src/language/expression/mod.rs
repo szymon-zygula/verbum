@@ -234,12 +234,12 @@ impl Expression {
         if let Expression::Symbol(ref mut symbol) = self {
             let child_index = path.0[0];
             let remaining_path = OwnedPath(path.0[1..].to_vec());
-            
+
             symbol.children[child_index] = symbol.children[child_index]
                 .clone()
                 .apply_at_path(&remaining_path, f);
         }
-        
+
         self
     }
 }
