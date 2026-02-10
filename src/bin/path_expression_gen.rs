@@ -149,8 +149,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     
     let matrix_a = rules_to_abelian_matrix(&all_induced_rules, &string_lang);
 
+    // Display string language symbols
+    println!("\nString language symbols:");
+    for i in 0..string_lang.symbol_count() {
+        println!("  {}: {}", i, string_lang.get_symbol(i));
+    }
+
+    // Display TRS matrix
+    println!("\nAbelianized TRS matrix (rows = symbols, cols = induced rules):");
+    println!("{}", matrix_a);
+
     // Step 6: Choose a random variable k appearing in both E and E'
-    println!("Finding common variables...");
+    println!("\nFinding common variables...");
     let vars_e: HashSet<VariableId> = expr_e.variables();
     let vars_e_prime: HashSet<VariableId> = expr_e_prime.variables();
     
