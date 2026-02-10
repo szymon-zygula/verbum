@@ -1,14 +1,13 @@
-//! Direct term rewriting without e-graphs.
+//! Direct term rewriting.
 //!
-//! This module provides functionality for applying rewrites directly to expressions
-//! without using e-graphs. Unlike the `random` module which applies rewrites randomly,
+//! This module provides functionality for applying rewrites directly to expressions.
+//! Unlike the `random` module which applies rewrites randomly,
 //! this module provides deterministic rewriting strategies.
 //!
 //! Variables in expressions are treated as distinct from pattern variables in rules,
 //! allowing rules to be applied to expressions containing variables.
 
 use crate::language::expression::{Expression, VarFreeExpression};
-use crate::language::symbol::Symbol;
 use crate::rewriting::rule::Rule;
 
 // Re-export ExpressionMatch for convenience
@@ -16,9 +15,8 @@ pub use crate::rewriting::matching::ExpressionMatch;
 
 /// Applies a single rewrite rule at the first matching position in the expression.
 ///
-/// This function performs a single deterministic rewrite by:
-/// 1. Finding the first position where the rule can be applied (in depth-first order)
-/// 2. Applying the rewrite at that position
+/// Finds the first position where the rule can be applied (in depth-first order)
+/// and applies the rewrite at that position.
 ///
 /// Variables in the expression are treated as symbolic constants during matching.
 ///
@@ -31,35 +29,22 @@ pub use crate::rewriting::matching::ExpressionMatch;
 ///
 /// Returns `Some(rewritten_expression)` if the rule was applied, `None` if no match was found.
 pub fn rewrite_once(expression: Expression, rule: &Rule) -> Option<Expression> {
-    // Try to match at the root
-    if let Some(matching) = Expression::try_match_expression(rule.from(), &expression) {
-        return Some(Expression::instantiate_expression(rule.to(), &matching));
-    }
-
-    // Try to match in children
-    match expression {
-        Expression::Symbol(symbol) => {
-            for (i, child) in symbol.children.iter().enumerate() {
-                if let Some(rewritten_child) = rewrite_once(child.clone(), rule) {
-                    let mut new_children = symbol.children.clone();
-                    new_children[i] = rewritten_child;
-                    return Some(Expression::Symbol(Symbol {
-                        id: symbol.id,
-                        children: new_children,
-                    }));
-                }
-            }
-            None
-        }
-        _ => None,
+    let rules = vec![rule.clone()];
+    let positions = find_all_rewrite_positions_expr(&expression, &rules);
+    
+    if let Some(first_pos) = positions.first() {
+        Some(apply_rewrite_at_position_expr(expression, &rules, first_pos))
+    } else {
+        None
     }
 }
 
 /// Applies rewrite rules exhaustively to an expression until no more rules can be applied.
 ///
-/// This function performs deterministic rewriting by repeatedly applying rules
-/// until a fixed point is reached. Rules are tried in order, and for each rule,
-/// the first matching position is rewritten.
+/// Repeatedly applies rules until a fixed point is reached or the maximum number of
+/// iterations is reached. Rules are tried in order, and for each rule, the first
+/// matching position is rewritten. Stops if a previously seen expression is encountered
+/// to prevent looping.
 ///
 /// Variables in the expression are treated as symbolic constants during matching.
 ///
@@ -71,8 +56,7 @@ pub fn rewrite_once(expression: Expression, rule: &Rule) -> Option<Expression> {
 ///
 /// # Returns
 ///
-/// Returns the rewritten expression after no more rules can be applied or
-/// the maximum number of iterations is reached.
+/// Returns the fully rewritten expression.
 pub fn rewrite(mut expression: Expression, rules: &[Rule], max_iterations: usize) -> Expression {
     use std::collections::HashSet;
     let mut seen = HashSet::new();
@@ -83,9 +67,9 @@ pub fn rewrite(mut expression: Expression, rules: &[Rule], max_iterations: usize
         
         for rule in rules {
             if let Some(new_expr) = rewrite_once(expression.clone(), rule) {
-                // Check if we've seen this expression before (oscillation detection)
+                // Check if we've seen this expression before (looping detection)
                 if seen.contains(&new_expr) {
-                    // Already seen this state, stop to prevent oscillation
+                    // Already seen this state, stop to prevent looping
                     return expression;
                 }
                 
@@ -107,8 +91,7 @@ pub fn rewrite(mut expression: Expression, rules: &[Rule], max_iterations: usize
 
 /// Applies a single rewrite rule at the first matching position in a variable-free expression.
 ///
-/// This is a convenience function for VarFreeExpression that works by converting
-/// to Expression, applying the rewrite, and converting back.
+/// Converts to Expression, applies the rewrite, and converts back.
 ///
 /// # Arguments
 ///
@@ -130,8 +113,8 @@ pub fn rewrite_once_var_free(
 
 /// Applies rewrite rules to a variable-free expression.
 ///
-/// This is a convenience function that converts the variable-free expression
-/// to a regular expression, applies rewriting, and converts back.
+/// Converts the variable-free expression to a regular expression, applies rewriting,
+/// and converts back.
 ///
 /// # Arguments
 ///
@@ -141,8 +124,7 @@ pub fn rewrite_once_var_free(
 ///
 /// # Returns
 ///
-/// Returns the rewritten variable-free expression, or the original if the result
-/// contains variables (which shouldn't happen with proper rules).
+/// Returns the fully rewritten variable-free expression.
 pub fn rewrite_var_free(
     expression: VarFreeExpression,
     rules: &[Rule],
@@ -167,22 +149,21 @@ pub struct RewritePosition {
     pub rule_index: usize,
 }
 
-/// Finds all positions in a variable-free expression where any rule can be applied.
+/// Finds all positions in an expression where any rule can be applied.
 ///
-/// This function scans the entire expression tree and identifies all locations
-/// where at least one rule matches. This is useful for implementing various
-/// rewriting strategies (random, exhaustive, etc.).
+/// Scans the entire expression tree and identifies all locations
+/// where at least one rule matches.
 ///
 /// # Arguments
 ///
-/// * `expression` - The variable-free expression to analyze
+/// * `expression` - The expression to analyze
 /// * `rules` - The rewrite rules to check
 ///
 /// # Returns
 ///
 /// Returns a vector of all positions where rules can be applied.
-pub fn find_all_rewrite_positions(
-    expression: &VarFreeExpression,
+pub fn find_all_rewrite_positions_expr(
+    expression: &Expression,
     rules: &[Rule],
 ) -> Vec<RewritePosition> {
     use crate::language::expression::AnyExpression;
@@ -196,10 +177,11 @@ pub fn find_all_rewrite_positions(
                     .iter()
                     .enumerate()
                     .filter_map(move |(rule_index, rule)| {
-                        rule.from().try_match(subexpr).map(|_| RewritePosition {
-                            path: path.clone(),
-                            rule_index,
-                        })
+                        Expression::try_match_expression(rule.from(), subexpr)
+                            .map(|_| RewritePosition {
+                                path: path.clone(),
+                                rule_index,
+                            })
                     }),
             )
         })
@@ -207,10 +189,62 @@ pub fn find_all_rewrite_positions(
         .collect()
 }
 
+/// Applies a rewrite at a specific position in an expression.
+///
+/// Given a position identified by `find_all_rewrite_positions_expr`, applies
+/// the corresponding rule at that location in the expression tree.
+///
+/// # Arguments
+///
+/// * `expression` - The expression to rewrite
+/// * `rules` - The rewrite rules (must include the rule at `position.rule_index`)
+/// * `position` - The position where to apply the rewrite
+///
+/// # Returns
+///
+/// Returns the expression with the rewrite applied at the specified position.
+pub fn apply_rewrite_at_position_expr(
+    expression: Expression,
+    rules: &[Rule],
+    position: &RewritePosition,
+) -> Expression {
+    expression.apply_at_path(&position.path, |subexpr| {
+        let rule = &rules[position.rule_index];
+
+        // Try to match the rule at this position
+        if let Some(matching) = Expression::try_match_expression(rule.from(), subexpr) {
+            // Instantiate the right-hand side with the matched variables
+            Expression::instantiate_expression(rule.to(), &matching)
+        } else {
+            // This shouldn't happen if find_all_rewrite_positions_expr is correct
+            subexpr.clone()
+        }
+    })
+}
+
+/// Finds all positions in a variable-free expression where any rule can be applied.
+///
+/// Converts to Expression, finds positions, and returns them.
+///
+/// # Arguments
+///
+/// * `expression` - The variable-free expression to analyze
+/// * `rules` - The rewrite rules to check
+///
+/// # Returns
+///
+/// Returns a vector of all positions where rules can be applied.
+pub fn find_all_rewrite_positions(
+    expression: &VarFreeExpression,
+    rules: &[Rule],
+) -> Vec<RewritePosition> {
+    let expr = expression.to_expression();
+    find_all_rewrite_positions_expr(&expr, rules)
+}
+
 /// Applies a rewrite at a specific position in a variable-free expression.
 ///
-/// Given a position identified by `find_all_rewrite_positions`, this function
-/// applies the corresponding rule at that location in the expression tree.
+/// Converts to Expression, applies the rewrite, and converts back.
 ///
 /// # Arguments
 ///
@@ -226,18 +260,11 @@ pub fn apply_rewrite_at_position(
     rules: &[Rule],
     position: &RewritePosition,
 ) -> VarFreeExpression {
-    expression.apply_at_path(&position.path, |subexpr| {
-        let rule = &rules[position.rule_index];
-
-        // Try to match the rule at this position
-        if let Some(matching) = rule.from().try_match(subexpr) {
-            // Instantiate the right-hand side with the matched variables
-            VarFreeExpression::instantiate_from_pattern(rule.to(), &matching)
-        } else {
-            // This shouldn't happen if find_all_rewrite_positions is correct
-            subexpr.clone()
-        }
-    })
+    let expr = expression.to_expression();
+    let rewritten = apply_rewrite_at_position_expr(expr, rules, position);
+    rewritten
+        .without_variables()
+        .unwrap_or(expression)
 }
 
 #[cfg(test)]
@@ -398,5 +425,17 @@ mod tests {
         let expected = lang.parse("(+ 2 $5)").unwrap();
 
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_find_all_rewrite_positions() {
+        let lang = Language::simple_math();
+        let expr = lang.parse_no_vars("(+ 0 (+ 0 5))").unwrap();
+        let rules = vec![Rule::from_strings("(+ 0 $0)", "$0", &lang)];
+
+        let positions = find_all_rewrite_positions(&expr, &rules);
+
+        // Should find 2 positions: at root and at nested (+)
+        assert_eq!(positions.len(), 2);
     }
 }

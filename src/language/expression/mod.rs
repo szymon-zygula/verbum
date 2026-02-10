@@ -211,7 +211,7 @@ impl Expression {
         }
     }
 
-    /// Applies a transformation function at a specific path in the expression tree.
+    /// Applies a transformation function to a specified subexpression.
     ///
     /// # Arguments
     ///
