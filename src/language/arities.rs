@@ -190,7 +190,7 @@ mod tests {
 
         // Serialize to JSON
         let serialized = serde_json::to_string(&arities).unwrap();
-        
+
         // Deserialize from JSON
         let deserialized: Arities = serde_json::from_str(&serialized).unwrap();
 
@@ -227,7 +227,7 @@ mod tests {
         arities.set(5, vec![0, 1, 2]);
 
         let json = serde_json::to_string_pretty(&arities).unwrap();
-        
+
         // Verify the JSON contains expected structure
         assert!(json.contains("\"map\""));
         assert!(json.contains("\"0\""));

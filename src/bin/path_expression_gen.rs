@@ -16,7 +16,8 @@ use std::collections::HashSet;
 use std::error::Error;
 use std::path::PathBuf;
 use verbum::benchmark::{
-    RandomGenerationConfig, VariableGenerationConfig, generate_random_expression_by_size_with_variables,
+    RandomGenerationConfig, VariableGenerationConfig,
+    generate_random_expression_by_size_with_variables,
 };
 use verbum::language::arities::Arities;
 use verbum::language::expression::{AnyExpression, Expression, VariableId};
@@ -95,19 +96,22 @@ fn main() -> Result<(), Box<dyn Error>> {
     let arities: Arities = load_json(&arities_path)?;
 
     // Step 3: Generate random expression E with size n and up to v variables
-    println!("Generating random expression of size {} with up to {} variables...", args.size, args.variables);
+    println!(
+        "Generating random expression of size {} with up to {} variables...",
+        args.size, args.variables
+    );
     let mut rng = rand::thread_rng();
-    
+
     // Create generation config
     let mut config = RandomGenerationConfig::from_language(lang);
-    
+
     // Set symbol arities from the loaded arities
     for symbol_id in 0..lang.symbol_count() {
         if let Some(symbol_arities) = arities.get(symbol_id) {
             config.symbol_arities[symbol_id] = symbol_arities.to_vec();
         }
     }
-    
+
     // Configure variable generation
     if args.variables > 0 {
         config.variable_config = Some(VariableGenerationConfig {
@@ -115,38 +119,33 @@ fn main() -> Result<(), Box<dyn Error>> {
             variable_probability: 0.5,
         });
     }
-    
-    let expr_e = generate_random_expression_by_size_with_variables(
-        lang,
-        args.size,
-        &mut rng,
-        &config,
-    )?;
-    
+
+    let expr_e =
+        generate_random_expression_by_size_with_variables(lang, args.size, &mut rng, &config)?;
+
     println!("Generated expression E: {}", expr_e.with_language(lang));
 
     // Step 4: Apply a random rewrites to E creating E'
     println!("Applying {} random rewrites...", args.applications);
     let expr_e_prime = rewrite_expression(expr_e.clone(), rules, args.applications, &mut rng);
-    
-    println!("Rewritten expression E': {}", expr_e_prime.with_language(lang));
+
+    println!(
+        "Rewritten expression E': {}",
+        expr_e_prime.with_language(lang)
+    );
 
     // Step 5: Create abelianized stringified matrix A for trs
     println!("Creating abelianized matrix for TRS...");
     let string_lang = to_string_language(lang, &arities);
-    
+
     // Convert all rules to induced string rules
     let mut all_induced_rules = Vec::new();
     for rule in rules {
-        let induced = verbum::rewriting::strings::rule_to_induced_rules(
-            rule,
-            lang,
-            &string_lang,
-            &arities,
-        );
+        let induced =
+            verbum::rewriting::strings::rule_to_induced_rules(rule, lang, &string_lang, &arities);
         all_induced_rules.extend(induced);
     }
-    
+
     let matrix_a = rules_to_abelian_matrix(&all_induced_rules, &string_lang);
 
     // Display string language symbols
@@ -163,55 +162,61 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("\nFinding common variables...");
     let vars_e: HashSet<VariableId> = expr_e.variables();
     let vars_e_prime: HashSet<VariableId> = expr_e_prime.variables();
-    
+
     let common_vars: Vec<VariableId> = vars_e.intersection(&vars_e_prime).copied().collect();
-    
+
     if common_vars.is_empty() {
         return Err("No common variables found between E and E'. Try again with different parameters or more variables.".into());
     }
-    
-    let k = *common_vars.choose(&mut rng)
+
+    let k = *common_vars
+        .choose(&mut rng)
         .ok_or("Failed to choose a random variable")?;
-    
+
     println!("Chosen variable k: ${}", k);
 
     // Step 7: Extract all paths from root to leaves which are variable k
     println!("Extracting paths to variable ${} in E...", k);
     let all_paths_e = expression_to_paths(&expr_e, lang, &string_lang, &arities);
-    let paths_to_k_e: Vec<_> = all_paths_e.iter()
+    let paths_to_k_e: Vec<_> = all_paths_e
+        .iter()
         .filter(|path| {
             // Check if this path ends with variable k
             is_path_to_variable(path, k)
         })
         .collect();
-    
+
     println!("Extracting paths to variable ${} in E'...", k);
     let all_paths_e_prime = expression_to_paths(&expr_e_prime, lang, &string_lang, &arities);
-    let paths_to_k_e_prime: Vec<_> = all_paths_e_prime.iter()
+    let paths_to_k_e_prime: Vec<_> = all_paths_e_prime
+        .iter()
         .filter(|path| {
             // Check if this path ends with variable k
             is_path_to_variable(path, k)
         })
         .collect();
-    
+
     println!("Found {} paths to ${} in E", paths_to_k_e.len(), k);
     println!("Found {} paths to ${} in E'", paths_to_k_e_prime.len(), k);
 
     // Step 8: Map paths to abelianized versions
     println!("Converting paths to abelianized vectors...");
-    let p_a: Vec<Vec<i32>> = paths_to_k_e.iter()
+    let p_a: Vec<Vec<i32>> = paths_to_k_e
+        .iter()
         .map(|path| {
             let vec = expression_to_abelian_vector(path, &string_lang);
             vec.as_slice().to_vec()
         })
         .collect();
-    
-    let p_a_prime: Vec<Vec<i32>> = paths_to_k_e_prime.iter()
+
+    let p_a_prime: Vec<Vec<i32>> = paths_to_k_e_prime
+        .iter()
         .map(|path| {
             let vec = expression_to_abelian_vector(path, &string_lang);
             vec.as_slice().to_vec()
         })
         .collect();
+    let avg_manhattan_norm = average_manhattan_norm(p_a.iter().chain(p_a_prime.iter()));
 
     // Step 9: Convert matrix to Vec<Vec<i32>> for JSON serialization
     let a_data: Vec<Vec<i32>> = (0..matrix_a.nrows())
@@ -232,9 +237,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         e: format!("{}", expr_e.with_language(lang)),
         e_prime: format!("{}", expr_e_prime.with_language(lang)),
     };
-    
+
     save_json(&output, &args.output)?;
-    
+
     println!("Successfully saved results!");
     println!("\nSummary:");
     println!("  Expression size: {}", args.size);
@@ -243,8 +248,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("  Chosen variable: ${}", k);
     println!("  Paths in E: {}", output.p_a.len());
     println!("  Paths in E': {}", output.p_a_prime.len());
-    println!("  Matrix dimensions: {}x{}", output.a.len(), if output.a.is_empty() { 0 } else { output.a[0].len() });
-    
+    println!(
+        "  Matrix dimensions: {}x{}",
+        output.a.len(),
+        if output.a.is_empty() {
+            0
+        } else {
+            output.a[0].len()
+        }
+    );
+    if let Some(avg) = avg_manhattan_norm {
+        println!("  Avg manhattan norm (saved vectors): {:.3}", avg);
+    } else {
+        println!("  Avg manhattan norm (saved vectors): n/a");
+    }
+
     Ok(())
 }
 
@@ -269,4 +287,25 @@ fn is_path_to_variable(path: &Expression, var_id: VariableId) -> bool {
             }
         }
     }
+}
+
+fn average_manhattan_norm<'a, I>(vectors: I) -> Option<f64>
+where
+    I: Iterator<Item = &'a Vec<i32>>,
+{
+    let mut total: i64 = 0;
+    let mut count: usize = 0;
+    for vec in vectors {
+        total += manhattan_norm(vec) as i64;
+        count += 1;
+    }
+    if count == 0 {
+        None
+    } else {
+        Some(total as f64 / count as f64)
+    }
+}
+
+fn manhattan_norm(vec: &[i32]) -> i32 {
+    vec.iter().map(|value| value.abs()).max().unwrap_or(0)
 }
