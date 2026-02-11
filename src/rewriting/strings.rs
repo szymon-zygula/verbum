@@ -414,6 +414,61 @@ pub fn rules_to_abelian_matrix(rules: &[Rule], lang: &Language) -> DMatrix<i32> 
     DMatrix::from_vec(symbol_count, rule_count, matrix_data)
 }
 
+/// Represents a stringified abelianized vector for a path from root to a variable.
+///
+/// Contains the abelianized vector of the path and the variable ID it ends at.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PathAbelianVector {
+    /// The abelianized vector representing symbol counts along the path
+    pub vector: DVector<i32>,
+    /// The variable ID at the end of the path
+    pub variable_id: VariableId,
+}
+
+/// Gets all stringified abelianized vectors for paths from root to variables in an expression.
+///
+/// For each variable in the expression, this function computes the abelianized vector
+/// for each path from the root to that variable occurrence. The abelianized vector
+/// represents the count of each symbol along the path.
+///
+/// # Arguments
+///
+/// * `expr` - The expression to analyze
+/// * `lang` - The original language
+/// * `string_lang` - The induced string language
+/// * `arities` - A mapping from symbol IDs to their arity
+///
+/// # Returns
+///
+/// Returns a vector of `PathAbelianVector` structs, one for each path to a variable
+pub fn get_path_abelian_vectors_to_variables(
+    expr: &Expression,
+    lang: &Language,
+    string_lang: &Language,
+    arities: &Arities,
+) -> Vec<PathAbelianVector> {
+    let mut results = Vec::new();
+    
+    // Find all variables and their paths
+    let var_paths = expr.find_all_variables();
+    
+    for (var_id, paths) in var_paths {
+        for path in paths {
+            // Build the path expression for this path to the variable
+            if let Some(path_expr) = path_to_expression(expr, &path, lang, string_lang, arities, var_id) {
+                // Compute the abelianized vector for this path expression
+                let vector = expression_to_abelian_vector(&path_expr, string_lang);
+                results.push(PathAbelianVector {
+                    vector,
+                    variable_id: var_id,
+                });
+            }
+        }
+    }
+    
+    results
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

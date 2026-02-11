@@ -1,4 +1,5 @@
 pub mod benchmark;
+pub mod compact;
 pub mod data_union_find;
 pub mod did;
 pub mod equation;

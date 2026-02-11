@@ -4,6 +4,7 @@
 
 pub mod direct;
 pub mod egraph;
+pub mod heuristic;
 pub mod ilp;
 pub mod matching;
 pub mod random;

@@ -1,0 +1,352 @@
+//! Heuristic functions for guiding term rewriting.
+//!
+//! This module provides traits and implementations for heuristics that estimate
+//! the lower bound distance between expressions in a term rewriting system.
+
+use crate::compact::SinglyCompact;
+use crate::language::{Language, arities::Arities, expression::{Expression, VariableId}};
+use crate::rewriting::{
+    ilp::create_ilp_problem,
+    strings::{
+        get_path_abelian_vectors_to_variables,
+        rules_to_abelian_matrix, to_string_language, PathAbelianVector,
+    },
+    system::TermRewritingSystem,
+};
+use good_lp::{Solution, SolverModel, default_solver};
+use nalgebra::DVector;
+use std::collections::HashMap;
+
+/// A heuristic function that provides a lower bound on the distance to a goal.
+///
+/// Heuristics are used to guide search algorithms by estimating how far an
+/// expression is from a desired form.
+pub trait Heuristic {
+    /// Computes a lower bound on the distance from the given expression to the goal.
+    ///
+    /// # Arguments
+    ///
+    /// * `expression` - The expression to evaluate
+    ///
+    /// # Returns
+    ///
+    /// Returns a lower bound estimate of the distance, which may be infinite
+    /// if the goal cannot be reached from this expression.
+    fn lower_bound_dist(&self, expression: &Expression) -> SinglyCompact<u32>;
+}
+
+/// A factory for constructing heuristics.
+///
+/// The constructor trait allows creating heuristics that are specific to
+/// a target expression and term rewriting system.
+pub trait HeuristicConstructor {
+    /// Constructs a heuristic for the given target expression and TRS.
+    ///
+    /// # Arguments
+    ///
+    /// * `expression` - The target expression (goal)
+    /// * `trs` - The term rewriting system defining valid transformations
+    ///
+    /// # Returns
+    ///
+    /// Returns a boxed heuristic that can estimate distances to the target expression.
+    fn construct(&self, expression: &Expression, trs: &TermRewritingSystem) -> Box<dyn Heuristic>;
+}
+
+/// A heuristic based on solving Integer Linear Programming (ILP) problems.
+///
+/// This heuristic computes a lower bound on the rewrite distance by:
+/// 1. For each variable v in either expression
+/// 2. For each path α in the current expression ending at v
+/// 3. For each path ω in the target expression ending at v
+/// 4. Solving an ILP to find the minimum number of rules needed to transform
+///    the abelianized vector difference a(ω) - a(α)
+/// 5. Taking the maximum over all variables of the minimum over all paths in the current
+///    expression of the maximum over all paths in the target expression
+///
+/// This implements the mathematical formula:
+/// h(e) = max_{v ∈ V_{e,e'}} min_{α ∈ Ω^e_v} max_{ω ∈ Ω^{e'}_v} θ(M_T, a(ω) - a(α))
+///
+/// where:
+/// - V_{e,e'} is the set of variables appearing in e or e'
+/// - Ω^e_v is the set of all paths in e from root to variable v
+/// - a(p) is the abelianized vector of path p
+/// - θ(A, d) is the solution to the ILP minimize 1^T x subject to Ax = d, x ≥ 0, x integer
+/// - M_T is the abelianized matrix of the TRS
+pub struct ILPHeuristic {
+    /// The target expression we're trying to reach
+    target_paths: Vec<PathAbelianVector>,
+    /// The abelianized matrix of the TRS
+    abelian_matrix: nalgebra::DMatrix<i32>,
+    /// The string language for computing paths
+    string_lang: Language,
+    /// Arities for the symbols
+    arities: Arities,
+    /// The original language
+    lang: Language,
+}
+
+impl ILPHeuristic {
+    /// Creates a new ILP-based heuristic.
+    ///
+    /// # Arguments
+    ///
+    /// * `target_expr` - The target expression
+    /// * `trs` - The term rewriting system
+    /// * `arities` - Arities for the symbols in the language
+    ///
+    /// # Returns
+    ///
+    /// Returns a new `ILPHeuristic` instance.
+    pub fn new(target_expr: &Expression, trs: &TermRewritingSystem, arities: &Arities) -> Self {
+        let lang = trs.language().clone();
+        let string_lang = to_string_language(&lang, arities);
+        
+        // Precompute abelianized vectors for all paths in the target expression
+        let target_paths = get_path_abelian_vectors_to_variables(
+            target_expr,
+            &lang,
+            &string_lang,
+            arities,
+        );
+        
+        // Compute the abelianized matrix for the TRS
+        let abelian_matrix = rules_to_abelian_matrix(trs.rules(), &string_lang);
+        
+        Self {
+            target_paths,
+            abelian_matrix,
+            string_lang,
+            arities: arities.clone(),
+            lang,
+        }
+    }
+    
+    /// Solves the ILP problem for a given difference vector.
+    ///
+    /// Returns the optimal objective value (sum of variables) or Infinite if infeasible.
+    fn solve_ilp(&self, diff_vector: &DVector<i32>) -> SinglyCompact<u32> {
+        if self.abelian_matrix.ncols() == 0 {
+            // No rules available
+            return if diff_vector.iter().all(|&x| x == 0) {
+                SinglyCompact::Finite(0)
+            } else {
+                SinglyCompact::Infinite
+            };
+        }
+        
+        let (model, vars) = create_ilp_problem(&self.abelian_matrix, diff_vector, default_solver);
+        
+        match model.solve() {
+            Ok(solution) => {
+                let obj_value: f64 = vars.iter().map(|&v| solution.value(v)).sum();
+                // Round to nearest integer (should already be integer due to ILP)
+                SinglyCompact::Finite(obj_value.round() as u32)
+            }
+            Err(_) => SinglyCompact::Infinite,
+        }
+    }
+}
+
+impl Heuristic for ILPHeuristic {
+    fn lower_bound_dist(&self, expression: &Expression) -> SinglyCompact<u32> {
+        // Get all paths in the current expression
+        let current_paths = get_path_abelian_vectors_to_variables(
+            expression,
+            &self.lang,
+            &self.string_lang,
+            &self.arities,
+        );
+        
+        // Group paths by variable ID
+        let mut current_by_var: HashMap<VariableId, Vec<&PathAbelianVector>> = HashMap::new();
+        for path in &current_paths {
+            current_by_var
+                .entry(path.variable_id)
+                .or_default()
+                .push(path);
+        }
+        
+        let mut target_by_var: HashMap<VariableId, Vec<&PathAbelianVector>> = HashMap::new();
+        for path in &self.target_paths {
+            target_by_var
+                .entry(path.variable_id)
+                .or_default()
+                .push(path);
+        }
+        
+        // Get all variables from either expression
+        let mut all_vars: Vec<VariableId> = current_by_var.keys().copied().collect();
+        for &var_id in target_by_var.keys() {
+            if !all_vars.contains(&var_id) {
+                all_vars.push(var_id);
+            }
+        }
+        
+        // Convention: max over empty set = 0
+        if all_vars.is_empty() {
+            return SinglyCompact::Finite(0);
+        }
+        
+        let mut max_over_vars = SinglyCompact::Finite(0);
+        
+        // For each variable v in V_{e,e'}
+        for var_id in all_vars {
+            let current_paths_for_var = current_by_var.get(&var_id).map(|v| v.as_slice()).unwrap_or(&[]);
+            let target_paths_for_var = target_by_var.get(&var_id).map(|v| v.as_slice()).unwrap_or(&[]);
+            
+            // Convention: min over empty set = infinity
+            if current_paths_for_var.is_empty() {
+                max_over_vars = SinglyCompact::Infinite;
+                break;
+            }
+            
+            let mut min_over_current = SinglyCompact::Infinite;
+            
+            // For each path α in Ω^e_v (paths in current expression)
+            for current_path in current_paths_for_var {
+                // Convention: max over empty set = 0
+                let mut max_over_target = SinglyCompact::Finite(0);
+                
+                // For each path ω in Ω^{e'}_v (paths in target expression)
+                for target_path in target_paths_for_var {
+                    // Compute difference: a(ω) - a(α)
+                    let diff = &target_path.vector - &current_path.vector;
+                    
+                    // Solve ILP: θ(M_T, diff)
+                    let ilp_result = self.solve_ilp(&diff);
+                    
+                    // Take maximum over target paths
+                    if ilp_result > max_over_target {
+                        max_over_target = ilp_result;
+                    }
+                }
+                
+                // Take minimum over current paths
+                if max_over_target < min_over_current {
+                    min_over_current = max_over_target;
+                }
+            }
+            
+            // Take maximum over variables
+            if min_over_current > max_over_vars {
+                max_over_vars = min_over_current;
+            }
+        }
+        
+        max_over_vars
+    }
+}
+
+/// Default constructor for ILP-based heuristics.
+///
+/// This constructor creates `ILPHeuristic` instances. It requires arities to be
+/// provided when constructing the heuristic.
+pub struct ILPHeuristicConstructor {
+    /// Arities for symbols in the language
+    pub arities: Arities,
+}
+
+impl HeuristicConstructor for ILPHeuristicConstructor {
+    fn construct(&self, expression: &Expression, trs: &TermRewritingSystem) -> Box<dyn Heuristic> {
+        Box::new(ILPHeuristic::new(expression, trs, &self.arities))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::macros::rules;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_ilp_heuristic_identical_expressions() {
+        let lang = Language::default().add_symbol("+").add_symbol("*");
+        let mut arities_map = HashMap::new();
+        arities_map.insert(0, 2); // + has arity 2
+        arities_map.insert(1, 2); // * has arity 2
+        let arities = Arities::from(arities_map);
+
+        let rules = rules!(lang;
+            "(+ $0 $1)" => "(* $0 $1)"
+        );
+        let trs = TermRewritingSystem::new(lang.clone(), rules);
+
+        let expr = lang.parse("(+ $0 $1)").unwrap();
+        let heuristic = ILPHeuristic::new(&expr, &trs, &arities);
+
+        // Distance from an expression to itself should be 0
+        let dist = heuristic.lower_bound_dist(&expr);
+        assert_eq!(dist, SinglyCompact::Finite(0));
+    }
+
+    #[test]
+    fn test_ilp_heuristic_simple_rewrite() {
+        let lang = Language::default().add_symbol("+").add_symbol("*");
+        let mut arities_map = HashMap::new();
+        arities_map.insert(0, 2);
+        arities_map.insert(1, 2);
+        let arities = Arities::from(arities_map);
+
+        let rules = rules!(lang;
+            "(+ $0 $1)" => "(* $0 $1)"
+        );
+        let trs = TermRewritingSystem::new(lang.clone(), rules);
+
+        let target = lang.parse("(* $0 $1)").unwrap();
+        let current = lang.parse("(+ $0 $1)").unwrap();
+        
+        let heuristic = ILPHeuristic::new(&target, &trs, &arities);
+        let dist = heuristic.lower_bound_dist(&current);
+        
+        // Should require at least 1 rule application
+        assert!(dist.is_finite());
+        if let SinglyCompact::Finite(d) = dist {
+            assert!(d >= 1);
+        }
+    }
+
+    #[test]
+    fn test_ilp_heuristic_no_variables() {
+        let lang = Language::default().add_symbol("+");
+        let mut arities_map = HashMap::new();
+        arities_map.insert(0, 2);
+        let arities = Arities::from(arities_map);
+
+        let rules = rules!(lang;
+            "(+ 1 2)" => "(+ 3 4)"
+        );
+        let trs = TermRewritingSystem::new(lang.clone(), rules);
+
+        // Expressions with no variables
+        let target = lang.parse("(+ 5 6)").unwrap();
+        let current = lang.parse("(+ 7 8)").unwrap();
+        
+        let heuristic = ILPHeuristic::new(&target, &trs, &arities);
+        let dist = heuristic.lower_bound_dist(&current);
+        
+        // With no variables, distance should be 0 (convention: max over empty set = 0)
+        assert_eq!(dist, SinglyCompact::Finite(0));
+    }
+
+    #[test]
+    fn test_heuristic_constructor() {
+        let lang = Language::default().add_symbol("+");
+        let mut arities_map = HashMap::new();
+        arities_map.insert(0, 2);
+        let arities = Arities::from(arities_map);
+
+        let rules = rules!(lang;
+            "(+ $0 $1)" => "(+ $1 $0)"
+        );
+        let trs = TermRewritingSystem::new(lang.clone(), rules);
+
+        let constructor = ILPHeuristicConstructor { arities };
+        let expr = lang.parse("(+ $0 $1)").unwrap();
+        
+        let heuristic = constructor.construct(&expr, &trs);
+        let dist = heuristic.lower_bound_dist(&expr);
+        
+        assert_eq!(dist, SinglyCompact::Finite(0));
+    }
+}
