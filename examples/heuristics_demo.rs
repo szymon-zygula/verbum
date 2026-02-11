@@ -12,8 +12,8 @@ use std::error::Error;
 use std::path::PathBuf;
 use std::time::Instant;
 use verbum::benchmark::{
-    generate_random_expression_by_size_with_variables, RandomGenerationConfig,
-    VariableGenerationConfig,
+    RandomGenerationConfig, VariableGenerationConfig,
+    generate_random_expression_by_size_with_variables,
 };
 use verbum::language::arities::Arities;
 use verbum::language::expression::AnyExpression;
@@ -83,6 +83,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let expr_e =
         generate_random_expression_by_size_with_variables(lang, args.size, &mut rng, &config)?;
+    let expr_f =
+        generate_random_expression_by_size_with_variables(lang, args.size, &mut rng, &config)?;
 
     println!("Generated expression E: {}", expr_e.with_language(lang));
 
@@ -127,6 +129,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         eval_time_e_prime.as_secs_f64() * 1000.0
     );
 
+    // Time heuristic evaluation for rewritten expression F
+    println!("\nEvaluating heuristic for rewritten expression F (unrelated to E and E')...");
+    let eval_start = Instant::now();
+    let distance_f = heuristic.lower_bound_dist(&expr_f);
+    let eval_time_f = eval_start.elapsed();
+    println!(
+        "Heuristic h(F): {} (computed in {:.3}ms)",
+        distance_f,
+        eval_time_f.as_secs_f64() * 1000.0
+    );
+
     println!("\n=== Summary ===");
     println!("Expression size: {}", args.size);
     println!("Variables: {}", args.variables);
@@ -142,6 +155,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!(
         "h(E') evaluation: {:.3}ms",
         eval_time_e_prime.as_secs_f64() * 1000.0
+    );
+    println!(
+        "h(F) evaluation: {:.3}ms",
+        eval_time_f.as_secs_f64() * 1000.0
     );
 
     Ok(())
