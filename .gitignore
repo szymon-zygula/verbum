@@ -2,3 +2,5 @@
 /target
 *.png
 *.dot
+*.json
+*.zip
