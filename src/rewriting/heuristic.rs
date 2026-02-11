@@ -32,7 +32,7 @@
 //!     language::{Language, arities::Arities},
 //!     macros::rules,
 //!     rewriting::{
-//!         heuristic::{Heuristic, ILPHeuristic},
+//!         heuristic::{Heuristic, AbelianPathHeuristic},
 //!         system::TermRewritingSystem,
 //!     },
 //!     compact::SinglyCompact,
@@ -56,7 +56,7 @@
 //! let target = lang.parse("(* $0 $1)").unwrap();
 //! let current = lang.parse("(+ $0 $1)").unwrap();
 //!
-//! let heuristic = ILPHeuristic::new(&target, &trs, &arities);
+//! let heuristic = AbelianPathHeuristic::new(&target, &trs, &arities);
 //! let distance = heuristic.lower_bound_dist(&current);
 //!
 //! match distance {
@@ -135,9 +135,9 @@ pub trait HeuristicConstructor {
 /// - a(p) is the abelianized vector of path p
 /// - θ(A, d) is the solution to the ILP minimize 1^T x subject to Ax = d, x ≥ 0, x integer
 /// - M_T is the abelianized matrix of T_s (the induced string rewriting system)
-pub struct ILPHeuristic {
-    /// The target expression we're trying to reach
-    target_paths: Vec<PathAbelianVector>,
+pub struct AbelianPathHeuristic {
+    /// Grouped target paths by variable ID (precomputed for performance)
+    target_by_var: HashMap<VariableId, Vec<PathAbelianVector>>,
     /// The abelianized matrix of the induced string rewriting system T_s
     abelian_matrix: nalgebra::DMatrix<i32>,
     /// The string language for computing paths
@@ -148,7 +148,7 @@ pub struct ILPHeuristic {
     lang: Language,
 }
 
-impl ILPHeuristic {
+impl AbelianPathHeuristic {
     /// Creates a new ILP-based heuristic.
     ///
     /// # Arguments
@@ -159,7 +159,7 @@ impl ILPHeuristic {
     ///
     /// # Returns
     ///
-    /// Returns a new `ILPHeuristic` instance.
+    /// Returns a new `AbelianPathHeuristic` instance.
     pub fn new(target_expr: &Expression, trs: &TermRewritingSystem, arities: &Arities) -> Self {
         let lang = trs.language().clone();
         let string_lang = to_string_language(&lang, arities);
@@ -172,24 +172,34 @@ impl ILPHeuristic {
             arities,
         );
         
+        // Precompute target paths grouped by variable ID for performance
+        let mut target_by_var: HashMap<VariableId, Vec<PathAbelianVector>> = HashMap::new();
+        for path in &target_paths {
+            target_by_var
+                .entry(path.variable_id)
+                .or_default()
+                .push(path.clone());
+        }
+        
         // Convert TRS rules to induced string rewriting rules
         // M_T is the abelianized matrix of T_s (the induced string rewriting system)
-        let mut induced_rules = Vec::new();
-        for rule in trs.rules() {
-            let rule_induced = crate::rewriting::strings::rule_to_induced_rules(
-                rule,
-                &lang,
-                &string_lang,
-                arities,
-            );
-            induced_rules.extend(rule_induced);
-        }
+        let induced_rules: Vec<_> = trs.rules()
+            .iter()
+            .flat_map(|rule| {
+                crate::rewriting::strings::rule_to_induced_rules(
+                    rule,
+                    &lang,
+                    &string_lang,
+                    arities,
+                )
+            })
+            .collect();
         
         // Compute the abelianized matrix from the induced rules
         let abelian_matrix = rules_to_abelian_matrix(&induced_rules, &string_lang);
         
         Self {
-            target_paths,
+            target_by_var,
             abelian_matrix,
             string_lang,
             arities: arities.clone(),
@@ -248,7 +258,7 @@ impl ILPHeuristic {
     }
 }
 
-impl Heuristic for ILPHeuristic {
+impl Heuristic for AbelianPathHeuristic {
     fn lower_bound_dist(&self, expression: &Expression) -> SinglyCompact<u32> {
         // Get all paths in the current expression
         let current_paths = get_path_abelian_vectors_to_variables(
@@ -267,25 +277,12 @@ impl Heuristic for ILPHeuristic {
                 .push(path);
         }
         
-        let mut target_by_var: HashMap<VariableId, Vec<&PathAbelianVector>> = HashMap::new();
-        for path in &self.target_paths {
-            target_by_var
-                .entry(path.variable_id)
-                .or_default()
-                .push(path);
-        }
-        
         // Get all variables from either expression
         let mut all_vars: Vec<VariableId> = current_by_var.keys().copied().collect();
-        for &var_id in target_by_var.keys() {
+        for &var_id in self.target_by_var.keys() {
             if !all_vars.contains(&var_id) {
                 all_vars.push(var_id);
             }
-        }
-        
-        // Convention: max over empty set = 0
-        if all_vars.is_empty() {
-            return SinglyCompact::Finite(0);
         }
         
         let mut max_over_vars = SinglyCompact::Finite(0);
@@ -293,39 +290,38 @@ impl Heuristic for ILPHeuristic {
         // For each variable v in V_{e,e'}
         for var_id in all_vars {
             let current_paths_for_var = current_by_var.get(&var_id).map(|v| v.as_slice()).unwrap_or(&[]);
-            let target_paths_for_var = target_by_var.get(&var_id).map(|v| v.as_slice()).unwrap_or(&[]);
+            let target_paths_for_var = self.target_by_var.get(&var_id).map(|v| v.as_slice()).unwrap_or(&[]);
             
             // Convention: min over empty set = infinity
             if current_paths_for_var.is_empty() {
-                max_over_vars = SinglyCompact::Infinite;
-                break;
+                return SinglyCompact::Infinite;
             }
             
             let mut min_over_current = SinglyCompact::Infinite;
             
             // For each path α in Ω^e_v (paths in current expression)
             for current_path in current_paths_for_var {
-                // Convention: max over empty set = 0
-                let mut max_over_target = SinglyCompact::Finite(0);
-                
-                // For each path ω in Ω^{e'}_v (paths in target expression)
-                for target_path in target_paths_for_var {
-                    // Compute difference: a(ω) - a(α)
-                    let diff = &target_path.vector - &current_path.vector;
-                    
-                    // Solve ILP: θ(M_T, diff)
-                    let ilp_result = self.solve_ilp(&diff);
-                    
-                    // Take maximum over target paths
-                    if ilp_result > max_over_target {
-                        max_over_target = ilp_result;
-                    }
-                }
+                // Take maximum over target paths using iterator
+                let max_over_target = target_paths_for_var
+                    .iter()
+                    .map(|target_path| {
+                        // Compute difference: a(ω) - a(α)
+                        let diff = &target_path.vector - &current_path.vector;
+                        // Solve ILP: θ(M_T, diff)
+                        self.solve_ilp(&diff)
+                    })
+                    .max()
+                    .unwrap_or(SinglyCompact::Finite(0)); // Convention: max over empty set = 0
                 
                 // Take minimum over current paths
                 if max_over_target < min_over_current {
                     min_over_current = max_over_target;
                 }
+            }
+            
+            // Short-circuit if min_over_current is infinite
+            if min_over_current.is_infinite() {
+                return SinglyCompact::Infinite;
             }
             
             // Take maximum over variables
@@ -338,18 +334,18 @@ impl Heuristic for ILPHeuristic {
     }
 }
 
-/// Default constructor for ILP-based heuristics.
+/// Default constructor for abelian path heuristics.
 ///
-/// This constructor creates `ILPHeuristic` instances. It requires arities to be
+/// This constructor creates `AbelianPathHeuristic` instances. It requires arities to be
 /// provided when constructing the heuristic.
-pub struct ILPHeuristicConstructor {
+pub struct AbelianPathHeuristicConstructor {
     /// Arities for symbols in the language
     pub arities: Arities,
 }
 
-impl HeuristicConstructor for ILPHeuristicConstructor {
+impl HeuristicConstructor for AbelianPathHeuristicConstructor {
     fn construct(&self, expression: &Expression, trs: &TermRewritingSystem) -> Box<dyn Heuristic> {
-        Box::new(ILPHeuristic::new(expression, trs, &self.arities))
+        Box::new(AbelianPathHeuristic::new(expression, trs, &self.arities))
     }
 }
 
@@ -373,7 +369,7 @@ mod tests {
         let trs = TermRewritingSystem::new(lang.clone(), rules);
 
         let expr = lang.parse("(+ $0 $1)").unwrap();
-        let heuristic = ILPHeuristic::new(&expr, &trs, &arities);
+        let heuristic = AbelianPathHeuristic::new(&expr, &trs, &arities);
 
         // Distance from an expression to itself should be 0
         let dist = heuristic.lower_bound_dist(&expr);
@@ -396,7 +392,7 @@ mod tests {
         let target = lang.parse("(* $0 $1)").unwrap();
         let current = lang.parse("(+ $0 $1)").unwrap();
         
-        let heuristic = ILPHeuristic::new(&target, &trs, &arities);
+        let heuristic = AbelianPathHeuristic::new(&target, &trs, &arities);
         let dist = heuristic.lower_bound_dist(&current);
         
         // Should require at least 1 rule application
@@ -422,7 +418,7 @@ mod tests {
         let target = lang.parse("(+ 5 6)").unwrap();
         let current = lang.parse("(+ 7 8)").unwrap();
         
-        let heuristic = ILPHeuristic::new(&target, &trs, &arities);
+        let heuristic = AbelianPathHeuristic::new(&target, &trs, &arities);
         let dist = heuristic.lower_bound_dist(&current);
         
         // With no variables, distance should be 0 (convention: max over empty set = 0)
@@ -441,7 +437,7 @@ mod tests {
         );
         let trs = TermRewritingSystem::new(lang.clone(), rules);
 
-        let constructor = ILPHeuristicConstructor { arities };
+        let constructor = AbelianPathHeuristicConstructor { arities };
         let expr = lang.parse("(+ $0 $1)").unwrap();
         
         let heuristic = constructor.construct(&expr, &trs);

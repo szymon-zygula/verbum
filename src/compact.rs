@@ -75,7 +75,7 @@ impl<T> SinglyCompact<T> {
     /// Converts `SinglyCompact<T>` to `Option<T>`.
     ///
     /// Returns `Some(value)` for `Finite(value)`, and `None` for `Infinite`.
-    pub fn to_option(self) -> Option<T> {
+    pub fn as_finite(self) -> Option<T> {
         match self {
             SinglyCompact::Finite(v) => Some(v),
             SinglyCompact::Infinite => None,
@@ -211,12 +211,12 @@ mod tests {
     }
 
     #[test]
-    fn test_to_option() {
+    fn test_as_finite() {
         let finite: SinglyCompact<i32> = SinglyCompact::Finite(42);
         let infinite: SinglyCompact<i32> = SinglyCompact::Infinite;
 
-        assert_eq!(finite.to_option(), Some(42));
-        assert_eq!(infinite.to_option(), None);
+        assert_eq!(finite.as_finite(), Some(42));
+        assert_eq!(infinite.as_finite(), None);
     }
 
     #[test]

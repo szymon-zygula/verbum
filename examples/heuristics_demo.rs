@@ -1,107 +1,148 @@
-//! Example demonstrating the usage of heuristics and helper functions.
+//! Heuristic benchmark example.
 //!
-//! This example shows how to:
-//! 1. Create a SinglyCompact value
-//! 2. Get abelianized vectors for paths to variables
-//! 3. Use the Heuristic trait to estimate rewrite distances
+//! This example:
+//! 1. Loads a term rewriting system (TRS) and language from JSON
+//! 2. Generates a random expression E of specified size with variables
+//! 3. Applies random rewrites to create E'
+//! 4. Creates a heuristic for E'
+//! 5. Times the heuristic evaluation for E and E'
 
-use verbum::{
-    compact::SinglyCompact,
-    language::{Language, arities::Arities},
-    macros::rules,
-    rewriting::{
-        heuristic::{Heuristic, HeuristicConstructor, ILPHeuristic, ILPHeuristicConstructor},
-        strings::get_path_abelian_vectors_to_variables,
-        system::TermRewritingSystem,
-    },
+use clap::Parser;
+use std::error::Error;
+use std::path::PathBuf;
+use std::time::Instant;
+use verbum::benchmark::{
+    generate_random_expression_by_size_with_variables, RandomGenerationConfig,
+    VariableGenerationConfig,
 };
-use std::collections::HashMap;
+use verbum::language::arities::Arities;
+use verbum::language::expression::AnyExpression;
+use verbum::rewriting::heuristic::{AbelianPathHeuristic, Heuristic};
+use verbum::rewriting::random::rewrite_expression;
+use verbum::rewriting::system::TermRewritingSystem;
+use verbum::utils::json::load_json;
 
-fn main() {
-    println!("=== Verbum Heuristics Demo ===\n");
+/// CLI arguments for heuristic benchmark
+#[derive(Parser, Debug)]
+#[command(author, version, about = "Benchmark heuristic evaluation", long_about = None)]
+struct Args {
+    /// Expression size (n)
+    #[arg(short = 'n', long)]
+    size: usize,
 
-    // 1. Demonstrate SinglyCompact
-    println!("1. SinglyCompact Examples:");
-    let finite: SinglyCompact<u32> = SinglyCompact::Finite(42);
-    let infinite: SinglyCompact<u32> = SinglyCompact::Infinite;
-    
-    println!("  Finite value: {}", finite);
-    println!("  Infinite value: {}", infinite);
-    println!("  Finite + Finite: {}", SinglyCompact::Finite(10) + SinglyCompact::Finite(20));
-    println!("  Finite + Infinite: {}", SinglyCompact::Finite(10) + infinite);
-    println!();
+    /// Variable count (v) - maximum variable ID will be v-1
+    #[arg(short = 'v', long)]
+    variables: usize,
 
-    // 2. Setup a simple language and TRS
-    println!("2. Setting up Term Rewriting System:");
-    let lang = Language::default()
-        .add_symbol("+")  // id: 0
-        .add_symbol("*"); // id: 1
-    
-    let mut arities_map = HashMap::new();
-    arities_map.insert(0, 2); // + has arity 2
-    arities_map.insert(1, 2); // * has arity 2
-    let arities = Arities::from(arities_map);
+    /// Path to directory containing TRS JSON files (language.json, trs.json, and arities.json)
+    #[arg(short = 't', long)]
+    trs: PathBuf,
 
-    let rules = rules!(lang;
-        "(+ $0 $1)" => "(* $0 $1)",
-        "(* $0 $0)" => "(+ $0 $0)"
+    /// Number of random rewrite applications (a)
+    #[arg(short = 'a', long)]
+    applications: usize,
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    let args = Args::parse();
+
+    // Load TRS and language
+    println!("Loading TRS from {:?}...", args.trs);
+    let trs = TermRewritingSystem::from_directory(&args.trs)?;
+    let lang = trs.language();
+    let rules = trs.rules();
+
+    // Load arities
+    let arities_path = args.trs.join("arities.json");
+    println!("Loading arities from {:?}...", arities_path);
+    let arities: Arities = load_json(&arities_path)?;
+
+    // Generate random expression E
+    println!(
+        "Generating random expression of size {} with up to {} variables...",
+        args.size, args.variables
     );
-    let trs = TermRewritingSystem::new(lang.clone(), rules);
-    println!("  Language has {} symbols", lang.symbol_count());
-    println!("  TRS has {} rules", trs.rules().len());
-    println!();
+    let mut rng = rand::thread_rng();
 
-    // 3. Get path abelian vectors
-    println!("3. Path Abelianized Vectors:");
-    let expr = lang.parse("(+ $0 (* $1 $0))").unwrap();
-    println!("  Expression: (+ $0 (* $1 $0))");
-    
-    let string_lang = verbum::rewriting::strings::to_string_language(&lang, &arities);
-    let path_vectors = get_path_abelian_vectors_to_variables(
-        &expr,
-        &lang,
-        &string_lang,
-        &arities,
-    );
-    
-    println!("  Found {} paths to variables:", path_vectors.len());
-    for pv in &path_vectors {
-        println!("    Variable ${}: vector = {:?}", pv.variable_id, pv.vector.as_slice());
-    }
-    println!();
+    let mut config = RandomGenerationConfig::from_language(lang);
 
-    // 4. Use ILP Heuristic
-    println!("4. ILP Heuristic Example:");
-    let target = lang.parse("(* $0 $1)").unwrap();
-    let current = lang.parse("(+ $0 $1)").unwrap();
-    
-    println!("  Target expression: (* $0 $1)");
-    println!("  Current expression: (+ $0 $1)");
-    
-    let heuristic = ILPHeuristic::new(&target, &trs, &arities);
-    let distance = heuristic.lower_bound_dist(&current);
-    
-    match distance {
-        SinglyCompact::Finite(d) => {
-            println!("  Lower bound distance: {} rule applications", d);
-        }
-        SinglyCompact::Infinite => {
-            println!("  Lower bound distance: ∞ (target unreachable)");
+    // Set symbol arities
+    for symbol_id in 0..lang.symbol_count() {
+        if let Some(symbol_arities) = arities.get(symbol_id) {
+            config.symbol_arities[symbol_id] = symbol_arities.to_vec();
         }
     }
-    println!();
 
-    // 5. Use HeuristicConstructor
-    println!("5. HeuristicConstructor Example:");
-    let constructor = ILPHeuristicConstructor {
-        arities: arities.clone(),
-    };
-    
-    let heuristic_boxed = constructor.construct(&target, &trs);
-    let distance2 = heuristic_boxed.lower_bound_dist(&current);
-    
-    println!("  Distance from constructor: {}", distance2);
-    println!();
+    // Configure variable generation
+    if args.variables > 0 {
+        config.variable_config = Some(VariableGenerationConfig {
+            variable_range: (0, args.variables - 1),
+            variable_probability: 0.5,
+        });
+    }
 
-    println!("=== Demo Complete ===");
+    let expr_e =
+        generate_random_expression_by_size_with_variables(lang, args.size, &mut rng, &config)?;
+
+    println!("Generated expression E: {}", expr_e.with_language(lang));
+
+    // Apply random rewrites to create E'
+    println!("Applying {} random rewrites...", args.applications);
+    let expr_e_prime = rewrite_expression(expr_e.clone(), rules, args.applications, &mut rng);
+
+    println!(
+        "Rewritten expression E': {}",
+        expr_e_prime.with_language(lang)
+    );
+
+    // Create heuristic for E'
+    println!("\nCreating heuristic for target expression E'...");
+    let heuristic_start = Instant::now();
+    let heuristic = AbelianPathHeuristic::new(&expr_e_prime, &trs, &arities);
+    let heuristic_construction_time = heuristic_start.elapsed();
+    println!(
+        "Heuristic construction time: {:.3}ms",
+        heuristic_construction_time.as_secs_f64() * 1000.0
+    );
+
+    // Time heuristic evaluation for starting expression E
+    println!("\nEvaluating heuristic for starting expression E...");
+    let eval_start = Instant::now();
+    let distance_e = heuristic.lower_bound_dist(&expr_e);
+    let eval_time_e = eval_start.elapsed();
+    println!(
+        "Heuristic h(E): {} (computed in {:.3}ms)",
+        distance_e,
+        eval_time_e.as_secs_f64() * 1000.0
+    );
+
+    // Time heuristic evaluation for rewritten expression E'
+    println!("\nEvaluating heuristic for rewritten expression E'...");
+    let eval_start = Instant::now();
+    let distance_e_prime = heuristic.lower_bound_dist(&expr_e_prime);
+    let eval_time_e_prime = eval_start.elapsed();
+    println!(
+        "Heuristic h(E'): {} (computed in {:.3}ms)",
+        distance_e_prime,
+        eval_time_e_prime.as_secs_f64() * 1000.0
+    );
+
+    println!("\n=== Summary ===");
+    println!("Expression size: {}", args.size);
+    println!("Variables: {}", args.variables);
+    println!("Rewrite applications: {}", args.applications);
+    println!(
+        "Heuristic construction: {:.3}ms",
+        heuristic_construction_time.as_secs_f64() * 1000.0
+    );
+    println!(
+        "h(E) evaluation: {:.3}ms",
+        eval_time_e.as_secs_f64() * 1000.0
+    );
+    println!(
+        "h(E') evaluation: {:.3}ms",
+        eval_time_e_prime.as_secs_f64() * 1000.0
+    );
+
+    Ok(())
 }
