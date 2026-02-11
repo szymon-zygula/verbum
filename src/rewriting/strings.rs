@@ -455,6 +455,10 @@ pub fn get_path_abelian_vectors_to_variables(
     for (var_id, paths) in var_paths {
         for path in paths {
             // Build the path expression for this path to the variable
+            // Note: path_to_expression returns None if the path doesn't lead through valid symbols
+            // (e.g., if the path goes through a literal or variable instead of a symbol node).
+            // This is an expected condition and safe to skip - such paths cannot be represented
+            // in the induced string rewriting system since they don't follow symbol structure.
             if let Some(path_expr) = path_to_expression(expr, &path, lang, string_lang, arities, var_id) {
                 // Compute the abelianized vector for this path expression
                 let vector = expression_to_abelian_vector(&path_expr, string_lang);

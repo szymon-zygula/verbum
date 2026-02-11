@@ -186,7 +186,32 @@ impl ILPHeuristic {
     
     /// Solves the ILP problem for a given difference vector.
     ///
-    /// Returns the optimal objective value (sum of variables) or Infinite if infeasible.
+    /// This method solves the Integer Linear Programming problem:
+    /// ```text
+    /// minimize: 1^T x (sum of all components)
+    /// subject to: M_T x = diff_vector
+    ///             x ≥ 0
+    ///             x is integer-valued
+    /// ```
+    ///
+    /// where M_T is the abelianized matrix of the TRS and x represents the number
+    /// of times each rule is applied.
+    ///
+    /// # Arguments
+    ///
+    /// * `diff_vector` - The difference vector d = a(ω) - a(α) representing the
+    ///   difference between target and current path abelianized vectors
+    ///
+    /// # Returns
+    ///
+    /// Returns:
+    /// - `Finite(n)` where n is the optimal objective value (minimum sum of rule applications)
+    /// - `Infinite` if the ILP problem is infeasible (target unreachable)
+    ///
+    /// # Special Cases
+    ///
+    /// - If there are no rules (empty TRS), returns `Finite(0)` if diff_vector is zero,
+    ///   otherwise `Infinite`
     fn solve_ilp(&self, diff_vector: &DVector<i32>) -> SinglyCompact<u32> {
         if self.abelian_matrix.ncols() == 0 {
             // No rules available
