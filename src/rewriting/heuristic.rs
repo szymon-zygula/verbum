@@ -292,11 +292,6 @@ impl Heuristic for AbelianPathHeuristic {
             let current_paths_for_var = current_by_var.get(&var_id).map(|v| v.as_slice()).unwrap_or(&[]);
             let target_paths_for_var = self.target_by_var.get(&var_id).map(|v| v.as_slice()).unwrap_or(&[]);
             
-            // Convention: min over empty set = infinity
-            if current_paths_for_var.is_empty() {
-                return SinglyCompact::Infinite;
-            }
-            
             let mut min_over_current = SinglyCompact::Infinite;
             
             // For each path α in Ω^e_v (paths in current expression)
