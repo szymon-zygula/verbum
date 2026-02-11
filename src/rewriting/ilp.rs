@@ -4,6 +4,7 @@
 //! using the `good_lp` library.
 
 use good_lp::*;
+use good_lp::solvers::coin_cbc::CoinCbcProblem;
 use nalgebra::{DMatrix, DVector};
 
 /// Creates an ILP problem for the given matrix A and vector d.
@@ -17,17 +18,17 @@ use nalgebra::{DMatrix, DVector};
 /// This function returns a solver model that is ready to be solved,
 /// along with the variable vector x.
 /// All constraints are already added to the model.
+/// The CBC solver is configured to suppress output by default.
 ///
 /// # Arguments
 ///
 /// * `a` - The constraint matrix A (dimensions: m x n)
 /// * `d` - The right-hand side vector d (dimensions: m)
-/// * `solver` - The solver to use for solving the problem
 ///
 /// # Returns
 ///
 /// Returns a tuple `(model, variables)` where:
-/// - `model` is a `SolverModel` ready to be solved with `.solve()`
+/// - `model` is a `CoinCbcProblem` ready to be solved with `.solve()`
 /// - `variables` is a `Vec<Variable>` containing the decision variables x
 ///
 /// # Panics
@@ -39,14 +40,13 @@ use nalgebra::{DMatrix, DVector};
 /// ```rust
 /// use nalgebra::{DMatrix, DVector};
 /// use verbum::rewriting::ilp::create_ilp_problem;
-/// use good_lp::{default_solver, Solution, SolverModel};
+/// use good_lp::{Solution, SolverModel};
 ///
 /// // Create a simple problem: minimize x1 + x2 subject to x1 + x2 = 5
 /// let a = DMatrix::from_row_slice(1, 2, &[1, 1]);
 /// let d = DVector::from_vec(vec![5]);
 ///
-/// let (mut model, vars) = create_ilp_problem(&a, &d, default_solver);
-/// model.set_parameter("log", "0"); // Suppress CBC output
+/// let (model, vars) = create_ilp_problem(&a, &d);
 /// let solution = model.solve();
 ///
 /// if let Ok(sol) = solution {
@@ -54,11 +54,10 @@ use nalgebra::{DMatrix, DVector};
 ///     println!("Solution found with objective value: {}", objective_value);
 /// }
 /// ```
-pub fn create_ilp_problem<S: Solver>(
+pub fn create_ilp_problem(
     a: &DMatrix<i32>,
     d: &DVector<i32>,
-    solver: S,
-) -> (S::Model, Vec<Variable>) {
+) -> (CoinCbcProblem, Vec<Variable>) {
     let m = a.nrows();
     let n = a.ncols();
 
@@ -80,7 +79,10 @@ pub fn create_ilp_problem<S: Solver>(
     let objective: Expression = x.iter().copied().sum();
 
     // Start building the problem
-    let mut problem = vars.minimise(objective).using(solver);
+    let mut problem = vars.minimise(objective).using(coin_cbc);
+
+    // Suppress CBC solver output
+    problem.set_parameter("log", "0");
 
     // Add constraints: Ax = d
     for i in 0..m {
@@ -111,8 +113,7 @@ mod tests {
         let a = DMatrix::from_row_slice(1, 2, &[1, 1]);
         let d = DVector::from_vec(vec![5]);
 
-        let (mut model, vars) = create_ilp_problem(&a, &d, default_solver);
-        model.set_parameter("log", "0");
+        let (model, vars) = create_ilp_problem(&a, &d);
         let solution = model.solve();
 
         assert!(solution.is_ok(), "Expected feasible solution");
@@ -134,8 +135,7 @@ mod tests {
         let a = DMatrix::from_row_slice(2, 2, &[1, 1, 1, -1]);
         let d = DVector::from_vec(vec![10, 2]);
 
-        let (mut model, vars) = create_ilp_problem(&a, &d, default_solver);
-        model.set_parameter("log", "0");
+        let (model, vars) = create_ilp_problem(&a, &d);
         let solution = model.solve();
 
         assert!(solution.is_ok());
@@ -152,8 +152,7 @@ mod tests {
         let a = DMatrix::from_row_slice(1, 3, &[1, 2, 3]);
         let d = DVector::from_vec(vec![12]);
 
-        let (mut model, vars) = create_ilp_problem(&a, &d, default_solver);
-        model.set_parameter("log", "0");
+        let (model, vars) = create_ilp_problem(&a, &d);
         let solution = model.solve();
 
         assert!(solution.is_ok());
@@ -172,8 +171,7 @@ mod tests {
         let a = DMatrix::from_row_slice(2, 2, &[1, 1, 1, 1]);
         let d = DVector::from_vec(vec![5, 10]);
 
-        let (mut model, _vars) = create_ilp_problem(&a, &d, default_solver);
-        model.set_parameter("log", "0");
+        let (model, _vars) = create_ilp_problem(&a, &d);
         let solution = model.solve();
 
         // This should be infeasible
@@ -187,8 +185,7 @@ mod tests {
         let a = DMatrix::from_row_slice(1, 2, &[1, 1]);
         let d = DVector::from_vec(vec![0]);
 
-        let (mut model, vars) = create_ilp_problem(&a, &d, default_solver);
-        model.set_parameter("log", "0");
+        let (model, vars) = create_ilp_problem(&a, &d);
         let solution = model.solve();
 
         assert!(solution.is_ok());
@@ -208,8 +205,7 @@ mod tests {
         let a = DMatrix::from_row_slice(2, 3, &[1, 0, 1, 0, 1, 0]);
         let d = DVector::from_vec(vec![5, 3]);
 
-        let (mut model, vars) = create_ilp_problem(&a, &d, default_solver);
-        model.set_parameter("log", "0");
+        let (model, vars) = create_ilp_problem(&a, &d);
         let solution = model.solve();
 
         assert!(solution.is_ok());
@@ -229,8 +225,7 @@ mod tests {
         let a = DMatrix::from_row_slice(3, 4, &[1, 1, 1, 1, 2, 1, 0, 0, 0, 0, 1, 2]);
         let d = DVector::from_vec(vec![10, 4, 6]);
 
-        let (mut model, vars) = create_ilp_problem(&a, &d, default_solver);
-        model.set_parameter("log", "0");
+        let (model, vars) = create_ilp_problem(&a, &d);
         let solution = model.solve();
 
         assert!(solution.is_ok());
@@ -246,7 +241,7 @@ mod tests {
         let a = DMatrix::from_row_slice(2, 3, &[1, 2, 3, 4, 5, 6]);
         let d = DVector::from_vec(vec![1, 2, 3]);
 
-        create_ilp_problem(&a, &d, default_solver);
+        create_ilp_problem(&a, &d);
     }
 
     #[test]
@@ -255,8 +250,7 @@ mod tests {
         let a = DMatrix::from_row_slice(1, 1, &[1]);
         let d = DVector::from_vec(vec![7]);
 
-        let (mut model, vars) = create_ilp_problem(&a, &d, default_solver);
-        model.set_parameter("log", "0");
+        let (model, vars) = create_ilp_problem(&a, &d);
         let solution = model.solve();
 
         assert!(solution.is_ok());
@@ -274,8 +268,7 @@ mod tests {
         let a = DMatrix::from_row_slice(1, 2, &[1, -1]);
         let d = DVector::from_vec(vec![4]);
 
-        let (mut model, vars) = create_ilp_problem(&a, &d, default_solver);
-        model.set_parameter("log", "0");
+        let (model, vars) = create_ilp_problem(&a, &d);
         let solution = model.solve();
 
         assert!(solution.is_ok());
