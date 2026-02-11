@@ -13,7 +13,7 @@ fn main() {
     arities_map.insert(1, vec![1]); // Symbol 1 (e.g., "sin") has arity 1
     arities_map.insert(2, vec![0]); // Symbol 2 (e.g., "x") has arity 0
     arities_map.insert(3, vec![2, 3]); // Symbol 3 can have arity 2 or 3
-    
+
     let arities = Arities::from(arities_map);
 
     println!("Original Arities structure:");
