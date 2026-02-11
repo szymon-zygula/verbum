@@ -8,7 +8,7 @@
 //! The ILP heuristic implements the following formula:
 //!
 //! ```text
-//! h(e) = max_{v ∈ V_{e,e'}} min_{α ∈ Ω^e_v} max_{ω ∈ Ω^{e'}_v} θ(M_T, a(ω) - a(α))
+//! h(e) = max_{v ∈ V_{e,e'}} max_{ω ∈ Ω^{e'}_v} min_{α ∈ Ω^e_v} θ(M_T, a(ω) - a(α))
 //! ```
 //!
 //! Where:
@@ -64,7 +64,6 @@
 //!     SinglyCompact::Infinite => println!("Target unreachable"),
 //! }
 //! ```
-
 use crate::compact::SinglyCompact;
 use crate::language::{Language, arities::Arities, expression::{Expression, VariableId}};
 use crate::rewriting::{
@@ -119,15 +118,15 @@ pub trait HeuristicConstructor {
 ///
 /// This heuristic computes a lower bound on the rewrite distance by:
 /// 1. For each variable v in either expression
-/// 2. For each path α in the current expression ending at v
-/// 3. For each path ω in the target expression ending at v
+/// 2. For each path ω in the target expression ending at v
+/// 3. For each path α in the current expression ending at v
 /// 4. Solving an ILP to find the minimum number of rules needed to transform
 ///    the abelianized vector difference a(ω) - a(α)
-/// 5. Taking the maximum over all variables of the minimum over all paths in the current
-///    expression of the maximum over all paths in the target expression
+/// 5. Taking the maximum over all variables of the maximum over all paths in the target
+///    expression of the minimum over all paths in the current expression
 ///
 /// This implements the mathematical formula:
-/// h(e) = max_{v ∈ V_{e,e'}} min_{α ∈ Ω^e_v} max_{ω ∈ Ω^{e'}_v} θ(M_T, a(ω) - a(α))
+/// h(e) = max_{v ∈ V_{e,e'}} max_{ω ∈ Ω^{e'}_v} min_{α ∈ Ω^e_v} θ(M_T, a(ω) - a(α))
 ///
 /// where:
 /// - V_{e,e'} is the set of variables appearing in e or e'
@@ -292,36 +291,37 @@ impl Heuristic for AbelianPathHeuristic {
             let current_paths_for_var = current_by_var.get(&var_id).map(|v| v.as_slice()).unwrap_or(&[]);
             let target_paths_for_var = self.target_by_var.get(&var_id).map(|v| v.as_slice()).unwrap_or(&[]);
             
-            let mut min_over_current = SinglyCompact::Infinite;
+            // max_{ω ∈ Ω^{e'}_v} min_{α ∈ Ω^e_v} θ(...)
+            let mut max_over_target = SinglyCompact::Finite(0);
             
-            // For each path α in Ω^e_v (paths in current expression)
-            for current_path in current_paths_for_var {
-                // Take maximum over target paths using iterator
-                let max_over_target = target_paths_for_var
+            // For each path ω in Ω^{e'}_v (paths in target expression)
+            for target_path in target_paths_for_var {
+                // Take minimum over current paths using iterator
+                let min_over_current = current_paths_for_var
                     .iter()
-                    .map(|target_path| {
+                    .map(|current_path| {
                         // Compute difference: a(ω) - a(α)
                         let diff = &target_path.vector - &current_path.vector;
                         // Solve ILP: θ(M_T, diff)
                         self.solve_ilp(&diff)
                     })
-                    .max()
-                    .unwrap_or(SinglyCompact::Finite(0)); // Convention: max over empty set = 0
+                    .min()
+                    .unwrap_or(SinglyCompact::Infinite); // Convention: min over empty set = ∞
                 
-                // Take minimum over current paths
-                if max_over_target < min_over_current {
-                    min_over_current = max_over_target;
+                // Take maximum over target paths
+                if min_over_current > max_over_target {
+                    max_over_target = min_over_current;
                 }
             }
             
-            // Short-circuit if min_over_current is infinite
-            if min_over_current.is_infinite() {
+            // Short-circuit if max_over_target is infinite
+            if max_over_target.is_infinite() {
                 return SinglyCompact::Infinite;
             }
             
             // Take maximum over variables
-            if min_over_current > max_over_vars {
-                max_over_vars = min_over_current;
+            if max_over_target > max_over_vars {
+                max_over_vars = max_over_target;
             }
         }
         
