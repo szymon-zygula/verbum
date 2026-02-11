@@ -39,7 +39,7 @@ use nalgebra::{DMatrix, DVector};
 /// ```rust
 /// use nalgebra::{DMatrix, DVector};
 /// use verbum::rewriting::ilp::create_ilp_problem;
-/// use good_lp::{default_solver, Solution};
+/// use good_lp::{default_solver, Solution, SolverModel};
 ///
 /// // Create a simple problem: minimize x1 + x2 subject to x1 + x2 = 5
 /// let a = DMatrix::from_row_slice(1, 2, &[1, 1]);
