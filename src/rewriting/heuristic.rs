@@ -134,11 +134,11 @@ pub trait HeuristicConstructor {
 /// - Ω^e_v is the set of all paths in e from root to variable v
 /// - a(p) is the abelianized vector of path p
 /// - θ(A, d) is the solution to the ILP minimize 1^T x subject to Ax = d, x ≥ 0, x integer
-/// - M_T is the abelianized matrix of the TRS
+/// - M_T is the abelianized matrix of T_s (the induced string rewriting system)
 pub struct ILPHeuristic {
     /// The target expression we're trying to reach
     target_paths: Vec<PathAbelianVector>,
-    /// The abelianized matrix of the TRS
+    /// The abelianized matrix of the induced string rewriting system T_s
     abelian_matrix: nalgebra::DMatrix<i32>,
     /// The string language for computing paths
     string_lang: Language,
@@ -172,8 +172,21 @@ impl ILPHeuristic {
             arities,
         );
         
-        // Compute the abelianized matrix for the TRS
-        let abelian_matrix = rules_to_abelian_matrix(trs.rules(), &string_lang);
+        // Convert TRS rules to induced string rewriting rules
+        // M_T is the abelianized matrix of T_s (the induced string rewriting system)
+        let mut induced_rules = Vec::new();
+        for rule in trs.rules() {
+            let rule_induced = crate::rewriting::strings::rule_to_induced_rules(
+                rule,
+                &lang,
+                &string_lang,
+                arities,
+            );
+            induced_rules.extend(rule_induced);
+        }
+        
+        // Compute the abelianized matrix from the induced rules
+        let abelian_matrix = rules_to_abelian_matrix(&induced_rules, &string_lang);
         
         Self {
             target_paths,
