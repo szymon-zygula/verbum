@@ -8,10 +8,12 @@ anyhow = "1.0.98"
 clap = { version = "4.5", features = ["derive"] }
 colored = "2.0.0"
 csv = "1.4"
+good_lp = "1.14.2"
 itertools = "0.14.0"
 nalgebra = "0.34.1"
 pest = "2.8.1"
 pest_derive = "2.8.1"
+priority-queue = "2.7.0"
 rand = "0.8"
 rayon = "1.10.0"
 serde = { version = "1.0", features = ["derive"] }
