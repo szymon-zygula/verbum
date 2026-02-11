@@ -2,6 +2,68 @@
 //!
 //! This module provides traits and implementations for heuristics that estimate
 //! the lower bound distance between expressions in a term rewriting system.
+//!
+//! # Mathematical Background
+//!
+//! The ILP heuristic implements the following formula:
+//!
+//! ```text
+//! h(e) = max_{v ∈ V_{e,e'}} min_{α ∈ Ω^e_v} max_{ω ∈ Ω^{e'}_v} θ(M_T, a(ω) - a(α))
+//! ```
+//!
+//! Where:
+//! - `V_{e,e'}` is the set of variables appearing in `e` or `e'`
+//! - `Ω^e_v` is the set of all paths in `e` from root to variable `v`
+//! - `a(p)` is the abelianized vector of path `p`
+//! - `θ(A, d)` solves: minimize 1^T x subject to Ax = d, x ≥ 0, x integer
+//! - `M_T` is the abelianized matrix of the TRS
+//!
+//! Conventions:
+//! - `min_{x ∈ ∅} y = ∞`
+//! - `max_{x ∈ ∅} y = 0`
+//! - If the ILP has no solution, `θ(A, d) = ∞`
+//!
+//! # Examples
+//!
+//! Creating and using an ILP heuristic:
+//!
+//! ```rust,ignore
+//! use verbum::{
+//!     language::{Language, arities::Arities},
+//!     macros::rules,
+//!     rewriting::{
+//!         heuristic::{Heuristic, ILPHeuristic},
+//!         system::TermRewritingSystem,
+//!     },
+//!     compact::SinglyCompact,
+//! };
+//! use std::collections::HashMap;
+//!
+//! let lang = Language::default()
+//!     .add_symbol("+")
+//!     .add_symbol("*");
+//!
+//! let mut arities_map = HashMap::new();
+//! arities_map.insert(0, 2);
+//! arities_map.insert(1, 2);
+//! let arities = Arities::from(arities_map);
+//!
+//! let rules = rules!(lang;
+//!     "(+ $0 $1)" => "(* $0 $1)"
+//! );
+//! let trs = TermRewritingSystem::new(lang.clone(), rules);
+//!
+//! let target = lang.parse("(* $0 $1)").unwrap();
+//! let current = lang.parse("(+ $0 $1)").unwrap();
+//!
+//! let heuristic = ILPHeuristic::new(&target, &trs, &arities);
+//! let distance = heuristic.lower_bound_dist(&current);
+//!
+//! match distance {
+//!     SinglyCompact::Finite(d) => println!("Distance: {}", d),
+//!     SinglyCompact::Infinite => println!("Target unreachable"),
+//! }
+//! ```
 
 use crate::compact::SinglyCompact;
 use crate::language::{Language, arities::Arities, expression::{Expression, VariableId}};

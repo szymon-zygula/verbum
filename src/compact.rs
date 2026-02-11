@@ -2,6 +2,47 @@
 //!
 //! This module provides the `SinglyCompact` enum which can represent either
 //! a finite value of type T or positive infinity.
+//!
+//! # Examples
+//!
+//! Basic usage:
+//!
+//! ```
+//! use verbum::compact::SinglyCompact;
+//!
+//! let finite = SinglyCompact::Finite(42);
+//! let infinite: SinglyCompact<i32> = SinglyCompact::Infinite;
+//!
+//! assert!(finite.is_finite());
+//! assert!(infinite.is_infinite());
+//! ```
+//!
+//! Arithmetic operations:
+//!
+//! ```
+//! use verbum::compact::SinglyCompact;
+//!
+//! let a = SinglyCompact::Finite(10);
+//! let b = SinglyCompact::Finite(20);
+//! let inf: SinglyCompact<i32> = SinglyCompact::Infinite;
+//!
+//! assert_eq!(a + b, SinglyCompact::Finite(30));
+//! assert_eq!(a + inf, SinglyCompact::Infinite);
+//! ```
+//!
+//! Ordering and comparison:
+//!
+//! ```
+//! use verbum::compact::SinglyCompact;
+//!
+//! let a = SinglyCompact::Finite(1);
+//! let b = SinglyCompact::Finite(2);
+//! let inf: SinglyCompact<i32> = SinglyCompact::Infinite;
+//!
+//! assert!(a < b);
+//! assert!(b < inf);
+//! assert_eq!(inf, inf);
+//! ```
 
 use std::cmp::{Ordering, PartialOrd};
 use std::fmt;
